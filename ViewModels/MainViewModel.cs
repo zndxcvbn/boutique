@@ -213,21 +213,23 @@ public class MainViewModel : ReactiveObject
 
     private async Task AutoMatchAsync()
     {
-        await Task.Run(() =>
+        StatusMessage = "Auto-matching armors...";
+
+        var sourceList = SourceArmors.Select(vm => vm.Armor).ToList();
+        var targetSnapshot = TargetArmors.ToList();
+        var targetArmors = targetSnapshot.Select(vm => vm.Armor).ToList();
+
+        var viewModels = await Task.Run(() =>
         {
-            StatusMessage = "Auto-matching armors...";
-
-            var sourceList = SourceArmors.Select(vm => vm.Armor).ToList();
-            var targetList = TargetArmors.Select(vm => vm.Armor).ToList();
-
-            var matchResults = _matchingService.AutoMatchArmors(sourceList, targetList, AutoMatchThreshold);
-
-            Matches = new ObservableCollection<ArmorMatchViewModel>(
-                matchResults.Select(m => new ArmorMatchViewModel(m, TargetArmors.ToList(), _mutagenService.LinkCache)));
-
-            var matchedCount = Matches.Count(m => m.Match.TargetArmor != null);
-            StatusMessage = $"Auto-matched {matchedCount}/{Matches.Count} armors";
+            var matchResults = _matchingService.AutoMatchArmors(sourceList, targetArmors, AutoMatchThreshold);
+            return matchResults
+                .Select(m => new ArmorMatchViewModel(m, targetSnapshot, _mutagenService.LinkCache))
+                .ToList();
         });
+
+        Matches = new ObservableCollection<ArmorMatchViewModel>(viewModels);
+        var matchedCount = Matches.Count(m => m.Match.TargetArmor != null);
+        StatusMessage = $"Auto-matched {matchedCount}/{Matches.Count} armors";
     }
 
     private async Task CreatePatchAsync()

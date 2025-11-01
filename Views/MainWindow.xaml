@@ -7,6 +7,11 @@
         mc:Ignorable="d"
         Title="Requiem Glam Patcher" Height="800" Width="1400"
         WindowStartupLocation="CenterScreen">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisConverter"/>
+        <local:InverseBooleanConverter x:Key="InverseBoolConverter"/>
+    </Window.Resources>
+
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -51,7 +56,7 @@
                 <TextBlock Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2"
                            Text="{Binding Settings.DetectionSource}"
                            FontStyle="Italic"
-                           Foreground="{Binding Settings.IsRunningFromMO2, Converter={StaticResource MO2ColorConverter}}"
+                           Foreground="Green"
                            Margin="5"/>
             </Grid>
         </GroupBox>
@@ -186,10 +191,4 @@
                     Padding="20,10" FontSize="14" FontWeight="Bold"/>
         </StackPanel>
     </Grid>
-
-    <Window.Resources>
-        <BooleanToVisibilityConverter x:Key="BoolToVisConverter"/>
-        <local:InverseBooleanConverter x:Key="InverseBoolConverter"/>
-        <local:BooleanToColorConverter x:Key="MO2ColorConverter"/>
-    </Window.Resources>
 </Window>

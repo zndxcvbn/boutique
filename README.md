@@ -38,6 +38,16 @@ A WPF application for Skyrim Special Edition modding that syncs armor and clothi
 
 Or open `RequiemGlamPatcher.sln` in Visual Studio 2022 and build.
 
+## Publishing
+
+Run the PowerShell script to produce a ready-to-ship single-file EXE:
+
+```powershell
+pwsh scripts/publish-win.ps1
+```
+
+Adjust `-Configuration`, `-Runtime`, or add `-FrameworkDependent` if you need a framework-dependent build. Outputs land in `artifacts/publish/<runtime>/`.
+
 ## Running from Mod Organizer 2 (Recommended!)
 
 The easiest way to use RequiemGlamPatcher is to run it directly from Mod Organizer 2. It will automatically detect your Skyrim data path and all loaded mods!
