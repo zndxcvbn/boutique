@@ -6,6 +6,7 @@ using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Binary.Parameters;
 using Mutagen.Bethesda.Plugins.Records;
 using Mutagen.Bethesda.Skyrim;
+using Mutagen.Bethesda.Strings;
 using Noggog;
 using RequiemGlamPatcher.Models;
 
@@ -86,7 +87,9 @@ public class PatchingService(IMutagenService mutagenService, ILoggingService log
                     patchMod = new SkyrimMod(modKey, SkyrimRelease.SkyrimSE);
                 }
 
-                requiredMasters.UnionWith(patchMod.ModHeader.MasterReferences.Select(m => m.Master));
+                var existingMasters = patchMod.ModHeader.MasterReferences?
+                    .Select(m => m.Master) ?? Enumerable.Empty<ModKey>();
+                requiredMasters.UnionWith(existingMasters);
 
                 var current = 0;
                 var total = validMatches.Count;
@@ -141,6 +144,120 @@ public class PatchingService(IMutagenService mutagenService, ILoggingService log
             {
                 _logger.Error(ex, "Error creating patch destined for {OutputPath}", outputPath);
                 return (false, $"Error creating patch: {ex.Message}");
+            }
+        });
+    }
+
+    public async Task<(bool success, string message, IReadOnlyList<OutfitCreationResult> results)> CreateOrUpdateOutfitsAsync(
+        IEnumerable<OutfitCreationRequest> outfits,
+        string outputPath,
+        IProgress<(int current, int total, string message)>? progress = null)
+    {
+        return await Task.Run(() =>
+        {
+            try
+            {
+                var outfitList = outfits.ToList();
+                if (outfitList.Count == 0)
+                {
+                    return (false, "No outfits to create.", (IReadOnlyList<OutfitCreationResult>)Array.Empty<OutfitCreationResult>());
+                }
+
+                if (!mutagenService.IsInitialized)
+                {
+                    return (false, "Mutagen service is not initialized. Please set the Skyrim data path first.", (IReadOnlyList<OutfitCreationResult>)Array.Empty<OutfitCreationResult>());
+                }
+
+                _logger.Information("Beginning outfit creation. Destination: {OutputPath}. OutfitCount={Count}", outputPath, outfitList.Count);
+
+                var requiredMasters = new HashSet<ModKey>();
+                var modKey = ModKey.FromFileName(Path.GetFileName(outputPath));
+
+                SkyrimMod patchMod;
+                if (File.Exists(outputPath))
+                {
+                    try
+                    {
+                        _logger.Information("Loading existing patch at {OutputPath} for outfit append.", outputPath);
+                        patchMod = SkyrimMod.CreateFromBinary(outputPath, SkyrimRelease.SkyrimSE);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Error(ex, "Failed to load existing patch for outfit creation at {OutputPath}.", outputPath);
+                        return (false, $"Unable to load existing patch: {ex.Message}", (IReadOnlyList<OutfitCreationResult>)Array.Empty<OutfitCreationResult>());
+                    }
+                }
+                else
+                {
+                    patchMod = new SkyrimMod(modKey, SkyrimRelease.SkyrimSE);
+                }
+
+                var existingOutfitMasters = patchMod.ModHeader.MasterReferences?
+                    .Select(m => m.Master) ?? Enumerable.Empty<ModKey>();
+                requiredMasters.UnionWith(existingOutfitMasters);
+
+                var results = new List<OutfitCreationResult>();
+                var total = outfitList.Count;
+                var current = 0;
+
+                foreach (var request in outfitList)
+                {
+                    current++;
+                    progress?.Report((current, total, $"Writing outfit {request.Name}..."));
+
+                    var existing = patchMod.Outfits
+                        .FirstOrDefault(o => string.Equals(o.EditorID, request.EditorId, StringComparison.OrdinalIgnoreCase));
+
+                    Outfit outfit;
+                    if (existing != null)
+                    {
+                        outfit = existing;
+                        _logger.Information("Updating existing outfit {EditorId} with {PieceCount} piece(s).", request.EditorId, request.Pieces.Count);
+                    }
+                    else
+                    {
+                        outfit = patchMod.Outfits.AddNew();
+                        outfit.EditorID = request.EditorId;
+                        _logger.Information("Creating new outfit {EditorId} with {PieceCount} piece(s).", request.EditorId, request.Pieces.Count);
+                    }
+
+                    var pieces = request.Pieces;
+                    if (pieces == null || pieces.Count == 0)
+                    {
+                        _logger.Warning("Skipping outfit {EditorId} because it has no armor pieces.", request.EditorId);
+                        continue;
+                    }
+
+                    var items = outfit.Items ??= new();
+                    items.Clear();
+                    foreach (var armor in pieces)
+                    {
+                        if (armor == null)
+                        {
+                            _logger.Warning("Outfit {EditorId} contains a null armor entry; skipping.", request.EditorId);
+                            continue;
+                        }
+
+                        items.Add(armor.ToLink());
+                        requiredMasters.Add(armor.FormKey.ModKey);
+                    }
+
+                    results.Add(new OutfitCreationResult(request.EditorId, outfit.FormKey));
+                }
+
+                EnsureMasters(patchMod, requiredMasters);
+                progress?.Report((total, total, "Writing patch file..."));
+
+                patchMod.WriteToBinary(outputPath);
+
+                _logger.Information("Outfit creation completed successfully. File: {OutputPath}", outputPath);
+
+                return (true, $"Saved {results.Count} outfit(s) to {outputPath}", (IReadOnlyList<OutfitCreationResult>)results);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "Error creating outfits destined for {OutputPath}", outputPath);
+                return (false, $"Error creating outfits: {ex.Message}", (IReadOnlyList<OutfitCreationResult>)Array.Empty<OutfitCreationResult>());
             }
         });
     }

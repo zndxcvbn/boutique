@@ -1,0 +1,9 @@
+using System.Collections.Generic;
+using Mutagen.Bethesda.Skyrim;
+
+namespace RequiemGlamPatcher.Models;
+
+public record OutfitCreationRequest(
+    string Name,
+    string EditorId,
+    IReadOnlyList<IArmorGetter> Pieces);

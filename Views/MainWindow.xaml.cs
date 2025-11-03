@@ -12,6 +12,7 @@ namespace RequiemGlamPatcher.Views;
 public partial class MainWindow : Window
 {
     private bool _syncingSourceSelection;
+    private bool _syncingOutfitSelection;
     private bool _initialized;
     private readonly CompositeDisposable _bindings = new();
 
@@ -39,7 +40,20 @@ public partial class MainWindow : Window
         });
         _bindings.Add(confirmDisposable);
 
+        var outfitNameDisposable = viewModel.RequestOutfitName.RegisterHandler(async interaction =>
+        {
+            var prompt = interaction.Input;
+            var result = await Dispatcher.InvokeAsync(() =>
+            {
+                var input = Microsoft.VisualBasic.Interaction.InputBox(prompt, "Create Outfit", string.Empty);
+                return string.IsNullOrWhiteSpace(input) ? null : input;
+            });
+            interaction.SetOutput(result);
+        });
+        _bindings.Add(outfitNameDisposable);
+
         SourceArmorsGrid.Loaded += (_, _) => SynchronizeSourceSelection();
+        OutfitArmorsGrid.Loaded += (_, _) => SynchronizeOutfitSelection();
 
         TargetArmorsGrid.Loaded += (_, _) =>
         {
@@ -110,11 +124,27 @@ public partial class MainWindow : Window
         viewModel.SelectedSourceArmors = selected;
     }
 
+    private void OutfitArmorsGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_syncingOutfitSelection)
+            return;
+
+        if (DataContext is not MainViewModel viewModel)
+            return;
+
+        var selected = OutfitArmorsGrid.SelectedItems.Cast<object>().ToList();
+        viewModel.SelectedOutfitArmors = selected;
+    }
+
     private void ViewModelOnPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(MainViewModel.SelectedSourceArmors))
         {
             SynchronizeSourceSelection();
+        }
+        else if (e.PropertyName == nameof(MainViewModel.SelectedOutfitArmors))
+        {
+            SynchronizeOutfitSelection();
         }
     }
 
@@ -135,6 +165,26 @@ public partial class MainWindow : Window
         finally
         {
             _syncingSourceSelection = false;
+        }
+    }
+
+    private void SynchronizeOutfitSelection()
+    {
+        if (DataContext is not MainViewModel viewModel)
+            return;
+
+        _syncingOutfitSelection = true;
+        try
+        {
+            OutfitArmorsGrid.SelectedItems.Clear();
+            foreach (var armor in viewModel.SelectedOutfitArmors.OfType<object>())
+            {
+                OutfitArmorsGrid.SelectedItems.Add(armor);
+            }
+        }
+        finally
+        {
+            _syncingOutfitSelection = false;
         }
     }
 

@@ -1,16 +1,19 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Reactive;
+using System.Reactive.Linq;
 using System.Reactive.Threading.Tasks;
 using System.Windows.Data;
 using System.Windows.Input;
 using ReactiveUI;
 using RequiemGlamPatcher.Models;
 using RequiemGlamPatcher.Services;
+using Mutagen.Bethesda.Skyrim;
 using Serilog;
 
 namespace RequiemGlamPatcher.ViewModels;
@@ -24,17 +27,27 @@ public class MainViewModel : ReactiveObject
 
     public Interaction<string, Unit> PatchCreatedNotification { get; } = new();
     public Interaction<string, bool> ConfirmOverwritePatch { get; } = new();
+    public Interaction<string, string?> RequestOutfitName { get; } = new();
 
     private ObservableCollection<string> _availablePlugins = new();
     private ObservableCollection<ArmorRecordViewModel> _sourceArmors = new();
     private ObservableCollection<ArmorRecordViewModel> _targetArmors = new();
     private ObservableCollection<ArmorMatchViewModel> _matches = new();
+    private ObservableCollection<ArmorRecordViewModel> _outfitArmors = new();
+    private ICollectionView? _outfitArmorsView;
     private ICollectionView? _sourceArmorsView;
     private ICollectionView? _targetArmorsView;
     private string _sourceSearchText = string.Empty;
     private string _targetSearchText = string.Empty;
+    private string _outfitSearchText = string.Empty;
     private IList _selectedSourceArmors = new List<ArmorRecordViewModel>();
+    private IList _selectedOutfitArmors = new List<ArmorRecordViewModel>();
     private ArmorRecordViewModel? _selectedTargetArmor;
+    private string? _selectedOutfitPlugin;
+    private readonly ObservableCollection<OutfitDraftViewModel> _outfitDrafts = new();
+    private bool _isCreatingOutfits;
+    private int _selectedOutfitArmorCount;
+    private bool _hasOutfitDrafts;
 
     private string? _selectedSourcePlugin;
     private string? _selectedTargetPlugin;
@@ -98,6 +111,91 @@ public class MainViewModel : ReactiveObject
             this.RaiseAndSetIfChanged(ref _targetSearchText, value);
             TargetArmorsView?.Refresh();
         }
+    }
+
+    public ObservableCollection<ArmorRecordViewModel> OutfitArmors
+    {
+        get => _outfitArmors;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _outfitArmors, value);
+            ConfigureOutfitArmorsView();
+        }
+    }
+
+    public ICollectionView? OutfitArmorsView
+    {
+        get => _outfitArmorsView;
+        private set
+        {
+            _outfitArmorsView = value;
+            this.RaisePropertyChanged(nameof(OutfitArmorsView));
+        }
+    }
+
+    public string OutfitSearchText
+    {
+        get => _outfitSearchText;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _outfitSearchText, value);
+            OutfitArmorsView?.Refresh();
+        }
+    }
+
+    public IList SelectedOutfitArmors
+    {
+        get => _selectedOutfitArmors;
+        set
+        {
+            if (value == _selectedOutfitArmors)
+                return;
+
+            _selectedOutfitArmors = value ?? Array.Empty<object>();
+            this.RaisePropertyChanged(nameof(SelectedOutfitArmors));
+            SelectedOutfitArmorCount = _selectedOutfitArmors.OfType<ArmorRecordViewModel>().Count();
+        }
+    }
+
+    public int SelectedOutfitArmorCount
+    {
+        get => _selectedOutfitArmorCount;
+        private set => this.RaiseAndSetIfChanged(ref _selectedOutfitArmorCount, value);
+    }
+
+    public string? SelectedOutfitPlugin
+    {
+        get => _selectedOutfitPlugin;
+        set
+        {
+            if (string.Equals(value, _selectedOutfitPlugin, StringComparison.Ordinal))
+                return;
+
+            this.RaiseAndSetIfChanged(ref _selectedOutfitPlugin, value);
+            _logger.Information("Selected outfit plugin set to {Plugin}", value ?? "<none>");
+
+            _ = LoadOutfitArmorsAsync(value ?? string.Empty);
+        }
+    }
+
+    public ReadOnlyObservableCollection<OutfitDraftViewModel> OutfitDrafts { get; }
+
+    public bool IsCreatingOutfits
+    {
+        get => _isCreatingOutfits;
+        private set
+        {
+            if (this.RaiseAndSetIfChanged(ref _isCreatingOutfits, value))
+            {
+                this.RaisePropertyChanged(nameof(IsProgressActive));
+            }
+        }
+    }
+
+    public bool HasOutfitDrafts
+    {
+        get => _hasOutfitDrafts;
+        private set => this.RaiseAndSetIfChanged(ref _hasOutfitDrafts, value);
     }
 
     public IList SelectedSourceArmors
@@ -225,8 +323,16 @@ public class MainViewModel : ReactiveObject
     public bool IsPatching
     {
         get => _isPatching;
-        set => this.RaiseAndSetIfChanged(ref _isPatching, value);
+        set
+        {
+            if (this.RaiseAndSetIfChanged(ref _isPatching, value))
+            {
+                this.RaisePropertyChanged(nameof(IsProgressActive));
+            }
+        }
     }
+
+    public bool IsProgressActive => IsPatching || IsCreatingOutfits;
 
     public string StatusMessage
     {
@@ -259,6 +365,8 @@ public class MainViewModel : ReactiveObject
     public ICommand MapSelectedCommand { get; }
     public ICommand MapGlamOnlyCommand { get; }
     public ReactiveCommand<ArmorMatchViewModel, Unit> RemoveMappingCommand { get; }
+    public ReactiveCommand<Unit, Unit> CreateOutfitCommand { get; }
+    public ReactiveCommand<Unit, Unit> SaveOutfitsCommand { get; }
 
     public MainViewModel(
         IMutagenService mutagenService,
@@ -275,6 +383,10 @@ public class MainViewModel : ReactiveObject
 
         ConfigureSourceArmorsView();
         ConfigureTargetArmorsView();
+        ConfigureOutfitArmorsView();
+        OutfitDrafts = new ReadOnlyObservableCollection<OutfitDraftViewModel>(_outfitDrafts);
+        HasOutfitDrafts = _outfitDrafts.Count > 0;
+        _outfitDrafts.CollectionChanged += (_, _) => HasOutfitDrafts = _outfitDrafts.Count > 0;
 
         InitializeCommand = ReactiveCommand.CreateFromTask(InitializeAsync);
         AutoMatchCommand = ReactiveCommand.CreateFromTask(AutoMatchAsync,
@@ -296,6 +408,12 @@ public class MainViewModel : ReactiveObject
                 x => x.SelectedSourceArmors,
                 sources => sources.OfType<ArmorRecordViewModel>().Any()));
         RemoveMappingCommand = ReactiveCommand.Create<ArmorMatchViewModel>(RemoveMapping);
+
+        var canCreateOutfit = this.WhenAnyValue(x => x.SelectedOutfitArmorCount, count => count > 0);
+        var canSaveOutfits = this.WhenAnyValue(x => x.HasOutfitDrafts, x => x.IsCreatingOutfits, (hasDrafts, isBusy) => hasDrafts && !isBusy);
+
+        CreateOutfitCommand = ReactiveCommand.CreateFromTask(CreateOutfitAsync, canCreateOutfit);
+        SaveOutfitsCommand = ReactiveCommand.CreateFromTask(SaveOutfitsAsync, canSaveOutfits);
     }
 
     private void ConfigureSourceArmorsView()
@@ -319,6 +437,15 @@ public class MainViewModel : ReactiveObject
         UpdateTargetSlotCompatibility();
     }
 
+    private void ConfigureOutfitArmorsView()
+    {
+        OutfitArmorsView = CollectionViewSource.GetDefaultView(_outfitArmors);
+        if (OutfitArmorsView != null)
+        {
+            OutfitArmorsView.Filter = OutfitArmorsFilter;
+        }
+    }
+
     private bool SourceArmorsFilter(object? item)
     {
         if (item is not ArmorRecordViewModel record)
@@ -333,6 +460,14 @@ public class MainViewModel : ReactiveObject
             return false;
 
         return record.MatchesSearch(TargetSearchText);
+    }
+
+    private bool OutfitArmorsFilter(object? item)
+    {
+        if (item is not ArmorRecordViewModel record)
+            return false;
+
+        return record.MatchesSearch(OutfitSearchText);
     }
 
     private void UpdateTargetSlotCompatibility()
@@ -603,6 +738,232 @@ public class MainViewModel : ReactiveObject
         finally
         {
             EndLoading();
+        }
+    }
+
+    private async Task LoadOutfitArmorsAsync(string plugin)
+    {
+        BeginLoading();
+
+        if (string.IsNullOrWhiteSpace(plugin))
+        {
+            OutfitArmors = new ObservableCollection<ArmorRecordViewModel>();
+            SelectedOutfitArmors = Array.Empty<ArmorRecordViewModel>();
+            OutfitSearchText = string.Empty;
+            EndLoading();
+            return;
+        }
+
+        StatusMessage = $"Loading armors from {plugin}...";
+        _logger.Information("Loading outfit armors from {Plugin}", plugin);
+
+        try
+        {
+            var armors = await _mutagenService.LoadArmorsFromPluginAsync(plugin);
+
+            if (!string.Equals(_selectedOutfitPlugin, plugin, StringComparison.OrdinalIgnoreCase))
+                return;
+
+            OutfitArmors = new ObservableCollection<ArmorRecordViewModel>(
+                armors.Select(a => new ArmorRecordViewModel(a, _mutagenService.LinkCache)));
+            OutfitSearchText = string.Empty;
+            OutfitArmorsView?.Refresh();
+
+            SelectedOutfitArmors = OutfitArmors.Any()
+                ? new List<ArmorRecordViewModel> { OutfitArmors[0] }
+                : Array.Empty<ArmorRecordViewModel>();
+
+            StatusMessage = $"Loaded {OutfitArmors.Count} armors from {plugin} for outfit creation.";
+            _logger.Information("Loaded {ArmorCount} outfit armors from {Plugin}", OutfitArmors.Count, plugin);
+        }
+        catch (Exception ex)
+        {
+            if (string.Equals(_selectedOutfitPlugin, plugin, StringComparison.OrdinalIgnoreCase))
+            {
+                StatusMessage = $"Error loading outfit armors: {ex.Message}";
+                _logger.Error(ex, "Error loading outfit armors from {Plugin}", plugin);
+            }
+        }
+        finally
+        {
+            EndLoading();
+        }
+    }
+
+    private bool ValidateOutfitPieces(IReadOnlyList<ArmorRecordViewModel> pieces, out string validationMessage)
+    {
+        var slotsInUse = new Dictionary<BipedObjectFlag, ArmorRecordViewModel>();
+
+        foreach (var piece in pieces)
+        {
+            var mask = piece.SlotMask;
+            if (mask == 0)
+                continue;
+
+            foreach (var flag in Enum.GetValues<BipedObjectFlag>())
+            {
+                var flagValue = (uint)flag;
+                if (flagValue == 0 || (flagValue & (flagValue - 1)) != 0)
+                    continue;
+
+                if (!mask.HasFlag(flag))
+                    continue;
+
+                if (slotsInUse.TryGetValue(flag, out var owner))
+                {
+                    validationMessage = $"Slot conflict on {flag}: {piece.DisplayName} overlaps {owner.DisplayName}.";
+                    return false;
+                }
+
+                slotsInUse[flag] = piece;
+            }
+        }
+
+        validationMessage = string.Empty;
+        return true;
+    }
+
+    private async Task CreateOutfitAsync()
+    {
+        var selectedPieces = SelectedOutfitArmors
+            .OfType<ArmorRecordViewModel>()
+            .Distinct()
+            .ToList();
+
+        if (!selectedPieces.Any())
+        {
+            StatusMessage = "Select at least one armor to create an outfit.";
+            _logger.Debug("CreateOutfitAsync invoked without any selected pieces.");
+            return;
+        }
+
+        if (!ValidateOutfitPieces(selectedPieces, out var validationMessage))
+        {
+            StatusMessage = validationMessage;
+            _logger.Warning("Outfit creation blocked due to slot conflict: {Message}", validationMessage);
+            return;
+        }
+
+        var namePrompt = "Enter the outfit name (also used as the EditorID):";
+        var outfitName = await RequestOutfitName.Handle(namePrompt).ToTask();
+
+        if (string.IsNullOrWhiteSpace(outfitName))
+        {
+            StatusMessage = "Outfit creation canceled.";
+            _logger.Information("Outfit creation canceled by user.");
+            return;
+        }
+
+        var trimmedName = outfitName.Trim();
+
+        if (_outfitDrafts.Any(o => string.Equals(o.EditorId, trimmedName, StringComparison.OrdinalIgnoreCase)))
+        {
+            StatusMessage = $"An outfit with editor ID '{trimmedName}' already exists.";
+            _logger.Warning("Duplicate outfit editor ID detected: {EditorId}", trimmedName);
+            return;
+        }
+
+        var draft = new OutfitDraftViewModel(
+            trimmedName,
+            trimmedName,
+            selectedPieces,
+            RemoveOutfitDraft,
+            RemoveOutfitPiece);
+
+        _outfitDrafts.Add(draft);
+
+        StatusMessage = $"Queued outfit '{trimmedName}' with {selectedPieces.Count} piece(s).";
+        _logger.Information("Queued outfit draft {EditorId} with {PieceCount} pieces.", trimmedName, selectedPieces.Count);
+    }
+
+    private void RemoveOutfitDraft(OutfitDraftViewModel draft)
+    {
+        if (_outfitDrafts.Remove(draft))
+        {
+            StatusMessage = $"Removed outfit '{draft.EditorId}'.";
+            _logger.Information("Removed outfit draft {EditorId}.", draft.EditorId);
+        }
+    }
+
+    private void RemoveOutfitPiece(OutfitDraftViewModel draft, ArmorRecordViewModel piece)
+    {
+        draft.RemovePiece(piece);
+        StatusMessage = $"Removed {piece.DisplayName} from outfit '{draft.EditorId}'.";
+        _logger.Information("Removed armor {Armor} from outfit draft {EditorId}.", piece.DisplayName, draft.EditorId);
+    }
+
+    private async Task SaveOutfitsAsync()
+    {
+        if (_outfitDrafts.Count == 0)
+        {
+            StatusMessage = "No outfits queued for creation.";
+            _logger.Debug("SaveOutfitsAsync invoked with no drafts.");
+            return;
+        }
+
+        var populatedDrafts = _outfitDrafts.Where(d => d.HasPieces).ToList();
+        if (populatedDrafts.Count == 0)
+        {
+            StatusMessage = "All queued outfits are empty.";
+            _logger.Warning("SaveOutfitsAsync found no outfit drafts with pieces.");
+            return;
+        }
+
+        IsCreatingOutfits = true;
+
+        try
+        {
+            ProgressCurrent = 0;
+            ProgressTotal = populatedDrafts.Count;
+
+            var requests = populatedDrafts
+                .Select(d => new OutfitCreationRequest(
+                    d.Name,
+                    d.EditorId,
+                    d.GetPieces().Select(p => p.Armor).ToList()))
+                .ToList();
+
+            var progress = new Progress<(int current, int total, string message)>(p =>
+            {
+                ProgressCurrent = p.current;
+                ProgressTotal = p.total;
+                StatusMessage = p.message;
+            });
+
+            var outputPath = Settings.FullOutputPath;
+            _logger.Information("Saving {Count} outfit(s) to patch {OutputPath}.", requests.Count, outputPath);
+
+            var (success, message, results) = await _patchingService.CreateOrUpdateOutfitsAsync(
+                requests,
+                outputPath,
+                progress);
+
+            StatusMessage = message;
+
+            if (success && results.Count > 0)
+            {
+                foreach (var result in results)
+                {
+                    var draft = _outfitDrafts.FirstOrDefault(d =>
+                        string.Equals(d.EditorId, result.EditorId, StringComparison.OrdinalIgnoreCase));
+
+                    if (draft != null)
+                    {
+                        draft.FormKey = result.FormKey;
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error creating outfits: {ex.Message}";
+            _logger.Error(ex, "Unexpected error while creating outfits.");
+        }
+        finally
+        {
+            IsCreatingOutfits = false;
+            ProgressCurrent = 0;
+            ProgressTotal = 0;
         }
     }
 

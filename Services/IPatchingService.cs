@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using RequiemGlamPatcher.Models;
 
 namespace RequiemGlamPatcher.Services;
@@ -16,4 +17,12 @@ public interface IPatchingService
     /// Validates that the patch can be created
     /// </summary>
     bool ValidatePatch(IEnumerable<ArmorMatch> matches, out string validationMessage);
+
+    /// <summary>
+    /// Creates or updates outfit records in the patch ESP
+    /// </summary>
+    Task<(bool success, string message, IReadOnlyList<OutfitCreationResult> results)> CreateOrUpdateOutfitsAsync(
+        IEnumerable<OutfitCreationRequest> outfits,
+        string outputPath,
+        IProgress<(int current, int total, string message)>? progress = null);
 }
