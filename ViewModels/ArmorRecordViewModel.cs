@@ -122,4 +122,12 @@ public class ArmorRecordViewModel : ReactiveObject
 
         return (SlotMask & other.SlotMask) != 0;
     }
+
+    public bool ConflictsWithSlot(ArmorRecordViewModel other)
+    {
+        if (SlotMask == 0 || other.SlotMask == 0)
+            return false;
+
+        return (SlotMask & other.SlotMask) != 0;
+    }
 }

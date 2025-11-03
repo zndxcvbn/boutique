@@ -823,21 +823,36 @@ public class MainViewModel : ReactiveObject
         return true;
     }
 
+    private static List<ArmorRecordViewModel> DistinctArmorPieces(IEnumerable<ArmorRecordViewModel> pieces)
+    {
+        return pieces
+            .Where(p => p != null)
+            .GroupBy(p => p.Armor.FormKey)
+            .Select(g => g.First())
+            .ToList();
+    }
+
     private async Task CreateOutfitAsync()
     {
         var selectedPieces = SelectedOutfitArmors
             .OfType<ArmorRecordViewModel>()
-            .Distinct()
             .ToList();
 
-        if (!selectedPieces.Any())
+        await CreateOutfitFromPiecesAsync(selectedPieces);
+    }
+
+    public async Task CreateOutfitFromPiecesAsync(IReadOnlyList<ArmorRecordViewModel> pieces)
+    {
+        var distinctPieces = DistinctArmorPieces(pieces);
+
+        if (!distinctPieces.Any())
         {
             StatusMessage = "Select at least one armor to create an outfit.";
-            _logger.Debug("CreateOutfitAsync invoked without any selected pieces.");
+            _logger.Debug("CreateOutfitFromPiecesAsync invoked without any valid pieces.");
             return;
         }
 
-        if (!ValidateOutfitPieces(selectedPieces, out var validationMessage))
+        if (!ValidateOutfitPieces(distinctPieces, out var validationMessage))
         {
             StatusMessage = validationMessage;
             _logger.Warning("Outfit creation blocked due to slot conflict: {Message}", validationMessage);
@@ -866,14 +881,56 @@ public class MainViewModel : ReactiveObject
         var draft = new OutfitDraftViewModel(
             trimmedName,
             trimmedName,
-            selectedPieces,
+            distinctPieces,
             RemoveOutfitDraft,
             RemoveOutfitPiece);
 
         _outfitDrafts.Add(draft);
 
-        StatusMessage = $"Queued outfit '{trimmedName}' with {selectedPieces.Count} piece(s).";
-        _logger.Information("Queued outfit draft {EditorId} with {PieceCount} pieces.", trimmedName, selectedPieces.Count);
+        StatusMessage = $"Queued outfit '{trimmedName}' with {distinctPieces.Count} piece(s).";
+        _logger.Information("Queued outfit draft {EditorId} with {PieceCount} pieces.", trimmedName, distinctPieces.Count);
+    }
+
+    public bool TryAddPiecesToDraft(OutfitDraftViewModel draft, IReadOnlyList<ArmorRecordViewModel> pieces)
+    {
+        if (draft == null)
+        {
+            StatusMessage = "Unable to determine which outfit to update.";
+            _logger.Warning("TryAddPiecesToDraft invoked without a target draft.");
+            return false;
+        }
+
+        var distinctPieces = DistinctArmorPieces(pieces);
+
+        if (distinctPieces.Count == 0)
+        {
+            StatusMessage = $"No new armor pieces to add to outfit '{draft.EditorId}'.";
+            _logger.Debug("TryAddPiecesToDraft invoked with no valid pieces for outfit {EditorId}.", draft.EditorId);
+            return false;
+        }
+
+        var (added, replaced) = draft.AddPieces(distinctPieces);
+
+        if (added.Count == 0)
+        {
+            StatusMessage = $"No new armor added to outfit '{draft.EditorId}'.";
+            _logger.Information("Drop onto outfit {EditorId} contained only duplicate pieces.", draft.EditorId);
+            return false;
+        }
+
+        StatusMessage = replaced.Count > 0
+            ? $"Added {added.Count} piece(s) to outfit '{draft.EditorId}' (replaced {replaced.Count} conflicting piece(s))."
+            : $"Added {added.Count} piece(s) to outfit '{draft.EditorId}'.";
+
+        _logger.Information(
+            "Added {AddedCount} armor(s) to outfit draft {EditorId}. Added: {AddedPieces}. Replaced: {ReplacedCount} ({ReplacedPieces}).",
+            added.Count,
+            draft.EditorId,
+            string.Join(", ", added.Select(a => a.DisplayName)),
+            replaced.Count,
+            replaced.Count > 0 ? string.Join(", ", replaced.Select(r => r.DisplayName)) : "none");
+
+        return true;
     }
 
     private void RemoveOutfitDraft(OutfitDraftViewModel draft)

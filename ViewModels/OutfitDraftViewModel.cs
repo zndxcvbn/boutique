@@ -78,6 +78,40 @@ public class OutfitDraftViewModel : ReactiveObject
         }
     }
 
+    public (IReadOnlyList<ArmorRecordViewModel> added, IReadOnlyList<ArmorRecordViewModel> replaced) AddPieces(IEnumerable<ArmorRecordViewModel> newPieces)
+    {
+        var added = new List<ArmorRecordViewModel>();
+        var replaced = new List<ArmorRecordViewModel>();
+
+        foreach (var piece in newPieces)
+        {
+            if (piece == null)
+                continue;
+
+            if (_pieces.Any(p => p.Armor.FormKey == piece.Armor.FormKey))
+                continue;
+
+            var collisions = _pieces.Where(existing => piece.ConflictsWithSlot(existing)).ToList();
+            foreach (var collision in collisions)
+            {
+                if (_pieces.Remove(collision))
+                {
+                    replaced.Add(collision);
+                }
+            }
+
+            _pieces.Add(piece);
+            added.Add(piece);
+        }
+
+        if (added.Count > 0 || replaced.Count > 0)
+        {
+            this.RaisePropertyChanged(nameof(HasPieces));
+        }
+
+        return (added, replaced);
+    }
+
     private void PiecesOnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         this.RaisePropertyChanged(nameof(HasPieces));

@@ -248,7 +248,12 @@ public class PatchingService(IMutagenService mutagenService, ILoggingService log
                 EnsureMasters(patchMod, requiredMasters);
                 progress?.Report((total, total, "Writing patch file..."));
 
-                patchMod.WriteToBinary(outputPath);
+                var writeParameters = new BinaryWriteParameters
+                {
+                    LowerRangeDisallowedHandler = new NoCheckIfLowerRangeDisallowed()
+                };
+
+                patchMod.WriteToBinary(outputPath, writeParameters);
 
                 _logger.Information("Outfit creation completed successfully. File: {OutputPath}", outputPath);
 

@@ -479,6 +479,9 @@
                                 <DataGrid x:Name="OutfitArmorsGrid"
                                           ItemsSource="{Binding OutfitArmorsView}"
                                           SelectionChanged="OutfitArmorsGrid_SelectionChanged"
+                                          MouseDoubleClick="OutfitArmorsGrid_MouseDoubleClick"
+                                          PreviewMouseLeftButtonDown="OutfitArmorsGrid_PreviewMouseLeftButtonDown"
+                                          MouseMove="OutfitArmorsGrid_MouseMove"
                                           AutoGenerateColumns="False"
                                           CanUserAddRows="False"
                                           IsReadOnly="True"
@@ -514,74 +517,111 @@
 
                         <GroupBox Grid.Column="2" Header="Queued Outfits" Padding="8">
                             <Grid>
-                                <TextBlock Text="No outfits queued. Select armors on the left and click Create Outfit."
-                                           Foreground="Gray" FontStyle="Italic"
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Center">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Visibility" Value="Visible"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding HasOutfitDrafts}" Value="True">
-                                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
 
-                                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                    <ItemsControl ItemsSource="{Binding OutfitDrafts}">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <Border Margin="0,0,0,10" Padding="8" BorderBrush="#FFD9D9D9" BorderThickness="1" CornerRadius="4">
-                                                    <StackPanel>
-                                                        <DockPanel Margin="0,0,0,6">
-                                                            <TextBlock Text="{Binding Header}" FontWeight="Bold" DockPanel.Dock="Left" VerticalAlignment="Center"/>
-                                                            <Button Content="Remove Outfit"
-                                                                    Command="{Binding RemoveSelfCommand}"
-                                                                    DockPanel.Dock="Right"
-                                                                    Padding="10,4"/>
-                                                        </DockPanel>
-                                                        <ItemsControl ItemsSource="{Binding Pieces}">
-                                                            <ItemsControl.ItemTemplate>
-                                                                <DataTemplate>
-                                                                    <Grid Margin="0,4,0,4">
-                                                                        <Grid.ColumnDefinitions>
-                                                                            <ColumnDefinition Width="*"/>
-                                                                            <ColumnDefinition Width="Auto"/>
-                                                                        </Grid.ColumnDefinitions>
-                                                                        <TextBlock Grid.Column="0"
-                                                                                   Text="{Binding SummaryLine}"
-                                                                                   VerticalAlignment="Center"
-                                                                                   TextWrapping="NoWrap"
-                                                                                   TextTrimming="CharacterEllipsis"/>
-                                                                        <Button Grid.Column="1" Content="Remove"
-                                                                                Command="{Binding DataContext.RemovePieceCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                                                CommandParameter="{Binding}"
-                                                                                Margin="6,0,0,0"/>
-                                                                    </Grid>
-                                                                </DataTemplate>
-                                                            </ItemsControl.ItemTemplate>
-                                                        </ItemsControl>
-                                                        <TextBlock Text="No pieces selected." Foreground="Gray" FontStyle="Italic" Margin="0,4,0,0">
-                                                            <TextBlock.Style>
-                                                                <Style TargetType="TextBlock">
-                                                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                                                    <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding HasPieces}" Value="False">
-                                                                            <Setter Property="Visibility" Value="Visible"/>
-                                                                        </DataTrigger>
-                                                                    </Style.Triggers>
-                                                                </Style>
-                                                            </TextBlock.Style>
-                                                        </TextBlock>
-                                                    </StackPanel>
-                                                </Border>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </ScrollViewer>
+                                <Border x:Name="NewOutfitDropZone"
+                                        Grid.Row="0"
+                                        Margin="0,0,0,10"
+                                        Padding="12"
+                                        Background="#08007ACC"
+                                        BorderBrush="#FF7FAFF6"
+                                        BorderThickness="1"
+                                        CornerRadius="4"
+                                        AllowDrop="True"
+                                        DragEnter="NewOutfitDropZone_OnDragEnter"
+                                        DragLeave="NewOutfitDropZone_OnDragLeave"
+                                        DragOver="NewOutfitDropZone_OnDragOver"
+                                        Drop="NewOutfitDropZone_OnDrop">
+                                    <TextBlock Text="Drop armors here to create a new outfit (double-click an armor to quick add)."
+                                               Foreground="Gray"
+                                               FontStyle="Italic"
+                                               TextWrapping="Wrap"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"/>
+                                </Border>
+
+                                <Grid Grid.Row="1">
+                                    <TextBlock Text="No outfits queued. Select armors on the left and click Create Outfit."
+                                               Foreground="Gray" FontStyle="Italic"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding HasOutfitDrafts}" Value="True">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <ItemsControl ItemsSource="{Binding OutfitDrafts}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Margin="0,0,0,10"
+                                                            Padding="8"
+                                                            BorderBrush="#FFD9D9D9"
+                                                            BorderThickness="1"
+                                                            CornerRadius="4"
+                                                            AllowDrop="True"
+                                                            DragEnter="OutfitDraftBorder_OnDragEnter"
+                                                            DragLeave="OutfitDraftBorder_OnDragLeave"
+                                                            DragOver="OutfitDraftBorder_OnDragOver"
+                                                            Drop="OutfitDraftBorder_OnDrop">
+                                                        <StackPanel>
+                                                            <DockPanel Margin="0,0,0,6">
+                                                                <TextBlock Text="{Binding Header}" FontWeight="Bold" DockPanel.Dock="Left" VerticalAlignment="Center"/>
+                                                                <Button Content="Remove Outfit"
+                                                                        Command="{Binding RemoveSelfCommand}"
+                                                                        DockPanel.Dock="Right"
+                                                                        Padding="10,4"/>
+                                                            </DockPanel>
+                                                            <ItemsControl ItemsSource="{Binding Pieces}">
+                                                                <ItemsControl.ItemTemplate>
+                                                                    <DataTemplate>
+                                                                        <Grid Margin="0,4,0,4">
+                                                                            <Grid.ColumnDefinitions>
+                                                                                <ColumnDefinition Width="*"/>
+                                                                                <ColumnDefinition Width="Auto"/>
+                                                                            </Grid.ColumnDefinitions>
+                                                                            <TextBlock Grid.Column="0"
+                                                                                       Text="{Binding SummaryLine}"
+                                                                                       VerticalAlignment="Center"
+                                                                                       TextWrapping="NoWrap"
+                                                                                       TextTrimming="CharacterEllipsis"/>
+                                                                            <Button Grid.Column="1" Content="Remove"
+                                                                                    Command="{Binding DataContext.RemovePieceCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                                    CommandParameter="{Binding}"
+                                                                                    Margin="6,0,0,0"/>
+                                                                        </Grid>
+                                                                    </DataTemplate>
+                                                                </ItemsControl.ItemTemplate>
+                                                            </ItemsControl>
+                                                            <TextBlock Text="No pieces selected." Foreground="Gray" FontStyle="Italic" Margin="0,4,0,0">
+                                                                <TextBlock.Style>
+                                                                    <Style TargetType="TextBlock">
+                                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding HasPieces}" Value="False">
+                                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </TextBlock.Style>
+                                                            </TextBlock>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </Grid>
                             </Grid>
                         </GroupBox>
                     </Grid>
