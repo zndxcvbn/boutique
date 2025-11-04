@@ -22,6 +22,8 @@
     <PackageReference Include="Serilog.Extensions.Logging" Version="9.0.2" />
     <PackageReference Include="Serilog.Sinks.Async" Version="2.1.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+    <PackageReference Include="Nifly" Version="1.0.0" />
+    <PackageReference Include="Pfim" Version="0.11.3" />
   </ItemGroup>
 
 </Project>

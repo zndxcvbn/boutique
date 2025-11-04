@@ -4,7 +4,9 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Linq;
 using System.Reactive;
+using System.Reactive.Linq;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using Mutagen.Bethesda.Plugins;
 using ReactiveUI;
 
@@ -17,6 +19,7 @@ public class OutfitDraftViewModel : ReactiveObject
     private readonly ObservableCollection<ArmorRecordViewModel> _pieces;
     private readonly Action<OutfitDraftViewModel> _removeDraft;
     private readonly Action<OutfitDraftViewModel, ArmorRecordViewModel> _removePiece;
+    private readonly Func<OutfitDraftViewModel, Task> _previewDraft;
     private string _name = string.Empty;
     private string _editorId = string.Empty;
     private string _previousValidName = "Outfit";
@@ -27,10 +30,12 @@ public class OutfitDraftViewModel : ReactiveObject
         string editorId,
         IEnumerable<ArmorRecordViewModel> pieces,
         Action<OutfitDraftViewModel> removeDraft,
-        Action<OutfitDraftViewModel, ArmorRecordViewModel> removePiece)
+        Action<OutfitDraftViewModel, ArmorRecordViewModel> removePiece,
+        Func<OutfitDraftViewModel, Task> previewDraft)
     {
-        _removeDraft = removeDraft;
-        _removePiece = removePiece;
+        _removeDraft = removeDraft ?? throw new ArgumentNullException(nameof(removeDraft));
+        _removePiece = removePiece ?? throw new ArgumentNullException(nameof(removePiece));
+        _previewDraft = previewDraft ?? throw new ArgumentNullException(nameof(previewDraft));
 
         SetNameInternal(string.IsNullOrWhiteSpace(name) ? editorId : name, updateHistory: false);
 
@@ -40,6 +45,8 @@ public class OutfitDraftViewModel : ReactiveObject
 
         RemovePieceCommand = ReactiveCommand.Create<ArmorRecordViewModel>(piece => _removePiece(this, piece));
         RemoveSelfCommand = ReactiveCommand.Create(() => _removeDraft(this));
+        PreviewCommand = ReactiveCommand.CreateFromTask(() => _previewDraft(this),
+            this.WhenAnyValue(x => x.HasPieces));
     }
 
     public Guid Id { get; } = Guid.NewGuid();
@@ -77,6 +84,8 @@ public class OutfitDraftViewModel : ReactiveObject
     public ReactiveCommand<ArmorRecordViewModel, Unit> RemovePieceCommand { get; }
 
     public ReactiveCommand<Unit, Unit> RemoveSelfCommand { get; }
+
+    public ReactiveCommand<Unit, Unit> PreviewCommand { get; }
 
     public IReadOnlyList<ArmorRecordViewModel> GetPieces() => _pieces.ToList();
 

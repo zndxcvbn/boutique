@@ -45,6 +45,21 @@ public partial class MainWindow : Window
         });
         _bindings.Add(outfitNameDisposable);
 
+        var previewDisposable = viewModel.ShowPreview.RegisterHandler(async interaction =>
+        {
+            var scene = interaction.Input;
+            await Dispatcher.InvokeAsync(() =>
+            {
+                var window = new OutfitPreviewWindow(scene)
+                {
+                    Owner = this
+                };
+                window.Show();
+            });
+            interaction.SetOutput(Unit.Default);
+        });
+        _bindings.Add(previewDisposable);
+
         Closed += (_, _) =>
         {
             _bindings.Dispose();

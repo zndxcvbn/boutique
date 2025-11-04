@@ -25,11 +25,13 @@ public class MainViewModel : ReactiveObject
     private readonly IMutagenService _mutagenService;
     private readonly IMatchingService _matchingService;
     private readonly IPatchingService _patchingService;
+    private readonly IArmorPreviewService _previewService;
     private readonly ILogger _logger;
 
     public Interaction<string, Unit> PatchCreatedNotification { get; } = new();
     public Interaction<string, bool> ConfirmOverwritePatch { get; } = new();
     public Interaction<string, string?> RequestOutfitName { get; } = new();
+    public Interaction<ArmorPreviewScene, Unit> ShowPreview { get; } = new();
 
     private ObservableCollection<string> _availablePlugins = new();
     private ObservableCollection<ArmorRecordViewModel> _sourceArmors = new();
@@ -377,6 +379,7 @@ public class MainViewModel : ReactiveObject
         IMutagenService mutagenService,
         IMatchingService matchingService,
         IPatchingService patchingService,
+        IArmorPreviewService previewService,
         SettingsViewModel settingsViewModel,
         DistributionViewModel distributionViewModel,
         ILoggingService loggingService)
@@ -384,6 +387,7 @@ public class MainViewModel : ReactiveObject
         _mutagenService = mutagenService;
         _matchingService = matchingService;
         _patchingService = patchingService;
+        _previewService = previewService;
         Settings = settingsViewModel;
         Distribution = distributionViewModel;
         _logger = loggingService.ForContext<MainViewModel>();
@@ -931,13 +935,37 @@ public class MainViewModel : ReactiveObject
             sanitizedName,
             distinctPieces,
             RemoveOutfitDraft,
-            RemoveOutfitPiece);
+            RemoveOutfitPiece,
+            PreviewDraftAsync);
 
         draft.PropertyChanged += OutfitDraftOnPropertyChanged;
         _outfitDrafts.Add(draft);
 
         StatusMessage = $"Queued outfit '{draft.Name}' with {distinctPieces.Count} piece(s).";
         _logger.Information("Queued outfit draft {EditorId} with {PieceCount} pieces.", draft.EditorId, distinctPieces.Count);
+    }
+
+    public async Task PreviewDraftAsync(OutfitDraftViewModel draft)
+    {
+        var pieces = draft.GetPieces();
+        if (pieces.Count == 0)
+        {
+            StatusMessage = $"Outfit '{draft.EditorId}' has no pieces to preview.";
+            return;
+        }
+
+        try
+        {
+            StatusMessage = $"Building preview for '{draft.EditorId}'...";
+            var scene = await _previewService.BuildPreviewAsync(pieces, GenderedModelVariant.Female);
+            await ShowPreview.Handle(scene);
+            StatusMessage = $"Preview ready for '{draft.EditorId}'.";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Preview error: {ex.Message}";
+            _logger.Error(ex, "Failed to build outfit preview for {EditorId}.", draft.EditorId);
+        }
     }
 
     public bool TryAddPiecesToDraft(OutfitDraftViewModel draft, IReadOnlyList<ArmorRecordViewModel> pieces)

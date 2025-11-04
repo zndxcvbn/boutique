@@ -169,9 +169,15 @@
                                                         <TextBlock Text="{Binding EditorId, StringFormat='ID: {0}'}" VerticalAlignment="Center" Margin="0,0,12,0"/>
                                                         <TextBlock Text="{Binding FormIdDisplay, StringFormat='FormID {0}'}" VerticalAlignment="Center"/>
                                                     </StackPanel>
-                                                    <Button Grid.Column="1" Content="Remove Outfit"
-                                                            Command="{Binding RemoveSelfCommand}"
-                                                            Padding="10,4"/>
+                                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <Button Content="Preview"
+                                                                Command="{Binding PreviewCommand}"
+                                                                Padding="10,4"
+                                                                Margin="0,0,8,0"/>
+                                                        <Button Content="Remove Outfit"
+                                                                Command="{Binding RemoveSelfCommand}"
+                                                                Padding="10,4"/>
+                                                    </StackPanel>
                                                 </Grid>
                                                 <ItemsControl ItemsSource="{Binding Pieces}">
                                                     <ItemsControl.ItemTemplate>

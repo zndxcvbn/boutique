@@ -36,6 +36,7 @@ public partial class App : Application
         builder.RegisterType<MutagenService>().As<IMutagenService>().SingleInstance();
         builder.RegisterType<PatchingService>().As<IPatchingService>().SingleInstance();
         builder.RegisterType<MatchingService>().As<IMatchingService>().SingleInstance();
+        builder.RegisterType<ArmorPreviewService>().As<IArmorPreviewService>().SingleInstance();
         builder.RegisterType<DistributionDiscoveryService>().As<IDistributionDiscoveryService>().SingleInstance();
 
         // Register ViewModels
