@@ -31,7 +31,7 @@ public partial class OutfitPreviewWindow : Window
     private readonly DirectionalLight3D _frontLeftLight = new();
     private readonly DirectionalLight3D _frontRightLight = new();
     private readonly DirectionalLight3D _backLight = new();
-    private readonly DirectionalLight3D _cameraAlignedLight = new();
+    private readonly DirectionalLight3D _frontalLight = new();
     private readonly DefaultEffectsManager _effectsManager = new();
     private PerspectiveCamera? _initialCamera;
 
@@ -75,14 +75,12 @@ public partial class OutfitPreviewWindow : Window
         PreviewViewport.Items.Add(_frontLeftLight);
         PreviewViewport.Items.Add(_frontRightLight);
         PreviewViewport.Items.Add(_backLight);
-        var flipMatrix = new Matrix3D(
-            -1, 0, 0, 0,
-             0,-1, 0, 0,
-             0, 0, 1, 0,
-             0, 0, 0, 1);
-        _meshGroup.Transform = new MatrixTransform3D(flipMatrix);
+        PreviewViewport.Items.Add(_frontalLight);
+        _meshGroup.Transform = Transform3D.Identity;
 
         PreviewViewport.Items.Add(_meshGroup);
+        PreviewViewport.CameraChanged += OnViewportCameraChanged;
+        UpdateFrontalLightDirection();
     }
 
     private void BuildScene()
@@ -222,8 +220,8 @@ public partial class OutfitPreviewWindow : Window
         var camera = new PerspectiveCamera
         {
             FieldOfView = 37,
-            Position = new Point3D(0, -baseDistance, height),
-            LookDirection = new Vector3D(0, baseDistance, -height),
+            Position = new Point3D(0, baseDistance, height),
+            LookDirection = new Vector3D(0, -baseDistance, -height),
             UpDirection = new Vector3D(0, 0, 1)
         };
 
@@ -233,25 +231,23 @@ public partial class OutfitPreviewWindow : Window
 
     private void ConfigureLights()
     {
-        _ambientLight.Color = ToMediaColor(new Color4(0.25f, 0.25f, 0.25f, 1f));
+        // Ambient light from BodySlide config (20 → 0.2)
+        _ambientLight.Color = ToMediaColor(new Color4(0.2f, 0.2f, 0.2f, 1f));
 
-        _frontLeftLight.Color = ToMediaColor(new Color4(1.15f, 1.12f, 1.08f, 1f));
-        _frontLeftLight.Direction = Normalize(new Vector3D(0.1, -0.7, -1.0));
+        // Front-left key light (Directional0: -0.90, 0.10, 1.00)
+        _frontLeftLight.Color = ToMediaColor(new Color4(0.6f, 0.6f, 0.6f, 1f));
+        _frontLeftLight.Direction = new Vector3D(-0.667124384994991, 0.07412493166611012, 0.7412493166611012);
 
-        _frontRightLight.Color = ToMediaColor(new Color4(0.5f, 0.48f, 0.46f, 1f));
-        _frontRightLight.Direction = Normalize(new Vector3D(-0.8, -0.4, -0.9));
+        // Front-right fill light (Directional1: 0.70, 0.10, 1.00)
+        _frontRightLight.Color = ToMediaColor(new Color4(0.6f, 0.6f, 0.6f, 1f));
+        _frontRightLight.Direction = new Vector3D(0.5715476066494083, 0.08164965809277261, 0.8164965809277261);
 
-        _backLight.Color = ToMediaColor(new Color4(0.85f, 0.88f, 0.98f, 1f));
-        _backLight.Direction = Normalize(new Vector3D(0.2, 0.6, 0.7));
-    }
+        // Back rim light (Directional2: 0.30, 0.20, -1.00)
+        _backLight.Color = ToMediaColor(new Color4(0.85f, 0.85f, 0.85f, 1f));
+        _backLight.Direction = new Vector3D(0.2822162605150792, 0.18814417367671948, -0.9407208683835974);
 
-    private static Vector3D Normalize(Vector3D direction)
-    {
-        var length = Math.Sqrt(direction.X * direction.X + direction.Y * direction.Y + direction.Z * direction.Z);
-        if (length < 1e-6)
-            return new Vector3D(0, -1, 0);
-
-        return new Vector3D(direction.X / length, direction.Y / length, direction.Z / length);
+        // Frontal light: matches BodySlide "frontal" intensity (20 → 0.2)
+        _frontalLight.Color = ToMediaColor(new Color4(0.2f, 0.2f, 0.2f, 1f));
     }
 
     private static Material CreateMaterialForMesh(PreviewMeshShape mesh)
@@ -265,9 +261,9 @@ public partial class OutfitPreviewWindow : Window
         return new PhongMaterial
         {
             DiffuseColor = diffuse,
-            AmbientColor = new Color4(diffuse.Red * 0.18f, diffuse.Green * 0.18f, diffuse.Blue * 0.18f, 1f),
+            AmbientColor = new Color4(diffuse.Red * 0.2f, diffuse.Green * 0.2f, diffuse.Blue * 0.2f, 1f),
             SpecularColor = new Color4(0.1f, 0.1f, 0.1f, 1f),
-            SpecularShininess = 28f,
+            SpecularShininess = 32f,
             EmissiveColor = new Color4(0f, 0f, 0f, 1f)
         };
     }
@@ -292,10 +288,10 @@ public partial class OutfitPreviewWindow : Window
             var material = new PhongMaterial
             {
                 DiffuseMap = new TextureModel(texturePath),
-                DiffuseColor = new Color4(1.02f, 1.01f, 1.0f, 1f),
-                AmbientColor = new Color4(0.16f, 0.16f, 0.16f, 1f),
+                DiffuseColor = new Color4(1f, 1f, 1f, 1f),
+                AmbientColor = new Color4(0.2f, 0.2f, 0.2f, 1f),
                 SpecularColor = new Color4(0.1f, 0.1f, 0.1f, 1f),
-                SpecularShininess = 28f,
+                SpecularShininess = 32f,
                 EmissiveColor = new Color4(0f, 0f, 0f, 1f)
             };
 
@@ -306,6 +302,24 @@ public partial class OutfitPreviewWindow : Window
         {
             Log.Warning(ex, "Failed to create textured material for {TexturePath}", texturePath);
             return null;
+        }
+    }
+
+    private void OnViewportCameraChanged(object? sender, RoutedEventArgs e)
+    {
+        UpdateFrontalLightDirection();
+    }
+
+    private void UpdateFrontalLightDirection()
+    {
+        if (PreviewViewport.Camera is HelixToolkit.Wpf.SharpDX.ProjectionCamera camera)
+        {
+            var direction = camera.LookDirection;
+            if (direction.LengthSquared > 1e-6)
+            {
+                direction.Normalize();
+                _frontalLight.Direction = new Vector3D(-direction.X, -direction.Y, -direction.Z);
+            }
         }
     }
 
@@ -361,6 +375,7 @@ public partial class OutfitPreviewWindow : Window
             PreviewViewport.Camera = (PerspectiveCamera)_initialCamera.Clone();
         }
 
+        UpdateFrontalLightDirection();
     }
 
     private void OnClose(object sender, RoutedEventArgs e)

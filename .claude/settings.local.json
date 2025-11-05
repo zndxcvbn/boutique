@@ -13,7 +13,9 @@
       "Bash(dotnet list package:*)",
       "Bash(dotnet add package:*)",
       "Bash(dotnet add:*)",
-      "Bash(dotnet publish:*)"
+      "Bash(dotnet publish:*)",
+      "Bash(cat:*)",
+      "Bash(pwsh scripts/publish-win.ps1)"
     ],
     "deny": [],
     "ask": []
