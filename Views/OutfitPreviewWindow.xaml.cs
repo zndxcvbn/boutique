@@ -224,23 +224,23 @@ public partial class OutfitPreviewWindow : Window
 
     private void ConfigureLights()
     {
-        // Ambient light from BodySlide config (20 → 0.2)
-        _ambientLight.Color = ToMediaColor(new Color4(0.2f, 0.2f, 0.2f, 1f));
+        // Ambient light - very high to fill in all shadows like BodySlide
+        _ambientLight.Color = ToMediaColor(new Color4(0.5f, 0.5f, 0.5f, 1f));
 
-        // // Front-left key light (Directional0: -0.90, 0.10, 1.00)
-        _frontLeftLight.Color = ToMediaColor(new Color4(1f, 1f, 1f, 1f));
+        // Front-left key light - extremely bright main light
+        _frontLeftLight.Color = ToMediaColor(new Color4(2.2f, 2.2f, 2.2f, 1f));
         _frontLeftLight.Direction = new Vector3D(-0.667124384994991, 0.07412493166611012, 0.7412493166611012);
-        
-        // Front-right fill light (Directional1: 0.70, 0.10, 1.00)
-        _frontRightLight.Color = ToMediaColor(new Color4(0.6f, 0.6f, 0.6f, 1f));
+
+        // Front-right fill light - very bright to eliminate shadows
+        _frontRightLight.Color = ToMediaColor(new Color4(1.8f, 1.8f, 1.8f, 1f));
         _frontRightLight.Direction = new Vector3D(0.5715476066494083, 0.08164965809277261, 0.8164965809277261);
-        
-        // Back rim light (Directional2: 0.30, 0.20, -1.00)
-        _backLight.Color = ToMediaColor(new Color4(0.85f, 0.85f, 0.85f, 1f));
+
+        // Back rim light - extremely bright for strong definition
+        _backLight.Color = ToMediaColor(new Color4(1.6f, 1.6f, 1.6f, 1f));
         _backLight.Direction = new Vector3D(0.2822162605150792, 0.18814417367671948, -0.9407208683835974);
-        
-        // Frontal light: matches BodySlide "frontal" intensity (20 → 0.2)
-        _frontalLight.Color = ToMediaColor(new Color4(1f, 1f, 1f, 1f));
+
+        // Frontal light: very strong fill from camera direction (BodySlide style)
+        _frontalLight.Color = ToMediaColor(new Color4(0.8f, 0.8f, 0.8f, 1f));
     }
 
     private static Material CreateMaterialForMesh(PreviewMeshShape mesh)
@@ -254,9 +254,9 @@ public partial class OutfitPreviewWindow : Window
         return new PhongMaterial
         {
             DiffuseColor = diffuse,
-            AmbientColor = new Color4(diffuse.Red * 0.2f, diffuse.Green * 0.2f, diffuse.Blue * 0.2f, 1f),
-            SpecularColor = new Color4(0.1f, 0.1f, 0.1f, 1f),
-            SpecularShininess = 32f,
+            AmbientColor = new Color4(diffuse.Red * 0.1f, diffuse.Green * 0.1f, diffuse.Blue * 0.1f, 1f),
+            SpecularColor = new Color4(0.25f, 0.25f, 0.25f, 1f),
+            SpecularShininess = 24f,
             EmissiveColor = new Color4(0f, 0f, 0f, 1f)
         };
     }
@@ -283,9 +283,9 @@ public partial class OutfitPreviewWindow : Window
                 DiffuseMap = new TextureModel(texturePath),
                 DiffuseColor = new Color4(1f, 1f, 1f, 1f),
                 AmbientColor = new Color4(0.1f, 0.1f, 0.1f, 1f),
-                SpecularColor = new Color4(0f, 0f, 0f, 1f),
-                SpecularShininess = 1f,
-                EmissiveColor = new Color4(0.2f, 0.2f, 0.2f, 1f),
+                SpecularColor = new Color4(0.25f, 0.25f, 0.25f, 1f),
+                SpecularShininess = 24f,
+                EmissiveColor = new Color4(0f, 0f, 0f, 1f),
             };
 
             Log.Debug("Successfully created textured material for {TexturePath}", texturePath);
