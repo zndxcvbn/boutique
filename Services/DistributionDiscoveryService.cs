@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using Boutique.Models;
@@ -145,10 +146,16 @@ public class DistributionDiscoveryService(ILogger logger) : IDistributionDiscove
                 }
 
                 var isOutfitDistribution = IsOutfitDistributionLine(type, kind, trimmed);
-                if (isOutfitDistribution)
-                    outfitCount++;
+                IReadOnlyList<string> outfitFormKeys = Array.Empty<string>();
 
-                lines.Add(new DistributionLine(lineNumber, raw, kind, sectionName, key, value, isOutfitDistribution));
+                if (isOutfitDistribution)
+                {
+                    outfitCount++;
+                    outfitFormKeys = ExtractOutfitFormKeys(type, trimmed);
+                }
+
+                lines.Add(new DistributionLine(lineNumber, raw, kind, sectionName, key, value, isOutfitDistribution,
+                    outfitFormKeys));
             }
 
             var relativePath = Path.GetRelativePath(dataFolderPath, filePath);
@@ -197,4 +204,133 @@ public class DistributionDiscoveryService(ILogger logger) : IDistributionDiscove
     {
         return trimmed.IndexOf("filterByOutfits=", StringComparison.OrdinalIgnoreCase) >= 0;
     }
+
+    private static IReadOnlyList<string> ExtractOutfitFormKeys(DistributionFileType type, string trimmed)
+    {
+        return type switch
+        {
+            DistributionFileType.Spid => ExtractSpidOutfitKeys(trimmed),
+            DistributionFileType.SkyPatcher => ExtractSkyPatcherOutfitKeys(trimmed),
+            _ => Array.Empty<string>()
+        };
+    }
+
+    private static IReadOnlyList<string> ExtractSpidOutfitKeys(string trimmed)
+    {
+        var equalsIndex = trimmed.IndexOf('=');
+        if (equalsIndex < 0)
+            return Array.Empty<string>();
+
+        var valuePortion = trimmed[(equalsIndex + 1)..].Trim();
+        if (string.IsNullOrWhiteSpace(valuePortion))
+            return Array.Empty<string>();
+
+        var tokens = valuePortion.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+        return NormalizeFormKeyTokens(tokens);
+    }
+
+    private static IReadOnlyList<string> ExtractSkyPatcherOutfitKeys(string trimmed)
+    {
+        var keys = new List<string>();
+        const string marker = "filterByOutfits=";
+        var startIndex = 0;
+
+        while (true)
+        {
+            var index = trimmed.IndexOf(marker, startIndex, StringComparison.OrdinalIgnoreCase);
+            if (index < 0)
+                break;
+
+            index += marker.Length;
+            var endIndex = trimmed.IndexOf(':', index);
+            string segment = endIndex >= 0 ? trimmed[index..endIndex] : trimmed[index..];
+            startIndex = endIndex >= 0 ? endIndex + 1 : trimmed.Length;
+
+            if (string.IsNullOrWhiteSpace(segment))
+                continue;
+
+            var tokens = segment.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+            keys.AddRange(NormalizeFormKeyTokens(tokens));
+        }
+
+        return keys;
+    }
+
+    private static IReadOnlyList<string> NormalizeFormKeyTokens(IEnumerable<string> tokens)
+    {
+        var results = new List<string>();
+
+        foreach (var token in tokens)
+        {
+            if (TryNormalizeFormKeyToken(token, out var normalized))
+                results.Add(normalized);
+        }
+
+        return results;
+    }
+
+    private static bool TryNormalizeFormKeyToken(string token, out string normalized)
+    {
+        normalized = string.Empty;
+        if (string.IsNullOrWhiteSpace(token))
+            return false;
+
+        var cleaned = RemoveInlineComment(token.Trim());
+        if (string.IsNullOrWhiteSpace(cleaned))
+            return false;
+
+        if (!TryExtractFormKeyParts(cleaned, out var modPart, out var formIdPart))
+            return false;
+
+        normalized = $"{modPart}|{formIdPart}";
+        return true;
+    }
+
+    private static bool TryExtractFormKeyParts(string text, out string modPart, out string formIdPart)
+    {
+        modPart = string.Empty;
+        formIdPart = string.Empty;
+
+        var tildeIndex = text.IndexOf('~');
+        if (tildeIndex >= 0)
+        {
+            formIdPart = text[..tildeIndex].Trim();
+            var remainder = text[(tildeIndex + 1)..].Trim();
+            if (string.IsNullOrEmpty(remainder) || string.IsNullOrEmpty(formIdPart))
+                return false;
+
+            var pipeIndex = remainder.IndexOf('|');
+            modPart = pipeIndex >= 0 ? remainder[..pipeIndex].Trim() : remainder;
+            formIdPart = formIdPart.Trim();
+            modPart = modPart.Trim();
+
+            return !string.IsNullOrEmpty(modPart) && !string.IsNullOrEmpty(formIdPart);
+        }
+
+        var firstPipe = text.IndexOf('|');
+        if (firstPipe < 0)
+            return false;
+
+        modPart = text[..firstPipe].Trim();
+        var remainderPart = text[(firstPipe + 1)..].Trim();
+        if (string.IsNullOrEmpty(modPart) || string.IsNullOrEmpty(remainderPart))
+            return false;
+
+        var secondPipe = remainderPart.IndexOf('|');
+        formIdPart = secondPipe >= 0 ? remainderPart[..secondPipe].Trim() : remainderPart;
+
+        formIdPart = formIdPart.Trim();
+
+        return !string.IsNullOrEmpty(modPart) && !string.IsNullOrEmpty(formIdPart);
+    }
+
+    private static string RemoveInlineComment(string text)
+    {
+        var commentIndex = text.IndexOfAny(new[] { ';', '#' });
+        if (commentIndex >= 0)
+            text = text[..commentIndex];
+
+        return text.Trim();
+    }
+
 }

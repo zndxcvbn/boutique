@@ -55,6 +55,9 @@ public class MainViewModel : ReactiveObject
     private ObservableCollection<ArmorRecordViewModel> _targetArmors = new();
     private ICollectionView? _targetArmorsView;
     private string _targetSearchText = string.Empty;
+    private string? _lastLoadedSourcePlugin;
+    private string? _lastLoadedTargetPlugin;
+    private string? _lastLoadedOutfitPlugin;
 
     public MainViewModel(
         IMutagenService mutagenService,
@@ -107,6 +110,16 @@ public class MainViewModel : ReactiveObject
 
         CreateOutfitCommand = ReactiveCommand.CreateFromTask(CreateOutfitAsync, canCreateOutfit);
         SaveOutfitsCommand = ReactiveCommand.CreateFromTask(SaveOutfitsAsync, canSaveOutfits);
+
+        var canLoadTargetPlugin =
+            this.WhenAnyValue(x => x.SelectedTargetPlugin, plugin => !string.IsNullOrWhiteSpace(plugin));
+        LoadTargetPluginCommand =
+            ReactiveCommand.CreateFromTask(() => LoadTargetPluginAsync(forceOutfitReload: true), canLoadTargetPlugin);
+
+        var canLoadOutfitPlugin =
+            this.WhenAnyValue(x => x.SelectedOutfitPlugin, plugin => !string.IsNullOrWhiteSpace(plugin));
+        LoadOutfitPluginCommand =
+            ReactiveCommand.CreateFromTask(() => LoadOutfitPluginAsync(forceReload: true), canLoadOutfitPlugin);
     }
 
     public Interaction<string, Unit> PatchCreatedNotification { get; } = new();
@@ -230,7 +243,17 @@ public class MainViewModel : ReactiveObject
             this.RaiseAndSetIfChanged(ref _selectedOutfitPlugin, value);
             _logger.Information("Selected outfit plugin set to {Plugin}", value ?? "<none>");
 
-            _ = LoadOutfitArmorsAsync(value ?? string.Empty);
+            _lastLoadedOutfitPlugin = null;
+
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                OutfitArmors = [];
+                SelectedOutfitArmors = Array.Empty<ArmorRecordViewModel>();
+                OutfitSearchText = string.Empty;
+                return;
+            }
+
+            _ = LoadOutfitPluginAsync(forceReload: true);
         }
     }
 
@@ -323,9 +346,11 @@ public class MainViewModel : ReactiveObject
             this.RaiseAndSetIfChanged(ref _selectedSourcePlugin, value);
             _logger.Information("Selected source plugin set to {Plugin}", value ?? "<none>");
 
+            _lastLoadedSourcePlugin = null;
             ClearMappingsInternal();
             SourceArmors = new ObservableCollection<ArmorRecordViewModel>();
             SelectedSourceArmors = Array.Empty<ArmorRecordViewModel>();
+            SourceSearchText = string.Empty;
 
             if (string.IsNullOrWhiteSpace(value)) return;
 
@@ -344,13 +369,18 @@ public class MainViewModel : ReactiveObject
             this.RaiseAndSetIfChanged(ref _selectedTargetPlugin, value);
             _logger.Information("Selected target plugin set to {Plugin}", value ?? "<none>");
 
-            ClearMappingsInternal();
-            TargetArmors = [];
-            SelectedTargetArmor = null;
+            _lastLoadedTargetPlugin = null;
+            TargetSearchText = string.Empty;
 
-            if (string.IsNullOrWhiteSpace(value)) return;
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                ClearMappingsInternal();
+                TargetArmors = [];
+                SelectedTargetArmor = null;
+                return;
+            }
 
-            _ = LoadTargetArmorsAsync(value);
+            _ = LoadTargetPluginAsync(forceOutfitReload: true);
         }
     }
 
@@ -404,6 +434,8 @@ public class MainViewModel : ReactiveObject
     public ReactiveCommand<ArmorMatchViewModel, Unit> RemoveMappingCommand { get; }
     public ReactiveCommand<Unit, Unit> CreateOutfitCommand { get; }
     public ReactiveCommand<Unit, Unit> SaveOutfitsCommand { get; }
+    public ReactiveCommand<Unit, Unit> LoadTargetPluginCommand { get; }
+    public ReactiveCommand<Unit, Unit> LoadOutfitPluginCommand { get; }
 
     private void ConfigureSourceArmorsView()
     {
@@ -593,6 +625,50 @@ public class MainViewModel : ReactiveObject
             mapping.Source.Armor.FormKey);
     }
 
+    public async Task LoadTargetPluginAsync(bool forceOutfitReload = false)
+    {
+        var plugin = SelectedTargetPlugin;
+        if (string.IsNullOrWhiteSpace(plugin))
+            return;
+
+        var needsReload = forceOutfitReload ||
+                          !string.Equals(_lastLoadedTargetPlugin, plugin, StringComparison.OrdinalIgnoreCase);
+
+        if (needsReload)
+        {
+            ClearMappingsInternal();
+            TargetArmors = [];
+            SelectedTargetArmor = null;
+            await LoadTargetArmorsAsync(plugin);
+        }
+
+        await SyncOutfitPluginWithTargetAsync(plugin, forceOutfitReload);
+    }
+
+    public async Task LoadOutfitPluginAsync(bool forceReload = false)
+    {
+        var plugin = SelectedOutfitPlugin;
+        if (string.IsNullOrWhiteSpace(plugin))
+            return;
+
+        if (!forceReload && string.Equals(_lastLoadedOutfitPlugin, plugin, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        await LoadOutfitArmorsAsync(plugin);
+    }
+
+    private async Task SyncOutfitPluginWithTargetAsync(string plugin, bool forceOutfitReload)
+    {
+        if (!string.Equals(SelectedOutfitPlugin, plugin, StringComparison.OrdinalIgnoreCase))
+        {
+            SelectedOutfitPlugin = plugin;
+            return;
+        }
+
+        if (forceOutfitReload)
+            await LoadOutfitPluginAsync(true);
+    }
+
     private async Task InitializeAsync()
     {
         BeginLoading();
@@ -644,6 +720,7 @@ public class MainViewModel : ReactiveObject
 
             SourceArmors = new ObservableCollection<ArmorRecordViewModel>(
                 armors.Select(a => new ArmorRecordViewModel(a, _mutagenService.LinkCache)));
+            _lastLoadedSourcePlugin = plugin;
             SourceSearchText = string.Empty;
             SourceArmorsView?.Refresh();
 
@@ -690,6 +767,7 @@ public class MainViewModel : ReactiveObject
 
             TargetArmors = new ObservableCollection<ArmorRecordViewModel>(
                 armors.Select(a => new ArmorRecordViewModel(a, _mutagenService.LinkCache)));
+            _lastLoadedTargetPlugin = plugin;
             TargetSearchText = string.Empty;
             TargetArmorsView?.Refresh();
             var primary = SelectedSourceArmor;
@@ -739,6 +817,7 @@ public class MainViewModel : ReactiveObject
 
             OutfitArmors = new ObservableCollection<ArmorRecordViewModel>(
                 armors.Select(a => new ArmorRecordViewModel(a, _mutagenService.LinkCache)));
+            _lastLoadedOutfitPlugin = plugin;
             OutfitSearchText = string.Empty;
             OutfitArmorsView?.Refresh();
 

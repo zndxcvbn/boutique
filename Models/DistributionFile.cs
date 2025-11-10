@@ -22,7 +22,8 @@ public sealed record DistributionLine(
     string? SectionName,
     string? Key,
     string? Value,
-    bool IsOutfitDistribution);
+    bool IsOutfitDistribution,
+    IReadOnlyList<string> OutfitFormKeys);
 
 public sealed record DistributionFile(
     string FileName,

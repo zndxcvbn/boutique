@@ -13,7 +13,7 @@
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
-        <TabControl Grid.Row="0" Margin="12">
+        <TabControl Grid.Row="0" Margin="12" SelectionChanged="TabControl_OnSelectionChanged">
             <TabItem Header="Armor Patch">
                 <views:ArmorPatchView DataContext="{Binding}" />
             </TabItem>

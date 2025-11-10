@@ -1,6 +1,7 @@
 using System.Reactive;
 using System.Reactive.Disposables;
 using System.Windows;
+using System.Windows.Controls;
 using Boutique.ViewModels;
 using Microsoft.VisualBasic;
 
@@ -64,6 +65,37 @@ public partial class MainWindow : Window
 
         Closed += (_, _) => { _bindings.Dispose(); };
         Loaded += OnLoaded;
+    }
+
+    private async void TabControl_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!Equals(e.Source, sender))
+            return;
+
+        if (sender is not TabControl)
+            return;
+
+        if (DataContext is not MainViewModel viewModel)
+            return;
+
+        if (e.AddedItems.Count == 0)
+            return;
+
+        if (e.AddedItems[0] is not TabItem tabItem)
+            return;
+
+        if (tabItem.Header is not string header)
+            return;
+
+        switch (header)
+        {
+            case "Armor Patch":
+                await viewModel.LoadTargetPluginAsync();
+                break;
+            case "Outfit Creator":
+                await viewModel.LoadOutfitPluginAsync();
+                break;
+        }
     }
 
     private void OnLoaded(object? sender, RoutedEventArgs e)
