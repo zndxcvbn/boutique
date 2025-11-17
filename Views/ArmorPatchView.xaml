@@ -62,11 +62,11 @@
                                   IsTextSearchCaseSensitive="False"
                                   ToolTip="Type to search plugins" />
 
-                        <Button Grid.Column="1"
-                                Content="Load"
-                                Margin="6,5,0,5"
-                                MinWidth="70"
-                                Command="{Binding LoadTargetPluginCommand}" />
+                        <!-- <Button Grid.Column="1" -->
+                        <!--         Content="Load" -->
+                        <!--         Margin="6,5,0,5" -->
+                        <!--         MinWidth="70" -->
+                        <!--         Command="{Binding LoadTargetPluginCommand}" /> -->
                     </Grid>
                 </Grid>
             </Grid>

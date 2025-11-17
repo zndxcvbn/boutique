@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Globalization;
 using System.IO;
 using System.Text;
 using Boutique.Models;
@@ -46,7 +45,7 @@ public class DistributionDiscoveryService(ILogger logger) : IDistributionDiscove
             var skyPatcherRoot = Path.Combine(dataFolderPath, "skse", "plugins", "SkyPatcher");
             if (Directory.Exists(skyPatcherRoot))
             {
-                foreach (var iniFile in Directory.EnumerateFiles(skyPatcherRoot, "*.ini", enumerationOptions))
+                foreach (var iniFile in Directory.EnumerateFiles(skyPatcherRoot, "*.ini*", enumerationOptions))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     if (seenPaths.Contains(iniFile))
@@ -339,5 +338,4 @@ public class DistributionDiscoveryService(ILogger logger) : IDistributionDiscove
 
         return text.Trim();
     }
-
 }
