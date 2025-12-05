@@ -28,6 +28,8 @@ public class NpcOutfitResolutionService : INpcOutfitResolutionService
         IReadOnlyList<DistributionFile> distributionFiles,
         CancellationToken cancellationToken = default)
     {
+        _logger.Debug("ResolveNpcOutfitsAsync called with {Count} distribution files", distributionFiles.Count);
+        
         return await Task.Run<IReadOnlyList<NpcOutfitAssignment>>(() =>
         {
             if (_mutagenService.LinkCache is not ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
@@ -36,24 +38,42 @@ public class NpcOutfitResolutionService : INpcOutfitResolutionService
                 return Array.Empty<NpcOutfitAssignment>();
             }
 
+            _logger.Debug("LinkCache is available");
+
             try
             {
                 // Sort files: SPID files alphabetically, then SkyPatcher files alphabetically
                 var sortedFiles = SortDistributionFiles(distributionFiles);
                 _logger.Information("Processing {Count} distribution files in order", sortedFiles.Count);
 
+                // Log each file for debugging
+                foreach (var file in sortedFiles)
+                {
+                    var outfitLineCount = file.Lines.Count(l => l.IsOutfitDistribution);
+                    _logger.Debug("File: {FileName} ({Type}) - {TotalLines} lines, {OutfitLines} outfit distributions",
+                        file.FileName, file.Type, file.Lines.Count, outfitLineCount);
+                }
+
                 // Build a dictionary of NPC FormKey -> list of distributions
                 var npcDistributions = new Dictionary<FormKey, List<OutfitDistribution>>();
 
                 // Cache all NPCs for NPC identifier resolution
+                _logger.Debug("Loading all NPCs from LinkCache...");
                 var allNpcs = linkCache.WinningOverrides<INpcGetter>().ToList();
+                _logger.Debug("Loaded {Count} NPCs from LinkCache", allNpcs.Count);
+                
+                // Use GroupBy to handle duplicate EditorIDs (can happen with mod conflicts)
                 var npcByEditorId = allNpcs
                     .Where(n => !string.IsNullOrWhiteSpace(n.EditorID))
-                    .ToDictionary(n => n.EditorID!, n => n, StringComparer.OrdinalIgnoreCase);
+                    .GroupBy(n => n.EditorID!, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+                _logger.Debug("Built NPC EditorID lookup with {Count} entries", npcByEditorId.Count);
+                
                 var npcByName = allNpcs
                     .Where(n => !string.IsNullOrWhiteSpace(n.Name?.String))
                     .GroupBy(n => n.Name!.String!, StringComparer.OrdinalIgnoreCase)
                     .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+                _logger.Debug("Built NPC Name lookup with {Count} entries", npcByName.Count);
 
                 // Process each file in order
                 for (int fileIndex = 0; fileIndex < sortedFiles.Count; fileIndex++)
@@ -61,8 +81,16 @@ public class NpcOutfitResolutionService : INpcOutfitResolutionService
                     cancellationToken.ThrowIfCancellationRequested();
                     var file = sortedFiles[fileIndex];
                     
+                    _logger.Debug("Processing file {Index}/{Total}: {FileName}", 
+                        fileIndex + 1, sortedFiles.Count, file.FileName);
+                    
                     ProcessDistributionFile(file, fileIndex, linkCache, npcByEditorId, npcByName, npcDistributions);
+                    
+                    _logger.Debug("After processing {FileName}: {NpcCount} unique NPCs with distributions",
+                        file.FileName, npcDistributions.Count);
                 }
+
+                _logger.Debug("Total unique NPCs with distributions: {Count}", npcDistributions.Count);
 
                 // Build the final NPC outfit assignments
                 var assignments = BuildNpcOutfitAssignments(npcDistributions, linkCache, allNpcs);
@@ -116,16 +144,27 @@ public class NpcOutfitResolutionService : INpcOutfitResolutionService
         Dictionary<string, INpcGetter> npcByName,
         Dictionary<FormKey, List<OutfitDistribution>> npcDistributions)
     {
+        var outfitLineCount = 0;
+        var parsedEntryCount = 0;
+        
         foreach (var line in file.Lines)
         {
             if (!line.IsOutfitDistribution)
                 continue;
 
+            outfitLineCount++;
+            _logger.Debug("Processing outfit line {LineNum} in {File}: {Text}", 
+                line.LineNumber, file.FileName, line.RawText.Length > 100 ? line.RawText.Substring(0, 100) + "..." : line.RawText);
+
             // Parse the line to extract NPC targets and outfit
             var parsedEntries = ParseDistributionLine(file, line, linkCache, npcByEditorId, npcByName);
+            
+            _logger.Debug("Parsed {Count} NPC-outfit entries from line {LineNum}", parsedEntries.Count, line.LineNumber);
 
             foreach (var (npcFormKey, outfitFormKey, outfitEditorId) in parsedEntries)
             {
+                parsedEntryCount++;
+                
                 if (!npcDistributions.TryGetValue(npcFormKey, out var distributions))
                 {
                     distributions = new List<OutfitDistribution>();
@@ -141,8 +180,14 @@ public class NpcOutfitResolutionService : INpcOutfitResolutionService
                     ProcessingOrder: processingOrder,
                     IsWinner: false // Will be set later
                 ));
+                
+                _logger.Debug("Added distribution: NPC={NpcFormKey}, Outfit={OutfitFormKey} ({OutfitEditorId})",
+                    npcFormKey, outfitFormKey, outfitEditorId ?? "null");
             }
         }
+        
+        _logger.Debug("File {FileName} summary: {OutfitLines} outfit lines, {ParsedEntries} parsed entries",
+            file.FileName, outfitLineCount, parsedEntryCount);
     }
 
     private List<(FormKey NpcFormKey, FormKey OutfitFormKey, string? OutfitEditorId)> ParseDistributionLine(
@@ -176,22 +221,36 @@ public class NpcOutfitResolutionService : INpcOutfitResolutionService
         // SkyPatcher format: filterByNpcs=ModKey|FormID,ModKey|FormID:outfitDefault=ModKey|FormID
         var trimmed = lineText.Trim();
         
+        _logger.Debug("ParseSkyPatcherLine: {Line}", trimmed.Length > 150 ? trimmed.Substring(0, 150) + "..." : trimmed);
+        
         // Extract NPC FormKeys
         var npcFormKeys = new List<FormKey>();
         var filterByNpcsIndex = trimmed.IndexOf("filterByNpcs=", StringComparison.OrdinalIgnoreCase);
+        
+        _logger.Debug("filterByNpcs index: {Index}", filterByNpcsIndex);
+        
         if (filterByNpcsIndex >= 0)
         {
             var npcStart = filterByNpcsIndex + "filterByNpcs=".Length;
             var npcEnd = trimmed.IndexOf(':', npcStart);
+            _logger.Debug("NPC section: start={Start}, end={End}", npcStart, npcEnd);
+            
             if (npcEnd > npcStart)
             {
                 var npcString = trimmed.Substring(npcStart, npcEnd - npcStart);
+                _logger.Debug("NPC string to parse: {NpcString}", npcString);
+                
                 foreach (var npcPart in npcString.Split(','))
                 {
                     var formKey = TryParseFormKey(npcPart.Trim());
                     if (formKey.HasValue)
                     {
                         npcFormKeys.Add(formKey.Value);
+                        _logger.Debug("Parsed NPC FormKey: {FormKey}", formKey.Value);
+                    }
+                    else
+                    {
+                        _logger.Debug("Failed to parse NPC FormKey from: {Part}", npcPart.Trim());
                     }
                 }
             }
@@ -201,6 +260,9 @@ public class NpcOutfitResolutionService : INpcOutfitResolutionService
         FormKey? outfitFormKey = null;
         string? outfitEditorId = null;
         var outfitDefaultIndex = trimmed.IndexOf("outfitDefault=", StringComparison.OrdinalIgnoreCase);
+        
+        _logger.Debug("outfitDefault index: {Index}", outfitDefaultIndex);
+        
         if (outfitDefaultIndex >= 0)
         {
             var outfitStart = outfitDefaultIndex + "outfitDefault=".Length;
@@ -209,10 +271,25 @@ public class NpcOutfitResolutionService : INpcOutfitResolutionService
                 ? trimmed.Substring(outfitStart, outfitEnd - outfitStart) 
                 : trimmed.Substring(outfitStart);
             
+            _logger.Debug("Outfit string to parse: {OutfitString}", outfitString.Trim());
+            
             outfitFormKey = TryParseFormKey(outfitString.Trim());
-            if (outfitFormKey.HasValue && linkCache.TryResolve<IOutfitGetter>(outfitFormKey.Value, out var outfit))
+            if (outfitFormKey.HasValue)
             {
-                outfitEditorId = outfit.EditorID;
+                _logger.Debug("Parsed outfit FormKey: {FormKey}", outfitFormKey.Value);
+                if (linkCache.TryResolve<IOutfitGetter>(outfitFormKey.Value, out var outfit))
+                {
+                    outfitEditorId = outfit.EditorID;
+                    _logger.Debug("Resolved outfit EditorID: {EditorId}", outfitEditorId);
+                }
+                else
+                {
+                    _logger.Debug("Could not resolve outfit FormKey in LinkCache");
+                }
+            }
+            else
+            {
+                _logger.Debug("Failed to parse outfit FormKey");
             }
         }
 
@@ -237,6 +314,9 @@ public class NpcOutfitResolutionService : INpcOutfitResolutionService
         }
 
         // Create results for each NPC-outfit combination
+        _logger.Debug("SkyPatcher parse result: {NpcCount} NPCs, outfit={OutfitFormKey}", 
+            npcFormKeys.Count, outfitFormKey?.ToString() ?? "null");
+        
         if (outfitFormKey.HasValue && npcFormKeys.Count > 0)
         {
             foreach (var npcFormKey in npcFormKeys)
@@ -256,19 +336,31 @@ public class NpcOutfitResolutionService : INpcOutfitResolutionService
         // SPID format: Outfit = 0x800~ModKey|EditorID[,EditorID,...]
         var trimmed = lineText.Trim();
         
+        _logger.Debug("ParseSpidLine: {Line}", trimmed.Length > 150 ? trimmed.Substring(0, 150) + "..." : trimmed);
+        
         if (!trimmed.StartsWith("Outfit", StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.Debug("Line does not start with 'Outfit', skipping");
             return;
+        }
 
         var equalsIndex = trimmed.IndexOf('=');
         if (equalsIndex < 0)
+        {
+            _logger.Debug("No '=' found in line");
             return;
+        }
 
         var valuePart = trimmed.Substring(equalsIndex + 1).Trim();
+        _logger.Debug("Value part: {ValuePart}", valuePart);
         
         // Find the ~ separator between FormID and ModKey
         var tildeIndex = valuePart.IndexOf('~');
         if (tildeIndex < 0)
+        {
+            _logger.Debug("No '~' found in value part");
             return;
+        }
 
         var formIdString = valuePart.Substring(0, tildeIndex).Trim();
         var rest = valuePart.Substring(tildeIndex + 1).Trim();
@@ -276,26 +368,42 @@ public class NpcOutfitResolutionService : INpcOutfitResolutionService
         // Parse FormID
         formIdString = formIdString.Replace("0x", "").Replace("0X", "");
         if (!uint.TryParse(formIdString, System.Globalization.NumberStyles.HexNumber, null, out var formId))
+        {
+            _logger.Debug("Failed to parse FormID: {FormIdString}", formIdString);
             return;
+        }
 
         // Find the | separator between ModKey and EditorIDs
         var pipeIndex = rest.IndexOf('|');
         if (pipeIndex < 0)
+        {
+            _logger.Debug("No '|' found after ModKey");
             return;
+        }
 
         var modKeyString = rest.Substring(0, pipeIndex).Trim();
         var editorIdsString = rest.Substring(pipeIndex + 1).Trim();
 
         if (!ModKey.TryFromNameAndExtension(modKeyString, out var modKey))
+        {
+            _logger.Debug("Failed to parse ModKey: {ModKeyString}", modKeyString);
             return;
+        }
 
         // Create FormKey for the outfit
         var outfitFormKey = new FormKey(modKey, formId);
+        _logger.Debug("Parsed outfit FormKey: {FormKey}", outfitFormKey);
+        
         string? outfitEditorId = null;
         
         if (linkCache.TryResolve<IOutfitGetter>(outfitFormKey, out var outfit))
         {
             outfitEditorId = outfit.EditorID;
+            _logger.Debug("Resolved outfit EditorID: {EditorId}", outfitEditorId);
+        }
+        else
+        {
+            _logger.Debug("Could not resolve outfit FormKey in LinkCache");
         }
 
         // Parse NPC identifiers (comma-separated)
@@ -304,7 +412,11 @@ public class NpcOutfitResolutionService : INpcOutfitResolutionService
             .Select(s => s.Trim())
             .Where(s => !string.IsNullOrWhiteSpace(s))
             .ToList();
+        
+        _logger.Debug("Found {Count} NPC identifiers: {Identifiers}", 
+            npcIdentifiers.Count, string.Join(", ", npcIdentifiers.Take(5)));
 
+        var resolvedCount = 0;
         foreach (var identifier in npcIdentifiers)
         {
             // Try to find NPC by EditorID first, then by Name
@@ -312,17 +424,26 @@ public class NpcOutfitResolutionService : INpcOutfitResolutionService
             if (npcByEditorId.TryGetValue(identifier, out var npcById))
             {
                 npc = npcById;
+                _logger.Debug("Resolved NPC '{Identifier}' by EditorID: {FormKey}", identifier, npc.FormKey);
             }
             else if (npcByName.TryGetValue(identifier, out var npcByNameMatch))
             {
                 npc = npcByNameMatch;
+                _logger.Debug("Resolved NPC '{Identifier}' by Name: {FormKey}", identifier, npc.FormKey);
+            }
+            else
+            {
+                _logger.Debug("Could not resolve NPC identifier: {Identifier}", identifier);
             }
 
             if (npc != null)
             {
                 results.Add((npc.FormKey, outfitFormKey, outfitEditorId));
+                resolvedCount++;
             }
         }
+        
+        _logger.Debug("SPID line resolved {Resolved}/{Total} NPCs", resolvedCount, npcIdentifiers.Count);
     }
 
     private List<NpcOutfitAssignment> BuildNpcOutfitAssignments(
