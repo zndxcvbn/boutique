@@ -41,6 +41,7 @@ public partial class App
         builder.RegisterType<DistributionDiscoveryService>().As<IDistributionDiscoveryService>().SingleInstance();
         builder.RegisterType<NpcScanningService>().As<INpcScanningService>().SingleInstance();
         builder.RegisterType<DistributionFileWriterService>().As<IDistributionFileWriterService>().SingleInstance();
+        builder.RegisterType<NpcOutfitResolutionService>().As<INpcOutfitResolutionService>().SingleInstance();
 
         // Register ViewModels
         builder.RegisterType<MainViewModel>().AsSelf().SingleInstance();

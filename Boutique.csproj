@@ -11,6 +11,10 @@
         <ApplicationIcon>Assets\App.ico</ApplicationIcon>
         <EnableWindowsTargeting>true</EnableWindowsTargeting>
         <NoWarn>$(NoWarn);CS0436</NoWarn>
+        
+        <!-- Code analysis for detecting unused code -->
+        <EnableNETAnalyzers>true</EnableNETAnalyzers>
+        <AnalysisLevel>latest</AnalysisLevel>
     </PropertyGroup>
 
     <ItemGroup>

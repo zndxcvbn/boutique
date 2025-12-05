@@ -25,6 +25,7 @@ public class DistributionViewModel : ReactiveObject
     private readonly IDistributionDiscoveryService _discoveryService;
     private readonly IDistributionFileWriterService _fileWriterService;
     private readonly INpcScanningService _npcScanningService;
+    private readonly INpcOutfitResolutionService _npcOutfitResolutionService;
     private readonly ILogger _logger;
     private readonly IMutagenService _mutagenService;
     private readonly IArmorPreviewService _armorPreviewService;
@@ -84,11 +85,20 @@ public class DistributionViewModel : ReactiveObject
     private string _npcSearchText = string.Empty;
     private string _distributionPreviewText = string.Empty;
     private ObservableCollection<NpcRecordViewModel> _filteredNpcs = new();
+    
+    // NPCs tab fields
+    private int _selectedTabIndex;
+    private ObservableCollection<NpcOutfitAssignmentViewModel> _npcOutfitAssignments = new();
+    private NpcOutfitAssignmentViewModel? _selectedNpcAssignment;
+    private string _npcOutfitSearchText = string.Empty;
+    private ObservableCollection<NpcOutfitAssignmentViewModel> _filteredNpcOutfitAssignments = new();
+    private string _selectedNpcOutfitContents = string.Empty;
 
     public DistributionViewModel(
         IDistributionDiscoveryService discoveryService,
         IDistributionFileWriterService fileWriterService,
         INpcScanningService npcScanningService,
+        INpcOutfitResolutionService npcOutfitResolutionService,
         SettingsViewModel settings,
         IArmorPreviewService armorPreviewService,
         IMutagenService mutagenService,
@@ -97,6 +107,7 @@ public class DistributionViewModel : ReactiveObject
         _discoveryService = discoveryService;
         _fileWriterService = fileWriterService;
         _npcScanningService = npcScanningService;
+        _npcOutfitResolutionService = npcOutfitResolutionService;
         _settings = settings;
         _armorPreviewService = armorPreviewService;
         _mutagenService = mutagenService;
@@ -144,6 +155,12 @@ public class DistributionViewModel : ReactiveObject
         ScanNpcsCommand = ReactiveCommand.CreateFromTask(ScanNpcsAsync,
             this.WhenAnyValue(vm => vm.IsLoading).Select(loading => !loading));
         SelectDistributionFilePathCommand = ReactiveCommand.Create(SelectDistributionFilePath);
+        
+        // NPCs tab commands
+        ScanNpcOutfitsCommand = ReactiveCommand.CreateFromTask(ScanNpcOutfitsAsync,
+            this.WhenAnyValue(vm => vm.IsLoading).Select(loading => !loading));
+        PreviewNpcOutfitCommand = ReactiveCommand.CreateFromTask<NpcOutfitAssignmentViewModel>(PreviewNpcOutfitAsync,
+            this.WhenAnyValue(vm => vm.IsLoading).Select(loading => !loading));
 
         _settings.WhenAnyValue(x => x.SkyrimDataPath)
             .Subscribe(_ =>
@@ -180,6 +197,16 @@ public class DistributionViewModel : ReactiveObject
             .Throttle(TimeSpan.FromMilliseconds(150))
             .ObserveOn(RxApp.MainThreadScheduler)
             .Subscribe(_ => UpdateFilteredNpcs());
+        
+        // NPCs tab search filtering
+        this.WhenAnyValue(vm => vm.NpcOutfitSearchText)
+            .Throttle(TimeSpan.FromMilliseconds(150))
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Subscribe(_ => UpdateFilteredNpcOutfitAssignments());
+        
+        // Update outfit contents when selection changes
+        this.WhenAnyValue(vm => vm.SelectedNpcAssignment)
+            .Subscribe(_ => UpdateSelectedNpcOutfitContents());
     }
 
     public ObservableCollection<DistributionFileViewModel> Files
@@ -224,6 +251,10 @@ public class DistributionViewModel : ReactiveObject
     public ReactiveCommand<Unit, Unit> ScanNpcsCommand { get; }
     public ReactiveCommand<Unit, Unit> SelectDistributionFilePathCommand { get; }
     public Interaction<ArmorPreviewScene, Unit> ShowPreview { get; } = new();
+    
+    // NPCs tab commands
+    public ReactiveCommand<Unit, Unit> ScanNpcOutfitsCommand { get; }
+    public ReactiveCommand<NpcOutfitAssignmentViewModel, Unit> PreviewNpcOutfitCommand { get; }
 
     public string LineFilter
     {
@@ -401,6 +432,58 @@ public class DistributionViewModel : ReactiveObject
     {
         get => _filteredNpcs;
         private set => this.RaiseAndSetIfChanged(ref _filteredNpcs, value);
+    }
+
+    // NPCs tab properties
+    public int SelectedTabIndex
+    {
+        get => _selectedTabIndex;
+        set => this.RaiseAndSetIfChanged(ref _selectedTabIndex, value);
+    }
+
+    public ObservableCollection<NpcOutfitAssignmentViewModel> NpcOutfitAssignments
+    {
+        get => _npcOutfitAssignments;
+        private set => this.RaiseAndSetIfChanged(ref _npcOutfitAssignments, value);
+    }
+
+    public NpcOutfitAssignmentViewModel? SelectedNpcAssignment
+    {
+        get => _selectedNpcAssignment;
+        set
+        {
+            // Clear previous selection
+            if (_selectedNpcAssignment != null)
+            {
+                _selectedNpcAssignment.IsSelected = false;
+            }
+            
+            this.RaiseAndSetIfChanged(ref _selectedNpcAssignment, value);
+            
+            // Set new selection
+            if (value != null)
+            {
+                value.IsSelected = true;
+            }
+        }
+    }
+
+    public string NpcOutfitSearchText
+    {
+        get => _npcOutfitSearchText;
+        set => this.RaiseAndSetIfChanged(ref _npcOutfitSearchText, value ?? string.Empty);
+    }
+
+    public ObservableCollection<NpcOutfitAssignmentViewModel> FilteredNpcOutfitAssignments
+    {
+        get => _filteredNpcOutfitAssignments;
+        private set => this.RaiseAndSetIfChanged(ref _filteredNpcOutfitAssignments, value);
+    }
+
+    public string SelectedNpcOutfitContents
+    {
+        get => _selectedNpcOutfitContents;
+        private set => this.RaiseAndSetIfChanged(ref _selectedNpcOutfitContents, value);
     }
 
     public bool IsInitialized => _mutagenService.IsInitialized;
@@ -1172,6 +1255,198 @@ public class DistributionViewModel : ReactiveObject
         {
             _filteredNpcs.Add(npc);
         }
+    }
+
+    #endregion
+
+    #region NPCs Tab Methods
+
+    private async Task ScanNpcOutfitsAsync()
+    {
+        try
+        {
+            IsLoading = true;
+
+            // Initialize MutagenService if not already initialized
+            if (!_mutagenService.IsInitialized)
+            {
+                var dataPath = _settings.SkyrimDataPath;
+                if (string.IsNullOrWhiteSpace(dataPath))
+                {
+                    StatusMessage = "Please set the Skyrim data path in Settings before scanning NPC outfits.";
+                    return;
+                }
+
+                if (!Directory.Exists(dataPath))
+                {
+                    StatusMessage = $"Skyrim data path does not exist: {dataPath}";
+                    return;
+                }
+
+                StatusMessage = "Initializing Skyrim environment...";
+                await _mutagenService.InitializeAsync(dataPath);
+                this.RaisePropertyChanged(nameof(IsInitialized));
+            }
+
+            // Make sure we have distribution files loaded
+            if (Files.Count == 0)
+            {
+                StatusMessage = "Scanning for distribution files...";
+                await RefreshAsync();
+            }
+
+            // Get the raw distribution files from the discovered files
+            var distributionFiles = Files
+                .Select(fvm => new DistributionFile(
+                    fvm.FileName,
+                    fvm.FullPath,
+                    fvm.RelativePath,
+                    fvm.TypeDisplay == "SPID" ? DistributionFileType.Spid : DistributionFileType.SkyPatcher,
+                    fvm.Lines,
+                    fvm.OutfitCount))
+                .ToList();
+
+            StatusMessage = $"Resolving outfit assignments from {distributionFiles.Count} files...";
+
+            var assignments = await _npcOutfitResolutionService.ResolveNpcOutfitsAsync(distributionFiles);
+
+            NpcOutfitAssignments.Clear();
+            foreach (var assignment in assignments)
+            {
+                var vm = new NpcOutfitAssignmentViewModel(assignment);
+                NpcOutfitAssignments.Add(vm);
+            }
+
+            // Update filtered list
+            UpdateFilteredNpcOutfitAssignments();
+
+            var conflictCount = assignments.Count(a => a.HasConflict);
+            StatusMessage = $"Found {assignments.Count} NPCs with outfit distributions ({conflictCount} conflicts).";
+            _logger.Information("Resolved {Count} NPC outfit assignments with {Conflicts} conflicts.", 
+                assignments.Count, conflictCount);
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "Failed to scan NPC outfits.");
+            StatusMessage = $"Error scanning NPC outfits: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task PreviewNpcOutfitAsync(NpcOutfitAssignmentViewModel? npcAssignment)
+    {
+        if (npcAssignment == null || !npcAssignment.FinalOutfitFormKey.HasValue)
+        {
+            StatusMessage = "No outfit to preview for this NPC.";
+            return;
+        }
+
+        if (!_mutagenService.IsInitialized || _mutagenService.LinkCache is not ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
+        {
+            StatusMessage = "Initialize Skyrim data path before previewing outfits.";
+            return;
+        }
+
+        var outfitFormKey = npcAssignment.FinalOutfitFormKey.Value;
+        if (!linkCache.TryResolve<IOutfitGetter>(outfitFormKey, out var outfit))
+        {
+            StatusMessage = $"Could not resolve outfit: {outfitFormKey}";
+            return;
+        }
+
+        var label = outfit.EditorID ?? outfit.FormKey.ToString();
+        var armorPieces = OutfitResolver.GatherArmorPieces(outfit, linkCache);
+        
+        if (armorPieces.Count == 0)
+        {
+            StatusMessage = $"Outfit '{label}' has no armor pieces to preview.";
+            return;
+        }
+
+        try
+        {
+            StatusMessage = $"Building preview for {label}...";
+            var scene = await _armorPreviewService.BuildPreviewAsync(armorPieces, GenderedModelVariant.Female);
+            await ShowPreview.Handle(scene);
+            StatusMessage = $"Preview ready for {label}.";
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "Failed to preview outfit {Identifier}", label);
+            StatusMessage = $"Failed to preview outfit: {ex.Message}";
+        }
+    }
+
+    private void UpdateFilteredNpcOutfitAssignments()
+    {
+        IEnumerable<NpcOutfitAssignmentViewModel> filtered;
+
+        if (string.IsNullOrWhiteSpace(NpcOutfitSearchText))
+        {
+            filtered = NpcOutfitAssignments;
+        }
+        else
+        {
+            var term = NpcOutfitSearchText.Trim().ToLowerInvariant();
+            filtered = NpcOutfitAssignments.Where(a => 
+                (a.DisplayName?.ToLowerInvariant().Contains(term) ?? false) ||
+                (a.EditorId?.ToLowerInvariant().Contains(term) ?? false) ||
+                (a.FinalOutfitEditorId?.ToLowerInvariant().Contains(term) ?? false) ||
+                a.FormKeyString.ToLowerInvariant().Contains(term) ||
+                a.ModDisplayName.ToLowerInvariant().Contains(term));
+        }
+
+        _filteredNpcOutfitAssignments.Clear();
+        foreach (var assignment in filtered)
+        {
+            _filteredNpcOutfitAssignments.Add(assignment);
+        }
+    }
+
+    private void UpdateSelectedNpcOutfitContents()
+    {
+        if (SelectedNpcAssignment == null || !SelectedNpcAssignment.FinalOutfitFormKey.HasValue)
+        {
+            SelectedNpcOutfitContents = string.Empty;
+            return;
+        }
+
+        if (_mutagenService.LinkCache is not ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
+        {
+            SelectedNpcOutfitContents = "LinkCache not available";
+            return;
+        }
+
+        var outfitFormKey = SelectedNpcAssignment.FinalOutfitFormKey.Value;
+        if (!linkCache.TryResolve<IOutfitGetter>(outfitFormKey, out var outfit))
+        {
+            SelectedNpcOutfitContents = $"Could not resolve outfit: {outfitFormKey}";
+            return;
+        }
+
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine($"Outfit: {outfit.EditorID ?? outfit.FormKey.ToString()}");
+        sb.AppendLine();
+
+        var armorPieces = OutfitResolver.GatherArmorPieces(outfit, linkCache);
+        if (armorPieces.Count == 0)
+        {
+            sb.AppendLine("(No armor pieces)");
+        }
+        else
+        {
+            sb.AppendLine("Armor Pieces:");
+            foreach (var armor in armorPieces)
+            {
+                var armorName = armor.EditorID ?? armor.FormKeyString;
+                sb.AppendLine($"  - {armorName}");
+            }
+        }
+
+        SelectedNpcOutfitContents = sb.ToString();
     }
 
     #endregion
