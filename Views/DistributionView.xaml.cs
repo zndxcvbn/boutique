@@ -105,14 +105,6 @@ public partial class DistributionView
         _previewSubscription = null;
     }
 
-    private void ToggleEditMode_Click(object sender, RoutedEventArgs e)
-    {
-        if (DataContext is DistributionViewModel viewModel)
-        {
-            viewModel.IsEditMode = !viewModel.IsEditMode;
-        }
-    }
-
     private void ComboBox_DropDownOpened(object sender, EventArgs e)
     {
         if (DataContext is DistributionViewModel viewModel)

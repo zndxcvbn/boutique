@@ -38,22 +38,6 @@
                              Margin="0,0,12,0"
                              IsIndeterminate="True"
                              Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisConverter}}" />
-                <Button x:Name="ToggleEditModeButton"
-                        Width="100"
-                        Margin="0,0,6,0"
-                        Click="ToggleEditMode_Click"
-                        IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}">
-                    <Button.Style>
-                        <Style TargetType="Button">
-                            <Setter Property="Content" Value="Edit Mode" />
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsEditMode}" Value="True">
-                                    <Setter Property="Content" Value="View Mode" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Button.Style>
-                </Button>
                 <Button Content="Refresh"
                         Width="90"
                         Command="{Binding RefreshCommand}"
@@ -73,9 +57,8 @@
                         <ColumnDefinition Width="3*" />
                     </Grid.ColumnDefinitions>
 
-                    <!-- View Mode: Distribution Files List -->
-                    <GroupBox Grid.Column="0" Header="Distribution Files" Padding="6"
-                              Visibility="{Binding IsEditMode, Converter={StaticResource InverseBoolToVisConverter}}">
+                    <!-- Distribution Files List -->
+                    <GroupBox Grid.Column="0" Header="Distribution Files" Padding="6">
                         <DataGrid ItemsSource="{Binding Files}"
                                   SelectedItem="{Binding SelectedFile, Mode=TwoWay}"
                                   AutoGenerateColumns="False"
@@ -91,9 +74,120 @@
                         </DataGrid>
                     </GroupBox>
 
-                    <!-- Edit Mode: Distribution Entries Editor -->
-                    <GroupBox Grid.Column="0" Header="Distribution Entries" Padding="6"
-                              Visibility="{Binding IsEditMode, Converter={StaticResource BoolToVisConverter}}">
+                    <!-- Preview -->
+                    <GroupBox Grid.Column="2" Header="Preview" Padding="6">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0"
+                                       Text="{Binding SelectedFile.FullPath}"
+                                       TextWrapping="Wrap"
+                                       FontWeight="Bold" />
+
+                            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,4,0,0">
+                                <TextBlock Text="Search:"
+                                           VerticalAlignment="Center"
+                                           Margin="0,0,4,0" />
+                                <TextBox Width="220"
+                                         Text="{Binding LineFilter, UpdateSourceTrigger=PropertyChanged}"
+                                         ToolTip="Filter lines containing this text"
+                                         FontFamily="Consolas" />
+                            </StackPanel>
+
+                            <Border Grid.Row="2" Margin="0,4,0,0" BorderBrush="Gray"
+                                    BorderThickness="1">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                                    <ItemsControl ItemsSource="{Binding FilteredLines}">
+                                        <ItemsControl.ItemContainerStyle>
+                                            <Style TargetType="ContentPresenter">
+                                                <Setter Property="HorizontalAlignment" Value="Stretch" />
+                                            </Style>
+                                        </ItemsControl.ItemContainerStyle>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Padding="0"
+                                                        HorizontalAlignment="Stretch">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="Background" Value="Transparent" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsOutfitDistribution}" Value="True">
+                                                                    <Setter Property="Background" Value="#1A0078D4" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                    <Grid Margin="0">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="*" />
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <Button Grid.Column="0"
+                                                                Margin="4,0,6,0"
+                                                                Padding="0"
+                                                                HorizontalAlignment="Left"
+                                                                VerticalAlignment="Center"
+                                                                ToolTip="Preview Outfit"
+                                                                Background="Transparent"
+                                                                BorderBrush="Transparent"
+                                                                BorderThickness="0"
+                                                                Command="{Binding DataContext.PreviewLineCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                CommandParameter="{Binding}">
+                                                            <Button.Style>
+                                                                <Style TargetType="Button">
+                                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding IsOutfitDistribution}" Value="True">
+                                                                            <Setter Property="Visibility" Value="Visible" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Button.Style>
+                                                            <Image Source="pack://application:,,,/Assets/eye.png"
+                                                                   Width="16"
+                                                                   Height="16"
+                                                                   Stretch="Uniform"
+                                                                   RenderOptions.BitmapScalingMode="HighQuality" />
+                                                        </Button>
+
+                                                        <TextBlock Grid.Column="1"
+                                                                   Text="{Binding LineNumber, StringFormat='{}{0,4}'}"
+                                                                   FontFamily="Consolas"
+                                                                   Margin="4,0,8,0" />
+
+                                                        <TextBlock Grid.Column="2"
+                                                                   Text="{Binding RawText}"
+                                                                   FontFamily="Consolas"
+                                                                   TextWrapping="NoWrap" />
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </Border>
+                        </Grid>
+                    </GroupBox>
+                </Grid>
+            </TabItem>
+            
+            <!-- EDIT TAB -->
+            <TabItem Header="Edit">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="2*" />
+                        <ColumnDefinition Width="10" />
+                        <ColumnDefinition Width="3*" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Distribution Entries Editor -->
+                    <GroupBox Grid.Column="0" Header="Distribution Entries" Padding="6">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
@@ -262,111 +356,8 @@
                         </Grid>
                     </GroupBox>
 
-                    <!-- View Mode: Preview -->
-                    <GroupBox Grid.Column="2" Header="Preview" Padding="6"
-                              Visibility="{Binding IsEditMode, Converter={StaticResource InverseBoolToVisConverter}}">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="*" />
-                            </Grid.RowDefinitions>
-
-                            <TextBlock Grid.Row="0"
-                                       Text="{Binding SelectedFile.FullPath}"
-                                       TextWrapping="Wrap"
-                                       FontWeight="Bold" />
-
-                            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,4,0,0">
-                                <TextBlock Text="Search:"
-                                           VerticalAlignment="Center"
-                                           Margin="0,0,4,0" />
-                                <TextBox Width="220"
-                                         Text="{Binding LineFilter, UpdateSourceTrigger=PropertyChanged}"
-                                         ToolTip="Filter lines containing this text"
-                                         FontFamily="Consolas" />
-                            </StackPanel>
-
-                            <Border Grid.Row="2" Margin="0,4,0,0" BorderBrush="Gray"
-                                    BorderThickness="1">
-                                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
-                                    <ItemsControl ItemsSource="{Binding FilteredLines}">
-                                        <ItemsControl.ItemContainerStyle>
-                                            <Style TargetType="ContentPresenter">
-                                                <Setter Property="HorizontalAlignment" Value="Stretch" />
-                                            </Style>
-                                        </ItemsControl.ItemContainerStyle>
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <Border Padding="0"
-                                                        HorizontalAlignment="Stretch">
-                                                    <Border.Style>
-                                                        <Style TargetType="Border">
-                                                            <Setter Property="Background" Value="Transparent" />
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding IsOutfitDistribution}" Value="True">
-                                                                    <Setter Property="Background" Value="#1A0078D4" />
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </Border.Style>
-                                                    <Grid Margin="0">
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="Auto" />
-                                                            <ColumnDefinition Width="Auto" />
-                                                            <ColumnDefinition Width="*" />
-                                                        </Grid.ColumnDefinitions>
-
-                                                        <Button Grid.Column="0"
-                                                                Margin="4,0,6,0"
-                                                                Padding="0"
-                                                                HorizontalAlignment="Left"
-                                                                VerticalAlignment="Center"
-                                                                ToolTip="Preview Outfit"
-                                                                Background="Transparent"
-                                                                BorderBrush="Transparent"
-                                                                BorderThickness="0"
-                                                                Command="{Binding DataContext.PreviewLineCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                                CommandParameter="{Binding}">
-                                                            <Button.Style>
-                                                                <Style TargetType="Button">
-                                                                    <Setter Property="Visibility" Value="Collapsed" />
-                                                                    <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding IsOutfitDistribution}" Value="True">
-                                                                            <Setter Property="Visibility" Value="Visible" />
-                                                                        </DataTrigger>
-                                                                    </Style.Triggers>
-                                                                </Style>
-                                                            </Button.Style>
-                                                            <Image Source="pack://application:,,,/Assets/eye.png"
-                                                                   Width="16"
-                                                                   Height="16"
-                                                                   Stretch="Uniform"
-                                                                   RenderOptions.BitmapScalingMode="HighQuality" />
-                                                        </Button>
-
-                                                        <TextBlock Grid.Column="1"
-                                                                   Text="{Binding LineNumber, StringFormat='{}{0,4}'}"
-                                                                   FontFamily="Consolas"
-                                                                   Margin="4,0,8,0" />
-
-                                                        <TextBlock Grid.Column="2"
-                                                                   Text="{Binding RawText}"
-                                                                   FontFamily="Consolas"
-                                                                   TextWrapping="NoWrap" />
-                                                    </Grid>
-                                                </Border>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </ScrollViewer>
-                            </Border>
-                        </Grid>
-                    </GroupBox>
-
-                    <!-- Edit Mode: NPC Picker -->
-                    <GroupBox Grid.Column="2" Header="NPC Selection" Padding="6"
-                              Visibility="{Binding IsEditMode, Converter={StaticResource BoolToVisConverter}}">
+                    <!-- NPC Picker -->
+                    <GroupBox Grid.Column="2" Header="NPC Selection" Padding="6">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
@@ -472,10 +463,11 @@
                         </Grid.ColumnDefinitions>
 
                         <StackPanel Grid.Column="0" Orientation="Horizontal">
-                            <Button Content="Scan NPC Outfits"
+                            <Button Content="↻ Refresh"
                                     Command="{Binding ScanNpcOutfitsCommand}"
                                     Padding="12,4"
-                                    Margin="0,0,6,0" />
+                                    Margin="0,0,6,0"
+                                    ToolTip="Rescan distribution files for NPC outfit assignments" />
                         </StackPanel>
 
                         <StackPanel Grid.Column="2" Orientation="Horizontal">

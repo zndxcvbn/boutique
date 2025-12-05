@@ -111,6 +111,9 @@ public class DistributionFileWriterService : IDistributionFileWriterService
             try
             {
                 var lines = File.ReadAllLines(filePath, Encoding.UTF8);
+                
+                // Pre-cache NPCs for SPID parsing (only if we have SPID lines)
+                List<INpcGetter>? cachedNpcs = null;
 
                 foreach (var line in lines)
                 {
@@ -130,7 +133,9 @@ public class DistributionFileWriterService : IDistributionFileWriterService
                     // Try SPID format: Outfit = 0x800~ModKey|EditorID[,EditorID,...]
                     else if (trimmed.StartsWith("Outfit", StringComparison.OrdinalIgnoreCase) && trimmed.Contains('~') && trimmed.Contains('|'))
                     {
-                        entry = ParseSpidLine(trimmed, linkCache);
+                        // Lazy-load NPC cache only when we encounter SPID format
+                        cachedNpcs ??= linkCache.PriorityOrder.WinningOverrides<INpcGetter>().ToList();
+                        entry = ParseSpidLine(trimmed, linkCache, cachedNpcs);
                     }
 
                     if (entry != null)
@@ -236,7 +241,7 @@ public class DistributionFileWriterService : IDistributionFileWriterService
         return new FormKey(modKey, formId);
     }
 
-    private DistributionEntry? ParseSpidLine(string line, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
+    private DistributionEntry? ParseSpidLine(string line, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache, List<INpcGetter> cachedNpcs)
     {
         try
         {
@@ -303,16 +308,15 @@ public class DistributionFileWriterService : IDistributionFileWriterService
                 return null;
             }
 
-            // Resolve NPCs by EditorID or Name
+            // Resolve NPCs by EditorID or Name using the pre-cached list
             // Note: The ModKey in SPID format is for the outfit, not the NPCs
             // NPCs are identified by EditorID or Name and can be from any mod
             var npcFormKeys = new List<FormKey>();
-            var allNpcs = linkCache.PriorityOrder.WinningOverrides<INpcGetter>().ToList();
 
             foreach (var identifier in npcIdentifiers)
             {
                 // Try to find NPC by EditorID first, then by Name
-                var npc = allNpcs.FirstOrDefault(n => 
+                var npc = cachedNpcs.FirstOrDefault(n => 
                     string.Equals(n.EditorID, identifier, StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(n.Name?.String, identifier, StringComparison.OrdinalIgnoreCase));
 

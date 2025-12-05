@@ -20,6 +20,13 @@ using Serilog;
 
 namespace Boutique.ViewModels;
 
+public enum DistributionTab
+{
+    Files = 0,
+    Edit = 1,
+    Npcs = 2
+}
+
 public class DistributionViewModel : ReactiveObject
 {
     private readonly IDistributionDiscoveryService _discoveryService;
@@ -33,9 +40,14 @@ public class DistributionViewModel : ReactiveObject
 
     private ObservableCollection<DistributionFileViewModel> _files = new();
     private ObservableCollection<DistributionEntryViewModel> _distributionEntries = new();
+    private bool _isBulkLoading;
     
     private void OnDistributionEntriesChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
     {
+        // Skip expensive operations during bulk loading
+        if (_isBulkLoading)
+            return;
+            
         _logger.Debug("OnDistributionEntriesChanged: Action={Action}, NewItems={NewCount}, OldItems={OldCount}", 
             e.Action, e.NewItems?.Count ?? 0, e.OldItems?.Count ?? 0);
         
@@ -47,18 +59,8 @@ public class DistributionViewModel : ReactiveObject
         {
             foreach (DistributionEntryViewModel entry in e.NewItems)
             {
-                entry.WhenAnyValue(evm => evm.SelectedOutfit)
-                    .Subscribe(_ => UpdateDistributionPreview());
-                entry.WhenAnyValue(evm => evm.SelectedNpcs)
-                    .Subscribe(_ => UpdateDistributionPreview());
-                entry.SelectedNpcs.CollectionChanged += (s, args) => UpdateDistributionPreview();
+                SubscribeToEntryChanges(entry);
             }
-        }
-        
-        // Unsubscribe from removed entries
-        if (e.OldItems != null)
-        {
-            // No need to unsubscribe - entries will be garbage collected
         }
         
         // Update preview whenever entries change
@@ -67,13 +69,23 @@ public class DistributionViewModel : ReactiveObject
         _logger.Debug("OnDistributionEntriesChanged completed");
     }
     
+    private void SubscribeToEntryChanges(DistributionEntryViewModel entry)
+    {
+        entry.WhenAnyValue(evm => evm.SelectedOutfit)
+            .Skip(1) // Skip initial value
+            .Subscribe(_ => UpdateDistributionPreview());
+        entry.WhenAnyValue(evm => evm.SelectedNpcs)
+            .Skip(1) // Skip initial value
+            .Subscribe(_ => UpdateDistributionPreview());
+        entry.SelectedNpcs.CollectionChanged += (s, args) => UpdateDistributionPreview();
+    }
+    
     private int DistributionEntriesCount => _distributionEntries.Count;
     private ObservableCollection<NpcRecordViewModel> _availableNpcs = new();
     private ObservableCollection<IOutfitGetter> _availableOutfits = new();
     private bool _outfitsLoaded;
     private ObservableCollection<DistributionFileSelectionItem> _availableDistributionFiles = new();
     private bool _isLoading;
-    private bool _isEditMode;
     private DistributionFileViewModel? _selectedFile;
     private DistributionFileSelectionItem? _selectedDistributionFile;
     private DistributionEntryViewModel? _selectedEntry;
@@ -172,25 +184,25 @@ public class DistributionViewModel : ReactiveObject
                 }
             });
 
-        this.WhenAnyValue(vm => vm.IsEditMode)
-            .Subscribe(editMode =>
+        // Trigger edit mode initialization when Edit tab is selected
+        this.WhenAnyValue(vm => vm.SelectedTabIndex)
+            .Where(index => index == (int)DistributionTab.Edit)
+            .Subscribe(_ =>
             {
-                if (editMode)
+                this.RaisePropertyChanged(nameof(IsEditMode));
+                UpdateAvailableDistributionFiles();
+                if (SelectedDistributionFile == null)
                 {
-                    UpdateAvailableDistributionFiles();
-                    if (SelectedDistributionFile == null)
+                    // Select "New File" by default
+                    var newFileItem = AvailableDistributionFiles.FirstOrDefault(f => f.IsNewFile);
+                    if (newFileItem != null)
                     {
-                        // Select "New File" by default
-                        var newFileItem = AvailableDistributionFiles.FirstOrDefault(f => f.IsNewFile);
-                        if (newFileItem != null)
-                        {
-                            SelectedDistributionFile = newFileItem;
-                        }
+                        SelectedDistributionFile = newFileItem;
                     }
-                    // Don't load outfits upfront - load lazily when ComboBox opens
-                    // Update preview when entering edit mode
-                    UpdateDistributionPreview();
                 }
+                // Don't load outfits upfront - load lazily when ComboBox opens
+                // Update preview when entering edit mode
+                UpdateDistributionPreview();
             });
 
         this.WhenAnyValue(vm => vm.NpcSearchText)
@@ -207,6 +219,19 @@ public class DistributionViewModel : ReactiveObject
         // Update outfit contents when selection changes
         this.WhenAnyValue(vm => vm.SelectedNpcAssignment)
             .Subscribe(_ => UpdateSelectedNpcOutfitContents());
+        
+        // Auto-scan NPC outfits when NPCs tab is selected
+        this.WhenAnyValue(vm => vm.SelectedTabIndex)
+            .Where(index => index == (int)DistributionTab.Npcs)
+            .Subscribe(_ => 
+            {
+                // Only auto-scan if we haven't already scanned
+                if (NpcOutfitAssignments.Count == 0 && !IsLoading)
+                {
+                    _logger.Debug("NPCs tab selected, triggering auto-scan");
+                    Task.Run(() => ScanNpcOutfitsAsync());
+                }
+            });
     }
 
     public ObservableCollection<DistributionFileViewModel> Files
@@ -284,11 +309,7 @@ public class DistributionViewModel : ReactiveObject
 
     public string DataPath => _settings.SkyrimDataPath;
 
-    public bool IsEditMode
-    {
-        get => _isEditMode;
-        set => this.RaiseAndSetIfChanged(ref _isEditMode, value);
-    }
+    public bool IsEditMode => SelectedTabIndex == (int)DistributionTab.Edit;
 
     public ObservableCollection<DistributionEntryViewModel> DistributionEntries
     {
@@ -827,18 +848,38 @@ public class DistributionViewModel : ReactiveObject
 
             var entries = await _fileWriterService.LoadDistributionFileAsync(DistributionFilePath);
 
-            DistributionEntries.Clear();
-
             // Ensure outfits are loaded before creating entries so ComboBox bindings work
             await LoadAvailableOutfitsAsync();
 
-            foreach (var entry in entries)
+            // Use bulk loading to avoid triggering expensive updates for each entry
+            _isBulkLoading = true;
+            try
             {
-                var entryVm = CreateEntryViewModel(entry);
-                DistributionEntries.Add(entryVm);
-                // Note: Subscriptions for preview updates are handled by OnDistributionEntriesChanged
+                DistributionEntries.Clear();
+                
+                // Create all ViewModels first (can be done on background thread for large lists)
+                var entryVms = await Task.Run(() => 
+                    entries.Select(entry => CreateEntryViewModel(entry)).ToList());
+                
+                // Add all entries to collection
+                foreach (var entryVm in entryVms)
+                {
+                    DistributionEntries.Add(entryVm);
+                }
+                
+                // Subscribe to changes on all entries
+                foreach (var entryVm in entryVms)
+                {
+                    SubscribeToEntryChanges(entryVm);
+                }
+            }
+            finally
+            {
+                _isBulkLoading = false;
             }
             
+            // Now do a single update for count and preview
+            this.RaisePropertyChanged(nameof(DistributionEntriesCount));
             UpdateDistributionPreview();
 
             // Update selected file in dropdown to match loaded file
@@ -1263,6 +1304,8 @@ public class DistributionViewModel : ReactiveObject
 
     private async Task ScanNpcOutfitsAsync()
     {
+        _logger.Debug("ScanNpcOutfitsAsync started");
+        
         try
         {
             IsLoading = true;
@@ -1271,20 +1314,26 @@ public class DistributionViewModel : ReactiveObject
             if (!_mutagenService.IsInitialized)
             {
                 var dataPath = _settings.SkyrimDataPath;
+                _logger.Debug("MutagenService not initialized, data path: {DataPath}", dataPath);
+                
                 if (string.IsNullOrWhiteSpace(dataPath))
                 {
                     StatusMessage = "Please set the Skyrim data path in Settings before scanning NPC outfits.";
+                    _logger.Warning("Skyrim data path is not set");
                     return;
                 }
 
                 if (!Directory.Exists(dataPath))
                 {
                     StatusMessage = $"Skyrim data path does not exist: {dataPath}";
+                    _logger.Warning("Skyrim data path does not exist: {DataPath}", dataPath);
                     return;
                 }
 
                 StatusMessage = "Initializing Skyrim environment...";
+                _logger.Debug("Initializing MutagenService...");
                 await _mutagenService.InitializeAsync(dataPath);
+                _logger.Debug("MutagenService initialized successfully");
                 this.RaisePropertyChanged(nameof(IsInitialized));
             }
 
@@ -1292,10 +1341,14 @@ public class DistributionViewModel : ReactiveObject
             if (Files.Count == 0)
             {
                 StatusMessage = "Scanning for distribution files...";
+                _logger.Debug("No distribution files loaded, refreshing...");
                 await RefreshAsync();
+                _logger.Debug("Refresh complete, found {Count} files", Files.Count);
             }
 
             // Get the raw distribution files from the discovered files
+            _logger.Debug("Building distribution file list from {Count} file view models", Files.Count);
+            
             var distributionFiles = Files
                 .Select(fvm => new DistributionFile(
                     fvm.FileName,
@@ -1306,9 +1359,17 @@ public class DistributionViewModel : ReactiveObject
                     fvm.OutfitCount))
                 .ToList();
 
+            foreach (var file in distributionFiles)
+            {
+                _logger.Debug("Distribution file: {FileName} ({Type}), {LineCount} lines, {OutfitCount} outfit distributions",
+                    file.FileName, file.Type, file.Lines.Count, file.OutfitDistributionCount);
+            }
+
             StatusMessage = $"Resolving outfit assignments from {distributionFiles.Count} files...";
+            _logger.Debug("Calling ResolveNpcOutfitsAsync with {Count} files", distributionFiles.Count);
 
             var assignments = await _npcOutfitResolutionService.ResolveNpcOutfitsAsync(distributionFiles);
+            _logger.Debug("ResolveNpcOutfitsAsync returned {Count} assignments", assignments.Count);
 
             NpcOutfitAssignments.Clear();
             foreach (var assignment in assignments)
