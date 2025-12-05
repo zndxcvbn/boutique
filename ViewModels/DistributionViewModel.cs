@@ -85,6 +85,7 @@ public class DistributionViewModel : ReactiveObject
     private bool _isCreatingNewFile;
     private string _npcSearchText = string.Empty;
     private string _distributionPreviewText = string.Empty;
+    private ObservableCollection<NpcRecordViewModel> _filteredNpcs = new();
 
     public DistributionViewModel(
         IDistributionDiscoveryService discoveryService,
@@ -175,7 +176,9 @@ public class DistributionViewModel : ReactiveObject
             });
 
         this.WhenAnyValue(vm => vm.NpcSearchText)
-            .Subscribe(_ => this.RaisePropertyChanged(nameof(FilteredNpcs)));
+            .Throttle(TimeSpan.FromMilliseconds(150))
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Subscribe(_ => UpdateFilteredNpcs());
     }
 
     public ObservableCollection<DistributionFileViewModel> Files
@@ -393,16 +396,10 @@ public class DistributionViewModel : ReactiveObject
         private set => this.RaiseAndSetIfChanged(ref _distributionPreviewText, value);
     }
 
-    public IEnumerable<NpcRecordViewModel> FilteredNpcs
+    public ObservableCollection<NpcRecordViewModel> FilteredNpcs
     {
-        get
-        {
-            if (string.IsNullOrWhiteSpace(NpcSearchText))
-                return AvailableNpcs;
-
-            var term = NpcSearchText.Trim().ToLowerInvariant();
-            return AvailableNpcs.Where(npc => npc.MatchesSearch(term));
-        }
+        get => _filteredNpcs;
+        private set => this.RaiseAndSetIfChanged(ref _filteredNpcs, value);
     }
 
     public bool IsInitialized => _mutagenService.IsInitialized;
@@ -817,7 +814,7 @@ public class DistributionViewModel : ReactiveObject
 
         _logger.Debug("AddSelectedNpcsToEntry: Total NPCs={Total}, Filtered={Filtered}, Selected={Selected}", 
             AvailableNpcs.Count, 
-            FilteredNpcs.Count(),
+            FilteredNpcs.Count,
             selectedNpcs.Count);
 
         if (selectedNpcs.Count == 0)
@@ -966,108 +963,13 @@ public class DistributionViewModel : ReactiveObject
             DistributionEntries.Clear();
 
             // Ensure outfits are loaded before creating entries so ComboBox bindings work
-            // Use the async version to properly wait for outfits to load
             await LoadAvailableOutfitsAsync();
-
-            _logger.Information("Processing {Count} entries, AvailableOutfits has {OutfitCount} items", 
-                entries.Count, AvailableOutfits.Count);
 
             foreach (var entry in entries)
             {
-                var entryVm = new DistributionEntryViewModel(entry, RemoveDistributionEntry);
-                
-                // Debug: Log what outfit is in the entry
-                _logger.Information("Entry outfit from file: FormKey={FormKey}, EditorID={EditorID}", 
-                    entry.Outfit?.FormKey.ToString() ?? "null", 
-                    entry.Outfit?.EditorID ?? "null");
-                
-                // Debug: Log what the entryVm has after construction
-                _logger.Information("EntryVm after construction: SelectedOutfit FormKey={FormKey}, EditorID={EditorID}", 
-                    entryVm.SelectedOutfit?.FormKey.ToString() ?? "null",
-                    entryVm.SelectedOutfit?.EditorID ?? "null");
-                
-                // Find the outfit in AvailableOutfits to ensure ComboBox binding works
-                // The ComboBox needs the same instance reference from AvailableOutfits
-                if (entryVm.SelectedOutfit != null)
-                {
-                    var outfitFormKey = entryVm.SelectedOutfit.FormKey;
-                    var matchingOutfit = AvailableOutfits.FirstOrDefault(o => o.FormKey == outfitFormKey);
-                    
-                    _logger.Information("Looking for outfit {FormKey} in AvailableOutfits: Found={Found}", 
-                        outfitFormKey, matchingOutfit != null);
-                    
-                    if (matchingOutfit != null)
-                    {
-                        // Use the outfit from AvailableOutfits so ComboBox recognizes it
-                        _logger.Information("Setting entryVm.SelectedOutfit to matching outfit: {EditorID}", 
-                            matchingOutfit.EditorID);
-                        entryVm.SelectedOutfit = matchingOutfit;
-                        
-                        // Debug: Verify it was set
-                        _logger.Information("After setting: entryVm.SelectedOutfit = {EditorID}, same reference = {SameRef}", 
-                            entryVm.SelectedOutfit?.EditorID ?? "null",
-                            ReferenceEquals(entryVm.SelectedOutfit, matchingOutfit));
-                    }
-                    else
-                    {
-                        _logger.Warning("Outfit {FormKey} ({EditorID}) not found in AvailableOutfits! Cannot pre-select.", 
-                            outfitFormKey, entryVm.SelectedOutfit?.EditorID ?? "unknown");
-                        
-                        // Debug: List first few outfits in AvailableOutfits
-                        var sampleOutfits = AvailableOutfits.Take(5).Select(o => $"{o.FormKey}:{o.EditorID}");
-                        _logger.Debug("Sample AvailableOutfits: {Outfits}", string.Join(", ", sampleOutfits));
-                    }
-                }
-                else
-                {
-                    _logger.Warning("Entry has null SelectedOutfit after construction");
-                }
-                
-                // Resolve NPCs from FormKeys - try to match with AvailableNpcs first
-                var npcVms = new List<NpcRecordViewModel>();
-                foreach (var npcFormKey in entry.NpcFormKeys)
-                {
-                    // Try to find in AvailableNpcs first
-                    var existingNpc = AvailableNpcs.FirstOrDefault(npc => npc.FormKey == npcFormKey);
-                    if (existingNpc != null)
-                    {
-                        // Don't set IsSelected - that's only for temporary picker selection
-                        npcVms.Add(existingNpc);
-                    }
-                    else if (_mutagenService.LinkCache is ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
-                    {
-                        // If not in AvailableNpcs, resolve from LinkCache
-                        if (linkCache.TryResolve<INpcGetter>(npcFormKey, out var npc))
-                        {
-                            var npcRecord = new NpcRecord(
-                                npc.FormKey,
-                                npc.EditorID,
-                                npc.Name?.String,
-                                npc.FormKey.ModKey);
-                            var npcVm = new NpcRecordViewModel(npcRecord);
-                            // Don't set IsSelected - that's only for temporary picker selection
-                            npcVms.Add(npcVm);
-                        }
-                    }
-                }
-                
-                if (npcVms.Count > 0)
-                {
-                    entryVm.SelectedNpcs = new ObservableCollection<NpcRecordViewModel>(npcVms);
-                    entryVm.UpdateEntryNpcs();
-                }
-                
+                var entryVm = CreateEntryViewModel(entry);
                 DistributionEntries.Add(entryVm);
-            }
-            
-            // Subscribe to property changes on all loaded entries
-            foreach (var entryVm in DistributionEntries)
-            {
-                entryVm.WhenAnyValue(evm => evm.SelectedOutfit)
-                    .Subscribe(_ => UpdateDistributionPreview());
-                entryVm.WhenAnyValue(evm => evm.SelectedNpcs)
-                    .Subscribe(_ => UpdateDistributionPreview());
-                entryVm.SelectedNpcs.CollectionChanged += (s, args) => UpdateDistributionPreview();
+                // Note: Subscriptions for preview updates are handled by OnDistributionEntriesChanged
             }
             
             UpdateDistributionPreview();
@@ -1136,6 +1038,9 @@ public class DistributionViewModel : ReactiveObject
                 var npcVm = new NpcRecordViewModel(npc);
                 AvailableNpcs.Add(npcVm);
             }
+            
+            // Update the filtered list after populating
+            UpdateFilteredNpcs();
 
             StatusMessage = $"Scanned {AvailableNpcs.Count} NPCs.";
             _logger.Information("Scanned {Count} NPCs.", AvailableNpcs.Count);
@@ -1288,11 +1193,6 @@ public class DistributionViewModel : ReactiveObject
         DistributionPreviewText = string.Join(Environment.NewLine, lines);
     }
 
-    private static string FormatFormKey(FormKey formKey)
-    {
-        return $"{formKey.ModKey.FileName}|{formKey.ID:X8}";
-    }
-
     private void LoadAvailableOutfits()
     {
         // Only load once, and only if not already loaded
@@ -1366,4 +1266,130 @@ public class DistributionViewModel : ReactiveObject
             LoadAvailableOutfits();
         }
     }
+
+    #region Helper Methods
+
+    /// <summary>
+    /// Creates a DistributionEntryViewModel from a DistributionEntry,
+    /// resolving outfit and NPC references for proper UI binding.
+    /// </summary>
+    private DistributionEntryViewModel CreateEntryViewModel(DistributionEntry entry)
+    {
+        var entryVm = new DistributionEntryViewModel(entry, RemoveDistributionEntry);
+        
+        // Resolve outfit to AvailableOutfits instance for ComboBox binding
+        ResolveEntryOutfit(entryVm);
+        
+        // Resolve NPCs from FormKeys
+        var npcVms = ResolveNpcFormKeys(entry.NpcFormKeys);
+        if (npcVms.Count > 0)
+        {
+            entryVm.SelectedNpcs = new ObservableCollection<NpcRecordViewModel>(npcVms);
+            entryVm.UpdateEntryNpcs();
+        }
+        
+        return entryVm;
+    }
+
+    /// <summary>
+    /// Resolves the entry's outfit to an instance from AvailableOutfits
+    /// so the ComboBox can properly display and select it.
+    /// </summary>
+    private void ResolveEntryOutfit(DistributionEntryViewModel entryVm)
+    {
+        if (entryVm.SelectedOutfit == null)
+            return;
+
+        var outfitFormKey = entryVm.SelectedOutfit.FormKey;
+        var matchingOutfit = AvailableOutfits.FirstOrDefault(o => o.FormKey == outfitFormKey);
+        
+        if (matchingOutfit != null)
+        {
+            entryVm.SelectedOutfit = matchingOutfit;
+        }
+    }
+
+    /// <summary>
+    /// Resolves a list of NPC FormKeys to NpcRecordViewModels,
+    /// preferring existing instances from AvailableNpcs.
+    /// </summary>
+    private List<NpcRecordViewModel> ResolveNpcFormKeys(IEnumerable<FormKey> formKeys)
+    {
+        var npcVms = new List<NpcRecordViewModel>();
+        
+        foreach (var npcFormKey in formKeys)
+        {
+            var npcVm = ResolveNpcFormKey(npcFormKey);
+            if (npcVm != null)
+            {
+                npcVms.Add(npcVm);
+            }
+        }
+        
+        return npcVms;
+    }
+
+    /// <summary>
+    /// Resolves a single NPC FormKey to an NpcRecordViewModel,
+    /// preferring an existing instance from AvailableNpcs.
+    /// </summary>
+    private NpcRecordViewModel? ResolveNpcFormKey(FormKey formKey)
+    {
+        // Try to find in AvailableNpcs first
+        var existingNpc = AvailableNpcs.FirstOrDefault(npc => npc.FormKey == formKey);
+        if (existingNpc != null)
+        {
+            return existingNpc;
+        }
+        
+        // If not in AvailableNpcs, resolve from LinkCache
+        if (_mutagenService.LinkCache is ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache &&
+            linkCache.TryResolve<INpcGetter>(formKey, out var npc))
+        {
+            var npcRecord = new NpcRecord(
+                npc.FormKey,
+                npc.EditorID,
+                npc.Name?.String,
+                npc.FormKey.ModKey);
+            return new NpcRecordViewModel(npcRecord);
+        }
+        
+        return null;
+    }
+
+    /// <summary>
+    /// Formats a FormKey as "ModKey|FormID" for SkyPatcher format.
+    /// </summary>
+    private static string FormatFormKey(FormKey formKey)
+    {
+        return $"{formKey.ModKey.FileName}|{formKey.ID:X8}";
+    }
+
+    /// <summary>
+    /// Updates the FilteredNpcs collection based on the current search text.
+    /// This uses a stable collection to avoid DataGrid binding issues with checkboxes.
+    /// </summary>
+    private void UpdateFilteredNpcs()
+    {
+        IEnumerable<NpcRecordViewModel> filtered;
+        
+        if (string.IsNullOrWhiteSpace(NpcSearchText))
+        {
+            filtered = AvailableNpcs;
+        }
+        else
+        {
+            var term = NpcSearchText.Trim().ToLowerInvariant();
+            filtered = AvailableNpcs.Where(npc => npc.MatchesSearch(term));
+        }
+        
+        // Update the collection in-place to preserve checkbox state
+        _filteredNpcs.Clear();
+        foreach (var npc in filtered)
+        {
+            _filteredNpcs.Add(npc);
+        }
+    }
+
+    #endregion
 }
