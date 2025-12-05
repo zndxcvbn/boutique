@@ -219,6 +219,49 @@
                                             Command="{Binding SelectDistributionFilePathCommand}"
                                             Padding="8,2" />
                                 </StackPanel>
+                                <!-- Conflict Warning Banner -->
+                                <Border Margin="0,6,0,0" Padding="8" CornerRadius="4"
+                                        Visibility="{Binding HasConflicts, Converter={StaticResource BoolToVisConverter}}">
+                                    <Border.Background>
+                                        <SolidColorBrush Color="#FF8C00" Opacity="0.15" />
+                                    </Border.Background>
+                                    <Border.BorderBrush>
+                                        <SolidColorBrush Color="#FF8C00" />
+                                    </Border.BorderBrush>
+                                    <Border.BorderThickness>
+                                        <Thickness>1</Thickness>
+                                    </Border.BorderThickness>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" 
+                                                   Text="⚠" 
+                                                   FontSize="18" 
+                                                   FontWeight="Bold" 
+                                                   Foreground="#FF8C00"
+                                                   VerticalAlignment="Top"
+                                                   Margin="0,0,8,0" />
+                                        <StackPanel Grid.Column="1">
+                                            <TextBlock Text="{Binding ConflictSummary}" 
+                                                       TextWrapping="Wrap" 
+                                                       Foreground="#CC6600" 
+                                                       FontSize="11" />
+                                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                                <TextBlock Text="Suggested filename: " 
+                                                           Foreground="#CC6600" 
+                                                           FontWeight="Bold"
+                                                           FontSize="11" />
+                                                <TextBlock Text="{Binding SuggestedFileName}" 
+                                                           Foreground="#CC6600" 
+                                                           FontFamily="Consolas"
+                                                           FontWeight="Bold"
+                                                           FontSize="11" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
                             </StackPanel>
 
                             <!-- Action Buttons -->
@@ -314,8 +357,39 @@
                                                     <ItemsControl Grid.Row="2" ItemsSource="{Binding SelectedNpcs}">
                                                         <ItemsControl.ItemTemplate>
                                                             <DataTemplate>
-                                                                <Border BorderBrush="LightGray" BorderThickness="1" Margin="0,2" Padding="4">
+                                                                <Border Margin="0,2" Padding="4">
+                                                                    <Border.Style>
+                                                                        <Style TargetType="Border">
+                                                                            <Setter Property="BorderBrush" Value="LightGray" />
+                                                                            <Setter Property="BorderThickness" Value="1" />
+                                                                            <Setter Property="Background" Value="Transparent" />
+                                                                            <Style.Triggers>
+                                                                                <DataTrigger Binding="{Binding HasConflict}" Value="True">
+                                                                                    <Setter Property="BorderBrush" Value="#FF8C00" />
+                                                                                    <Setter Property="Background" Value="#15FF8C00" />
+                                                                                </DataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </Border.Style>
                                                                     <StackPanel Orientation="Horizontal">
+                                                                        <!-- Conflict Warning Icon -->
+                                                                        <TextBlock Text="⚠" 
+                                                                                   Foreground="#FF8C00"
+                                                                                   FontWeight="Bold"
+                                                                                   VerticalAlignment="Center"
+                                                                                   Margin="0,0,4,0"
+                                                                                   ToolTip="{Binding ConflictTooltip}">
+                                                                            <TextBlock.Style>
+                                                                                <Style TargetType="TextBlock">
+                                                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                                                    <Style.Triggers>
+                                                                                        <DataTrigger Binding="{Binding HasConflict}" Value="True">
+                                                                                            <Setter Property="Visibility" Value="Visible" />
+                                                                                        </DataTrigger>
+                                                                                    </Style.Triggers>
+                                                                                </Style>
+                                                                            </TextBlock.Style>
+                                                                        </TextBlock>
                                                                         <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center" Margin="0,0,6,0" />
                                                                         <TextBlock Text="{Binding FormKeyString}" 
                                                                                    FontFamily="Consolas"

@@ -97,6 +97,9 @@ public class DistributionViewModel : ReactiveObject
     private string _npcSearchText = string.Empty;
     private string _distributionPreviewText = string.Empty;
     private ObservableCollection<NpcRecordViewModel> _filteredNpcs = new();
+    private bool _hasConflicts;
+    private string _conflictSummary = string.Empty;
+    private string _suggestedFileName = string.Empty;
     
     // NPCs tab fields
     private int _selectedTabIndex;
@@ -413,7 +416,12 @@ public class DistributionViewModel : ReactiveObject
     public bool IsCreatingNewFile
     {
         get => _isCreatingNewFile;
-        private set => this.RaiseAndSetIfChanged(ref _isCreatingNewFile, value);
+        private set
+        {
+            this.RaiseAndSetIfChanged(ref _isCreatingNewFile, value);
+            // Re-detect conflicts when switching between new file / existing file mode
+            DetectConflicts();
+        }
     }
 
     public bool ShowNewFileNameInput => IsCreatingNewFile;
@@ -427,6 +435,8 @@ public class DistributionViewModel : ReactiveObject
             if (IsCreatingNewFile)
             {
                 UpdateDistributionFilePathFromNewFileName();
+                // Re-detect conflicts when filename changes
+                DetectConflicts();
             }
         }
     }
@@ -508,6 +518,33 @@ public class DistributionViewModel : ReactiveObject
     }
 
     public bool IsInitialized => _mutagenService.IsInitialized;
+
+    /// <summary>
+    /// Indicates whether the current distribution entries have conflicts with existing files.
+    /// </summary>
+    public bool HasConflicts
+    {
+        get => _hasConflicts;
+        private set => this.RaiseAndSetIfChanged(ref _hasConflicts, value);
+    }
+
+    /// <summary>
+    /// Summary text describing the detected conflicts.
+    /// </summary>
+    public string ConflictSummary
+    {
+        get => _conflictSummary;
+        private set => this.RaiseAndSetIfChanged(ref _conflictSummary, value);
+    }
+
+    /// <summary>
+    /// The suggested filename with Z-prefix to ensure proper load order.
+    /// </summary>
+    public string SuggestedFileName
+    {
+        get => _suggestedFileName;
+        private set => this.RaiseAndSetIfChanged(ref _suggestedFileName, value);
+    }
 
     public async Task RefreshAsync()
     {
@@ -773,11 +810,64 @@ public class DistributionViewModel : ReactiveObject
             return;
         }
 
+        // Detect conflicts before saving
+        DetectConflicts();
+
+        var finalFilePath = DistributionFilePath;
+        var finalFileName = Path.GetFileName(DistributionFilePath);
+
+        // If creating a new file with conflicts, show confirmation with suggested filename
+        if (IsCreatingNewFile && HasConflicts && !string.IsNullOrEmpty(SuggestedFileName))
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("⚠ Distribution Conflicts Detected");
+            sb.AppendLine();
+            sb.AppendLine(ConflictSummary);
+            sb.AppendLine();
+            sb.AppendLine("To ensure your new distributions take priority (load last), the filename will be changed to:");
+            sb.AppendLine();
+            sb.AppendLine($"    {SuggestedFileName}");
+            sb.AppendLine();
+            sb.AppendLine("This 'Z' prefix ensures alphabetical sorting places your file after the conflicting files.");
+            sb.AppendLine();
+            sb.AppendLine("Do you want to continue with this filename?");
+
+            var result = System.Windows.MessageBox.Show(
+                sb.ToString(),
+                "Conflicts Detected - Filename Change Required",
+                System.Windows.MessageBoxButton.YesNoCancel,
+                System.Windows.MessageBoxImage.Warning);
+
+            if (result == System.Windows.MessageBoxResult.Cancel)
+            {
+                StatusMessage = "Save cancelled.";
+                return;
+            }
+            
+            if (result == System.Windows.MessageBoxResult.Yes)
+            {
+                // Use the suggested filename
+                var directory = Path.GetDirectoryName(DistributionFilePath);
+                finalFileName = SuggestedFileName;
+                if (!finalFileName.EndsWith(".ini", StringComparison.OrdinalIgnoreCase))
+                {
+                    finalFileName += ".ini";
+                }
+                finalFilePath = !string.IsNullOrEmpty(directory) 
+                    ? Path.Combine(directory, finalFileName) 
+                    : finalFileName;
+                
+                // Update the NewFileName to reflect the change
+                NewFileName = finalFileName;
+            }
+            // If No, continue with original filename
+        }
+
         // Check if file exists and prompt for overwrite confirmation (before showing loading state)
-        if (File.Exists(DistributionFilePath))
+        if (File.Exists(finalFilePath))
         {
             var result = System.Windows.MessageBox.Show(
-                $"The file '{Path.GetFileName(DistributionFilePath)}' already exists.\n\nDo you want to overwrite it?",
+                $"The file '{Path.GetFileName(finalFilePath)}' already exists.\n\nDo you want to overwrite it?",
                 "Confirm Overwrite",
                 System.Windows.MessageBoxButton.YesNo,
                 System.Windows.MessageBoxImage.Warning);
@@ -798,10 +888,10 @@ public class DistributionViewModel : ReactiveObject
                 .Select(evm => evm.Entry)
                 .ToList();
 
-            await _fileWriterService.WriteDistributionFileAsync(DistributionFilePath, entries);
+            await _fileWriterService.WriteDistributionFileAsync(finalFilePath, entries);
 
-            StatusMessage = $"Successfully saved distribution file: {Path.GetFileName(DistributionFilePath)}";
-            _logger.Information("Saved distribution file: {FilePath}", DistributionFilePath);
+            StatusMessage = $"Successfully saved distribution file: {Path.GetFileName(finalFilePath)}";
+            _logger.Information("Saved distribution file: {FilePath}", finalFilePath);
 
             // Refresh the file list
             await RefreshAsync();
@@ -810,7 +900,7 @@ public class DistributionViewModel : ReactiveObject
             if (IsCreatingNewFile)
             {
                 var savedFile = Files.FirstOrDefault(f => 
-                    string.Equals(f.FullPath, DistributionFilePath, StringComparison.OrdinalIgnoreCase));
+                    string.Equals(f.FullPath, finalFilePath, StringComparison.OrdinalIgnoreCase));
                 if (savedFile != null)
                 {
                     var matchingItem = AvailableDistributionFiles.FirstOrDefault(item => 
@@ -1099,6 +1189,9 @@ public class DistributionViewModel : ReactiveObject
         }
 
         DistributionPreviewText = string.Join(Environment.NewLine, lines);
+        
+        // Also detect conflicts when preview is updated
+        DetectConflicts();
     }
 
     private async Task LoadAvailableOutfitsAsync()
@@ -1183,6 +1276,314 @@ public class DistributionViewModel : ReactiveObject
     }
 
     #region Helper Methods
+
+    /// <summary>
+    /// Detects conflicts between the current distribution entries and existing distribution files.
+    /// Updates HasConflicts, ConflictSummary, and NPC conflict indicators.
+    /// </summary>
+    private void DetectConflicts()
+    {
+        if (!IsCreatingNewFile)
+        {
+            // Not creating a new file, no need to check conflicts
+            HasConflicts = false;
+            ConflictSummary = string.Empty;
+            SuggestedFileName = NewFileName;
+            ClearNpcConflictIndicators();
+            return;
+        }
+
+        // Build a set of NPC FormKeys from current entries
+        var npcFormKeysInEntries = DistributionEntries
+            .SelectMany(e => e.SelectedNpcs)
+            .Select(npc => npc.FormKey)
+            .ToHashSet();
+
+        if (npcFormKeysInEntries.Count == 0)
+        {
+            HasConflicts = false;
+            ConflictSummary = string.Empty;
+            SuggestedFileName = NewFileName;
+            ClearNpcConflictIndicators();
+            return;
+        }
+
+        // Build a map of NPC FormKey -> (FileName, OutfitEditorId) from existing distribution files
+        var existingDistributions = BuildExistingDistributionMap();
+
+        // Find conflicts
+        var conflicts = new List<Models.NpcConflictInfo>();
+        var conflictingFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var entry in DistributionEntries)
+        {
+            var newOutfitName = entry.SelectedOutfit?.EditorID ?? entry.SelectedOutfit?.FormKey.ToString();
+            
+            foreach (var npcVm in entry.SelectedNpcs)
+            {
+                if (existingDistributions.TryGetValue(npcVm.FormKey, out var existing))
+                {
+                    conflicts.Add(new Models.NpcConflictInfo(
+                        npcVm.FormKey,
+                        npcVm.DisplayName,
+                        existing.FileName,
+                        existing.OutfitName,
+                        newOutfitName));
+                    
+                    conflictingFileNames.Add(existing.FileName);
+                    
+                    // Update NPC conflict indicator
+                    npcVm.HasConflict = true;
+                    npcVm.ConflictingFileName = existing.FileName;
+                }
+                else
+                {
+                    npcVm.HasConflict = false;
+                    npcVm.ConflictingFileName = null;
+                }
+            }
+        }
+
+        HasConflicts = conflicts.Count > 0;
+
+        if (HasConflicts)
+        {
+            // Build conflict summary
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"⚠ {conflicts.Count} NPC(s) already have outfit distributions in existing files:");
+            
+            foreach (var conflict in conflicts.Take(5)) // Show first 5
+            {
+                sb.AppendLine($"  • {conflict.DisplayName ?? conflict.NpcFormKey.ToString()} ({conflict.ExistingFileName})");
+            }
+            
+            if (conflicts.Count > 5)
+            {
+                sb.AppendLine($"  ... and {conflicts.Count - 5} more");
+            }
+            
+            ConflictSummary = sb.ToString().TrimEnd();
+
+            // Calculate suggested filename with Z-prefix
+            SuggestedFileName = CalculateZPrefixedFileName(conflictingFileNames);
+        }
+        else
+        {
+            ConflictSummary = string.Empty;
+            SuggestedFileName = NewFileName;
+        }
+    }
+
+    /// <summary>
+    /// Builds a map of NPC FormKey to existing distribution info from loaded distribution files.
+    /// </summary>
+    private Dictionary<FormKey, (string FileName, string? OutfitName)> BuildExistingDistributionMap()
+    {
+        var map = new Dictionary<FormKey, (string FileName, string? OutfitName)>();
+
+        if (_mutagenService.LinkCache is not ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
+            return map;
+
+        // Build lookup dictionaries for NPC resolution
+        var allNpcs = linkCache.WinningOverrides<INpcGetter>().ToList();
+        var npcByEditorId = allNpcs
+            .Where(n => !string.IsNullOrWhiteSpace(n.EditorID))
+            .GroupBy(n => n.EditorID!, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+        var npcByName = allNpcs
+            .Where(n => !string.IsNullOrWhiteSpace(n.Name?.String))
+            .GroupBy(n => n.Name!.String!, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+        foreach (var file in Files)
+        {
+            foreach (var line in file.Lines.Where(l => l.IsOutfitDistribution))
+            {
+                // Parse the line to extract NPC FormKeys
+                var npcFormKeys = ExtractNpcFormKeysFromLine(file, line, linkCache, npcByEditorId, npcByName);
+                var outfitName = ExtractOutfitNameFromLine(line, linkCache);
+
+                foreach (var npcFormKey in npcFormKeys)
+                {
+                    // Only track first occurrence (earlier files in load order)
+                    if (!map.ContainsKey(npcFormKey))
+                    {
+                        map[npcFormKey] = (file.FileName, outfitName);
+                    }
+                }
+            }
+        }
+
+        return map;
+    }
+
+    /// <summary>
+    /// Extracts NPC FormKeys from a distribution line.
+    /// </summary>
+    private List<FormKey> ExtractNpcFormKeysFromLine(
+        DistributionFileViewModel file,
+        DistributionLine line,
+        ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache,
+        Dictionary<string, INpcGetter> npcByEditorId,
+        Dictionary<string, INpcGetter> npcByName)
+    {
+        var results = new List<FormKey>();
+
+        if (file.TypeDisplay == "SkyPatcher")
+        {
+            // SkyPatcher format: filterByNpcs=ModKey|FormID,ModKey|FormID:outfitDefault=ModKey|FormID
+            var trimmed = line.RawText.Trim();
+            var filterByNpcsIndex = trimmed.IndexOf("filterByNpcs=", StringComparison.OrdinalIgnoreCase);
+            
+            if (filterByNpcsIndex >= 0)
+            {
+                var npcStart = filterByNpcsIndex + "filterByNpcs=".Length;
+                var npcEnd = trimmed.IndexOf(':', npcStart);
+                
+                if (npcEnd > npcStart)
+                {
+                    var npcString = trimmed.Substring(npcStart, npcEnd - npcStart);
+                    
+                    foreach (var npcPart in npcString.Split(','))
+                    {
+                        var formKey = TryParseFormKeyLocal(npcPart.Trim());
+                        if (formKey.HasValue)
+                        {
+                            results.Add(formKey.Value);
+                        }
+                    }
+                }
+            }
+        }
+        else if (file.TypeDisplay == "SPID")
+        {
+            // SPID format: Outfit = 0x800~ModKey|EditorID[,EditorID,...]
+            var trimmed = line.RawText.Trim();
+            var equalsIndex = trimmed.IndexOf('=');
+            if (equalsIndex < 0) return results;
+
+            var valuePart = trimmed.Substring(equalsIndex + 1).Trim();
+            var tildeIndex = valuePart.IndexOf('~');
+            if (tildeIndex < 0) return results;
+
+            var rest = valuePart.Substring(tildeIndex + 1).Trim();
+            var pipeIndex = rest.IndexOf('|');
+            if (pipeIndex < 0) return results;
+
+            var editorIdsString = rest.Substring(pipeIndex + 1).Trim();
+            var npcIdentifiers = editorIdsString
+                .Split(',')
+                .Select(s => s.Trim())
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .ToList();
+
+            foreach (var identifier in npcIdentifiers)
+            {
+                INpcGetter? npc = null;
+                if (npcByEditorId.TryGetValue(identifier, out var npcById))
+                {
+                    npc = npcById;
+                }
+                else if (npcByName.TryGetValue(identifier, out var npcByNameMatch))
+                {
+                    npc = npcByNameMatch;
+                }
+
+                if (npc != null)
+                {
+                    results.Add(npc.FormKey);
+                }
+            }
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// Extracts outfit name from a distribution line.
+    /// </summary>
+    private string? ExtractOutfitNameFromLine(DistributionLine line, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
+    {
+        foreach (var formKeyString in line.OutfitFormKeys)
+        {
+            var formKey = TryParseFormKeyLocal(formKeyString);
+            if (formKey.HasValue && linkCache.TryResolve<IOutfitGetter>(formKey.Value, out var outfit))
+            {
+                return outfit.EditorID ?? outfit.FormKey.ToString();
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Calculates a Z-prefixed filename that will load after all conflicting files.
+    /// </summary>
+    private string CalculateZPrefixedFileName(HashSet<string> conflictingFileNames)
+    {
+        if (string.IsNullOrWhiteSpace(NewFileName) || conflictingFileNames.Count == 0)
+            return NewFileName;
+
+        // Find the maximum number of leading Z's in conflicting filenames
+        var maxZCount = 0;
+        foreach (var fileName in conflictingFileNames)
+        {
+            var zCount = 0;
+            foreach (var c in fileName)
+            {
+                if (c == 'Z' || c == 'z')
+                    zCount++;
+                else
+                    break;
+            }
+            maxZCount = Math.Max(maxZCount, zCount);
+        }
+
+        // Add one more Z than the maximum
+        var zPrefix = new string('Z', maxZCount + 1);
+        
+        // Remove any existing Z prefix from the new filename
+        var baseName = NewFileName.TrimStart('Z', 'z');
+        
+        return zPrefix + baseName;
+    }
+
+    /// <summary>
+    /// Clears conflict indicators on all NPCs in distribution entries.
+    /// </summary>
+    private void ClearNpcConflictIndicators()
+    {
+        foreach (var entry in DistributionEntries)
+        {
+            foreach (var npc in entry.SelectedNpcs)
+            {
+                npc.HasConflict = false;
+                npc.ConflictingFileName = null;
+            }
+        }
+    }
+
+    private static FormKey? TryParseFormKeyLocal(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return null;
+
+        var trimmed = text.Trim();
+        var pipeIndex = trimmed.IndexOf('|');
+        if (pipeIndex < 0)
+            return null;
+
+        var modKeyString = trimmed.Substring(0, pipeIndex).Trim();
+        var formIdString = trimmed.Substring(pipeIndex + 1).Trim();
+
+        if (!ModKey.TryFromNameAndExtension(modKeyString, out var modKey))
+            return null;
+
+        formIdString = formIdString.Replace("0x", "").Replace("0X", "");
+        if (!uint.TryParse(formIdString, System.Globalization.NumberStyles.HexNumber, null, out var formId))
+            return null;
+
+        return new FormKey(modKey, formId);
+    }
 
     /// <summary>
     /// Creates a DistributionEntryViewModel from a DistributionEntry,

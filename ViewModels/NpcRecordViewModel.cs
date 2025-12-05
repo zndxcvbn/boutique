@@ -8,6 +8,8 @@ public class NpcRecordViewModel : ReactiveObject
 {
     private readonly string _searchCache;
     private bool _isSelected;
+    private bool _hasConflict;
+    private string? _conflictingFileName;
 
     public NpcRecordViewModel(NpcRecord npcRecord)
     {
@@ -28,6 +30,31 @@ public class NpcRecordViewModel : ReactiveObject
         get => _isSelected;
         set => this.RaiseAndSetIfChanged(ref _isSelected, value);
     }
+
+    /// <summary>
+    /// Indicates whether this NPC has a conflicting outfit distribution in an existing file.
+    /// </summary>
+    public bool HasConflict
+    {
+        get => _hasConflict;
+        set => this.RaiseAndSetIfChanged(ref _hasConflict, value);
+    }
+
+    /// <summary>
+    /// The name of the file that has a conflicting distribution for this NPC.
+    /// </summary>
+    public string? ConflictingFileName
+    {
+        get => _conflictingFileName;
+        set => this.RaiseAndSetIfChanged(ref _conflictingFileName, value);
+    }
+
+    /// <summary>
+    /// Tooltip text for the conflict warning.
+    /// </summary>
+    public string ConflictTooltip => HasConflict && !string.IsNullOrEmpty(ConflictingFileName)
+        ? $"⚠ Conflict: This NPC already has an outfit distribution in '{ConflictingFileName}'"
+        : string.Empty;
 
     public bool MatchesSearch(string searchTerm)
     {
