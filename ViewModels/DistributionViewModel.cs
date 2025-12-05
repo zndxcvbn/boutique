@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reactive;
@@ -10,12 +8,12 @@ using System.Reactive.Linq;
 using System.Threading.Tasks;
 using Boutique.Models;
 using Boutique.Services;
+using Boutique.Utilities;
 using Microsoft.Win32;
 using Mutagen.Bethesda;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Plugins.Records;
-using Mutagen.Bethesda.Plugins.Order;
 using Mutagen.Bethesda.Skyrim;
 using ReactiveUI;
 using Serilog;
@@ -481,10 +479,10 @@ public class DistributionViewModel : ReactiveObject
 
         foreach (var keyString in line.OutfitFormKeys)
         {
-            if (!TryResolveOutfit(keyString, linkCache, ref cachedOutfits, out var outfit, out var label))
+            if (!OutfitResolver.TryResolve(keyString, linkCache, ref cachedOutfits, out var outfit, out var label))
                 continue;
 
-            var armorPieces = GatherArmorPieces(outfit, linkCache);
+            var armorPieces = OutfitResolver.GatherArmorPieces(outfit, linkCache);
             if (armorPieces.Count == 0)
                 continue;
 
@@ -524,7 +522,7 @@ public class DistributionViewModel : ReactiveObject
         var outfit = entry.SelectedOutfit;
         var label = outfit.EditorID ?? outfit.FormKey.ToString();
 
-        var armorPieces = GatherArmorPieces(outfit, linkCache);
+        var armorPieces = OutfitResolver.GatherArmorPieces(outfit, linkCache);
         if (armorPieces.Count == 0)
         {
             StatusMessage = $"Outfit '{label}' has no armor pieces to preview.";
@@ -543,223 +541,6 @@ public class DistributionViewModel : ReactiveObject
             _logger.Error(ex, "Failed to preview outfit {Identifier}", label);
             StatusMessage = $"Failed to preview outfit: {ex.Message}";
         }
-    }
-
-    private bool TryResolveOutfit(
-        string identifier,
-        ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache,
-        ref List<IOutfitGetter>? cachedOutfits,
-        [NotNullWhen(true)] out IOutfitGetter? outfit,
-        out string label)
-    {
-        outfit = null;
-        label = string.Empty;
-
-        if (TryCreateFormKey(identifier, out var formKey) &&
-            linkCache.TryResolve<IOutfitGetter>(formKey, out var resolvedFromFormKey))
-        {
-            outfit = resolvedFromFormKey;
-            label = outfit.EditorID ?? formKey.ToString();
-            return true;
-        }
-
-        if (TryResolveOutfitByEditorId(identifier, linkCache, ref cachedOutfits, out var resolvedFromEditorId))
-        {
-            outfit = resolvedFromEditorId;
-            label = outfit.EditorID ?? identifier;
-            return true;
-        }
-
-        return false;
-    }
-
-    private bool TryResolveOutfitByEditorId(
-        string identifier,
-        ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache,
-        ref List<IOutfitGetter>? cachedOutfits,
-        [NotNullWhen(true)] out IOutfitGetter? outfit)
-    {
-        outfit = null;
-
-        if (!TryParseEditorIdReference(identifier, out var modKey, out var editorId))
-            return false;
-
-        cachedOutfits ??= linkCache.PriorityOrder.WinningOverrides<IOutfitGetter>().ToList();
-
-        IEnumerable<IOutfitGetter> query = cachedOutfits
-            .Where(o => string.Equals(o.EditorID, editorId, StringComparison.OrdinalIgnoreCase));
-
-        if (modKey.HasValue)
-            query = query.Where(o => o.FormKey.ModKey == modKey.Value);
-
-        outfit = query.FirstOrDefault();
-        return outfit != null;
-    }
-
-    private static bool TryParseEditorIdReference(string identifier, out ModKey? modKey, out string editorId)
-    {
-        modKey = null;
-        editorId = string.Empty;
-
-        if (string.IsNullOrWhiteSpace(identifier))
-            return false;
-
-        var trimmed = identifier.Trim();
-        string? modCandidate = null;
-        string? editorCandidate = null;
-
-        var pipeIndex = trimmed.IndexOf('|');
-        var tildeIndex = trimmed.IndexOf('~');
-
-        if (pipeIndex >= 0)
-        {
-            var firstPart = trimmed[..pipeIndex].Trim();
-            var secondPart = trimmed[(pipeIndex + 1)..].Trim();
-            if (!string.IsNullOrWhiteSpace(secondPart) && TryParseModKey(secondPart, out var modFromSecond))
-            {
-                modKey = modFromSecond;
-                editorCandidate = firstPart;
-            }
-            else if (!string.IsNullOrWhiteSpace(firstPart) && TryParseModKey(firstPart, out var modFromFirst))
-            {
-                modKey = modFromFirst;
-                editorCandidate = secondPart;
-            }
-            else
-            {
-                editorCandidate = firstPart;
-                modCandidate = secondPart;
-            }
-        }
-        else if (tildeIndex >= 0)
-        {
-            var firstPart = trimmed[..tildeIndex].Trim();
-            var secondPart = trimmed[(tildeIndex + 1)..].Trim();
-            if (!string.IsNullOrWhiteSpace(secondPart) && TryParseModKey(secondPart, out var modFromSecond))
-            {
-                modKey = modFromSecond;
-                editorCandidate = firstPart;
-            }
-            else if (!string.IsNullOrWhiteSpace(firstPart) && TryParseModKey(firstPart, out var modFromFirst))
-            {
-                modKey = modFromFirst;
-                editorCandidate = secondPart;
-            }
-            else
-            {
-                editorCandidate = firstPart;
-                modCandidate = secondPart;
-            }
-        }
-        else
-        {
-            editorCandidate = trimmed;
-        }
-
-        if (!modKey.HasValue && !string.IsNullOrWhiteSpace(modCandidate) && TryParseModKey(modCandidate, out var parsedMod))
-            modKey = parsedMod;
-
-        if (string.IsNullOrWhiteSpace(editorCandidate))
-            return false;
-
-        editorId = editorCandidate;
-        return true;
-    }
-
-    private static List<ArmorRecordViewModel> GatherArmorPieces(
-        IOutfitGetter outfit,
-        ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
-    {
-        var pieces = new List<ArmorRecordViewModel>();
-
-        var items = outfit.Items ?? Array.Empty<IFormLinkGetter<IOutfitTargetGetter>>();
-
-        foreach (var itemLink in items)
-        {
-            if (itemLink == null)
-                continue;
-
-            var targetKeyNullable = itemLink.FormKeyNullable;
-            if (!targetKeyNullable.HasValue || targetKeyNullable.Value == FormKey.Null)
-                continue;
-
-            var targetKey = targetKeyNullable.Value;
-
-            if (!linkCache.TryResolve<IItemGetter>(targetKey, out var itemRecord))
-                continue;
-
-            if (itemRecord is not IArmorGetter armor)
-                continue;
-
-            var vm = new ArmorRecordViewModel(armor, linkCache);
-            pieces.Add(vm);
-        }
-
-        return pieces;
-    }
-
-    private static bool TryCreateFormKey(string text, out FormKey formKey)
-    {
-        formKey = FormKey.Null;
-        if (string.IsNullOrWhiteSpace(text))
-            return false;
-
-        var trimmed = text.Trim();
-        string modPart;
-        string formIdPart;
-
-        if (trimmed.Contains('|'))
-        {
-            var parts = trimmed.Split('|', 2);
-            modPart = parts[0].Trim();
-            formIdPart = parts[1].Trim();
-        }
-        else if (trimmed.Contains('~'))
-        {
-            var parts = trimmed.Split('~', 2);
-            formIdPart = parts[0].Trim();
-            modPart = parts[1].Trim();
-        }
-        else
-        {
-            return false;
-        }
-
-        if (!TryParseModKey(modPart, out var modKey))
-            return false;
-
-        if (!TryParseFormId(formIdPart, out var id))
-            return false;
-
-        formKey = new FormKey(modKey, id);
-        return true;
-    }
-
-    private static bool TryParseModKey(string input, out ModKey modKey)
-    {
-        try
-        {
-            modKey = ModKey.FromNameAndExtension(input);
-            return true;
-        }
-        catch
-        {
-            modKey = ModKey.Null;
-            return false;
-        }
-    }
-
-    private static bool TryParseFormId(string text, out uint id)
-    {
-        id = 0;
-        if (string.IsNullOrWhiteSpace(text))
-            return false;
-
-        var trimmed = text.Trim();
-        if (trimmed.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-            trimmed = trimmed[2..];
-
-        return uint.TryParse(trimmed, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out id);
     }
 
     private void AddDistributionEntry()
@@ -1180,11 +961,11 @@ public class DistributionViewModel : ReactiveObject
                 continue;
 
             var npcFormKeys = entryVm.SelectedNpcs
-                .Select(npc => FormatFormKey(npc.FormKey))
+                .Select(npc => FormKeyHelper.Format(npc.FormKey))
                 .ToList();
 
             var npcList = string.Join(",", npcFormKeys);
-            var outfitFormKey = FormatFormKey(entryVm.SelectedOutfit.FormKey);
+            var outfitFormKey = FormKeyHelper.Format(entryVm.SelectedOutfit.FormKey);
 
             var line = $"filterByNpcs={npcList}:outfitDefault={outfitFormKey}";
             lines.Add(line);
@@ -1355,14 +1136,6 @@ public class DistributionViewModel : ReactiveObject
         }
         
         return null;
-    }
-
-    /// <summary>
-    /// Formats a FormKey as "ModKey|FormID" for SkyPatcher format.
-    /// </summary>
-    private static string FormatFormKey(FormKey formKey)
-    {
-        return $"{formKey.ModKey.FileName}|{formKey.ID:X8}";
     }
 
     /// <summary>
