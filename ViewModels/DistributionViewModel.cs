@@ -371,10 +371,7 @@ public class DistributionViewModel : ReactiveObject
         set
         {
             // Clear previous selection
-            if (field != null)
-            {
-                field.IsSelected = false;
-            }
+            field?.IsSelected = false;
             
             this.RaiseAndSetIfChanged(ref field, value);
             

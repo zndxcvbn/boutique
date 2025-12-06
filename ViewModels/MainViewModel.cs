@@ -523,7 +523,7 @@ public class MainViewModel : ReactiveObject
     private void ConfigureSourceArmorsView()
     {
         SourceArmorsView = CollectionViewSource.GetDefaultView(_sourceArmors);
-        if (SourceArmorsView != null) SourceArmorsView.Filter = SourceArmorsFilter;
+        SourceArmorsView?.Filter = SourceArmorsFilter;
     }
 
     private void ConfigureTargetArmorsView()
@@ -541,7 +541,7 @@ public class MainViewModel : ReactiveObject
     private void ConfigureOutfitArmorsView()
     {
         OutfitArmorsView = CollectionViewSource.GetDefaultView(_outfitArmors);
-        if (OutfitArmorsView != null) OutfitArmorsView.Filter = OutfitArmorsFilter;
+        OutfitArmorsView?.Filter = OutfitArmorsFilter;
     }
 
     private bool SourceArmorsFilter(object? item)
@@ -1285,7 +1285,7 @@ public class MainViewModel : ReactiveObject
                     var draft = _outfitDrafts.FirstOrDefault(d =>
                         string.Equals(d.EditorId, result.EditorId, StringComparison.OrdinalIgnoreCase));
 
-                    if (draft != null) draft.FormKey = result.FormKey;
+                    draft?.FormKey = result.FormKey;
                 }
         }
         catch (Exception ex)

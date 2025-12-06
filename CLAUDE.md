@@ -136,6 +136,22 @@ this.WhenAnyValue(x => x.IsPatching, x => x.IsCreatingOutfits)
 public bool IsProgressActive => IsPatching || IsCreatingOutfits;
 ```
 
+#### Null Checks → Use Null-Conditional Operators
+
+Prefer `?.` over explicit null checks:
+
+```csharp
+// ✅ PREFERRED
+field?.IsSelected = false;
+value?.DoSomething();
+
+// ❌ AVOID
+if (field != null)
+{
+    field.IsSelected = false;
+}
+```
+
 **Note:** The project uses `<LangVersion>preview</LangVersion>` in the .csproj to enable the `field` keyword.
 
 ### Dependency Injection

@@ -9,7 +9,7 @@ namespace Boutique.Views;
 
 public partial class MainWindow : Window
 {
-    private readonly CompositeDisposable _bindings = new();
+    private readonly CompositeDisposable _bindings = [];
     private bool _initialized;
 
     public MainWindow(MainViewModel viewModel)
