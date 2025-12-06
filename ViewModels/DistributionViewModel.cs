@@ -1,11 +1,7 @@
-using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
-using System.Linq;
 using System.Reactive;
 using System.Reactive.Linq;
-using System.Threading.Tasks;
 using Boutique.Models;
 using Boutique.Services;
 using Boutique.Utilities;
@@ -13,7 +9,6 @@ using Microsoft.Win32;
 using Mutagen.Bethesda;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
-using Mutagen.Bethesda.Plugins.Records;
 using Mutagen.Bethesda.Skyrim;
 using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
@@ -260,25 +255,18 @@ public class DistributionViewModel : ReactiveObject
         }
     }
 
-    private DistributionEntryViewModel? _selectedEntry;
     public DistributionEntryViewModel? SelectedEntry
     {
-        get => _selectedEntry;
+        get => field;
         set
         {
             // Clear previous selection
-            if (_selectedEntry != null)
-            {
-                _selectedEntry.IsSelected = false;
-            }
+            field?.IsSelected = false;
             
-            this.RaiseAndSetIfChanged(ref _selectedEntry, value);
+            this.RaiseAndSetIfChanged(ref field, value);
             
             // Set new selection
-            if (value != null)
-            {
-                value.IsSelected = true;
-            }
+            value?.IsSelected = true;
         }
     }
 
@@ -288,14 +276,13 @@ public class DistributionViewModel : ReactiveObject
 
     [Reactive] public ObservableCollection<DistributionFileSelectionItem> AvailableDistributionFiles { get; private set; } = new();
 
-    private DistributionFileSelectionItem? _selectedDistributionFile;
     public DistributionFileSelectionItem? SelectedDistributionFile
     {
-        get => _selectedDistributionFile;
+        get => field;
         set
         {
-            var previous = _selectedDistributionFile;
-            this.RaiseAndSetIfChanged(ref _selectedDistributionFile, value);
+            var previous = field;
+            this.RaiseAndSetIfChanged(ref field, value);
             
             if (value != null)
             {
@@ -350,13 +337,12 @@ public class DistributionViewModel : ReactiveObject
 
     public bool ShowNewFileNameInput => IsCreatingNewFile;
 
-    private string _newFileName = string.Empty;
     public string NewFileName
     {
-        get => _newFileName;
+        get => field ?? string.Empty;
         set
         {
-            this.RaiseAndSetIfChanged(ref _newFileName, value ?? string.Empty);
+            this.RaiseAndSetIfChanged(ref field, value ?? string.Empty);
             if (IsCreatingNewFile)
             {
                 UpdateDistributionFilePathFromNewFileName();
@@ -379,19 +365,18 @@ public class DistributionViewModel : ReactiveObject
 
     [Reactive] public ObservableCollection<NpcOutfitAssignmentViewModel> NpcOutfitAssignments { get; private set; } = new();
 
-    private NpcOutfitAssignmentViewModel? _selectedNpcAssignment;
     public NpcOutfitAssignmentViewModel? SelectedNpcAssignment
     {
-        get => _selectedNpcAssignment;
+        get => field;
         set
         {
             // Clear previous selection
-            if (_selectedNpcAssignment != null)
+            if (field != null)
             {
-                _selectedNpcAssignment.IsSelected = false;
+                field.IsSelected = false;
             }
             
-            this.RaiseAndSetIfChanged(ref _selectedNpcAssignment, value);
+            this.RaiseAndSetIfChanged(ref field, value);
             
             // Set new selection
             if (value != null)

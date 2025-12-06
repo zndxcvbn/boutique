@@ -191,18 +191,17 @@ public class MainViewModel : ReactiveObject
 
     [Reactive] public int SelectedOutfitArmorCount { get; private set; }
 
-    private string? _selectedOutfitPlugin;
     public string? SelectedOutfitPlugin
     {
-        get => _selectedOutfitPlugin;
+        get => field;
         set
         {
-            if (string.Equals(value, _selectedOutfitPlugin, StringComparison.Ordinal))
+            if (string.Equals(value, field, StringComparison.Ordinal))
                 return;
 
             _existingOutfits.Clear();
 
-            this.RaiseAndSetIfChanged(ref _selectedOutfitPlugin, value);
+            this.RaiseAndSetIfChanged(ref field, value);
             _logger.Information("Selected outfit plugin set to {Plugin}", value ?? "<none>");
 
             _lastLoadedOutfitPlugin = null;
@@ -285,16 +284,15 @@ public class MainViewModel : ReactiveObject
         }
     }
 
-    private string? _selectedSourcePlugin;
     public string? SelectedSourcePlugin
     {
-        get => _selectedSourcePlugin;
+        get => field;
         set
         {
-            if (string.Equals(value, _selectedSourcePlugin, StringComparison.Ordinal))
+            if (string.Equals(value, field, StringComparison.Ordinal))
                 return;
 
-            this.RaiseAndSetIfChanged(ref _selectedSourcePlugin, value);
+            this.RaiseAndSetIfChanged(ref field, value);
             _logger.Information("Selected source plugin set to {Plugin}", value ?? "<none>");
 
             _lastLoadedSourcePlugin = null;
@@ -309,16 +307,15 @@ public class MainViewModel : ReactiveObject
         }
     }
 
-    private string? _selectedTargetPlugin;
     public string? SelectedTargetPlugin
     {
-        get => _selectedTargetPlugin;
+        get => field;
         set
         {
-            if (string.Equals(value, _selectedTargetPlugin, StringComparison.Ordinal))
+            if (string.Equals(value, field, StringComparison.Ordinal))
                 return;
 
-            this.RaiseAndSetIfChanged(ref _selectedTargetPlugin, value);
+            this.RaiseAndSetIfChanged(ref field, value);
             _logger.Information("Selected target plugin set to {Plugin}", value ?? "<none>");
 
             _lastLoadedTargetPlugin = null;

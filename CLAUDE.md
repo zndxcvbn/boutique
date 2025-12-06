@@ -65,6 +65,79 @@ The application follows a strict MVVM (Model-View-ViewModel) architecture:
 - **Views** (`Views/`): XAML-based WPF views with minimal code-behind
 - **Services** (`Services/`): Business logic layer that interfaces with Mutagen and handles patching operations
 
+### ReactiveUI Property Patterns
+
+This project uses **ReactiveUI.Fody** and **C# 13 preview features** to minimize boilerplate. Always prefer these patterns:
+
+#### Simple Reactive Properties → Use `[Reactive]`
+
+For properties that just need change notification with no custom logic:
+
+```csharp
+// ✅ PREFERRED - Fody generates the backing field and RaiseAndSetIfChanged
+[Reactive] public bool IsLoading { get; set; }
+[Reactive] public string StatusMessage { get; set; } = "Ready";
+```
+
+```csharp
+// ❌ AVOID - Verbose boilerplate
+private bool _isLoading;
+public bool IsLoading
+{
+    get => _isLoading;
+    set => this.RaiseAndSetIfChanged(ref _isLoading, value);
+}
+```
+
+#### Properties with Custom Logic → Use `field` keyword
+
+For properties that need side effects or validation, use the C# 13 `field` keyword instead of explicit backing fields:
+
+```csharp
+// ✅ PREFERRED - No explicit backing field needed
+public string? SelectedPlugin
+{
+    get => field;
+    set
+    {
+        if (string.Equals(value, field)) return;
+        this.RaiseAndSetIfChanged(ref field, value);
+        _lastLoadedPlugin = null;  // Side effect
+        _ = LoadPluginAsync(value);
+    }
+}
+```
+
+```csharp
+// ❌ AVOID - Unnecessary backing field declaration
+private string? _selectedPlugin;
+public string? SelectedPlugin
+{
+    get => _selectedPlugin;
+    set
+    {
+        if (string.Equals(value, _selectedPlugin)) return;
+        this.RaiseAndSetIfChanged(ref _selectedPlugin, value);
+        // ...
+    }
+}
+```
+
+#### Derived/Computed Properties → Use `WhenAnyValue`
+
+For properties that depend on other properties, set up subscriptions in the constructor:
+
+```csharp
+// In constructor:
+this.WhenAnyValue(x => x.IsPatching, x => x.IsCreatingOutfits)
+    .Subscribe(_ => this.RaisePropertyChanged(nameof(IsProgressActive)));
+
+// Property:
+public bool IsProgressActive => IsPatching || IsCreatingOutfits;
+```
+
+**Note:** The project uses `<LangVersion>preview</LangVersion>` in the .csproj to enable the `field` keyword.
+
 ### Dependency Injection
 
 All services are registered in `App.xaml.cs` using Autofac. The DI container resolves:
