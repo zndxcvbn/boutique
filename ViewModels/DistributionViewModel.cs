@@ -37,6 +37,12 @@ public class DistributionViewModel : ReactiveObject
     private readonly IMutagenService _mutagenService;
     private readonly IArmorPreviewService _armorPreviewService;
     private readonly SettingsViewModel _settings;
+    
+    /// <summary>
+    /// Exposes SettingsViewModel for data binding in SettingsPanelView.
+    /// This ensures consistent settings state across all tabs.
+    /// </summary>
+    public SettingsViewModel Settings => _settings;
 
     private ObservableCollection<DistributionFileViewModel> _files = new();
     private ObservableCollection<DistributionEntryViewModel> _distributionEntries = new();
@@ -133,10 +139,10 @@ public class DistributionViewModel : ReactiveObject
         _mutagenService.PluginsChanged += OnPluginsChanged;
 
         RefreshCommand = ReactiveCommand.CreateFromTask(RefreshAsync);
-        PreviewLineCommand = ReactiveCommand.CreateFromTask<DistributionLine>(PreviewLineAsync, 
-            this.WhenAnyValue(vm => vm.IsLoading).Select(loading => !loading));
-        PreviewEntryCommand = ReactiveCommand.CreateFromTask<DistributionEntryViewModel>(PreviewEntryAsync,
-            this.WhenAnyValue(vm => vm.IsLoading).Select(loading => !loading));
+        
+        var notLoading = this.WhenAnyValue(vm => vm.IsLoading, loading => !loading);
+        PreviewLineCommand = ReactiveCommand.CreateFromTask<DistributionLine>(PreviewLineAsync, notLoading);
+        PreviewEntryCommand = ReactiveCommand.CreateFromTask<DistributionEntryViewModel>(PreviewEntryAsync, notLoading);
         
         // Subscribe to collection changes to update computed count property
         _distributionEntries.CollectionChanged += OnDistributionEntriesChanged;
@@ -145,48 +151,27 @@ public class DistributionViewModel : ReactiveObject
         RemoveDistributionEntryCommand = ReactiveCommand.Create<DistributionEntryViewModel>(RemoveDistributionEntry);
         SelectEntryCommand = ReactiveCommand.Create<DistributionEntryViewModel>(SelectEntry);
         
-        // Use the computed property that raises PropertyChanged when collection changes
-        // Defer evaluation to avoid blocking
-        var hasEntries = this.WhenAnyValue(vm => vm.DistributionEntriesCount)
-            .Select(count => count > 0)
-            .DistinctUntilChanged()
-            .ObserveOn(RxApp.MainThreadScheduler);
-        
+        // Simple canExecute observables for commands
+        var hasEntries = this.WhenAnyValue(vm => vm.DistributionEntriesCount, count => count > 0);
         AddSelectedNpcsToEntryCommand = ReactiveCommand.Create(AddSelectedNpcsToEntry, hasEntries);
         
-        var canSave = Observable.CombineLatest(
-            hasEntries,
-            this.WhenAnyValue(vm => vm.DistributionFilePath),
-            this.WhenAnyValue(vm => vm.IsCreatingNewFile),
-            this.WhenAnyValue(vm => vm.NewFileName),
-            (hasEntries, path, isNew, newName) => 
-                hasEntries && 
-                (!string.IsNullOrWhiteSpace(path) || (isNew && !string.IsNullOrWhiteSpace(newName))))
-            .DistinctUntilChanged()
-            .ObserveOn(RxApp.MainThreadScheduler);
+        var canSave = this.WhenAnyValue(
+            vm => vm.DistributionEntriesCount,
+            vm => vm.DistributionFilePath,
+            vm => vm.IsCreatingNewFile,
+            vm => vm.NewFileName,
+            (count, path, isNew, newName) => 
+                count > 0 && 
+                (!string.IsNullOrWhiteSpace(path) || (isNew && !string.IsNullOrWhiteSpace(newName))));
         
         SaveDistributionFileCommand = ReactiveCommand.CreateFromTask(SaveDistributionFileAsync, canSave);
-        LoadDistributionFileCommand = ReactiveCommand.CreateFromTask(LoadDistributionFileAsync,
-            this.WhenAnyValue(vm => vm.IsLoading).Select(loading => !loading));
-        ScanNpcsCommand = ReactiveCommand.CreateFromTask(ScanNpcsAsync,
-            this.WhenAnyValue(vm => vm.IsLoading).Select(loading => !loading));
+        LoadDistributionFileCommand = ReactiveCommand.CreateFromTask(LoadDistributionFileAsync, notLoading);
+        ScanNpcsCommand = ReactiveCommand.CreateFromTask(ScanNpcsAsync, notLoading);
         SelectDistributionFilePathCommand = ReactiveCommand.Create(SelectDistributionFilePath);
         
         // NPCs tab commands
-        ScanNpcOutfitsCommand = ReactiveCommand.CreateFromTask(ScanNpcOutfitsAsync,
-            this.WhenAnyValue(vm => vm.IsLoading).Select(loading => !loading));
-        PreviewNpcOutfitCommand = ReactiveCommand.CreateFromTask<NpcOutfitAssignmentViewModel>(PreviewNpcOutfitAsync,
-            this.WhenAnyValue(vm => vm.IsLoading).Select(loading => !loading));
-
-        _settings.WhenAnyValue(x => x.SkyrimDataPath)
-            .Subscribe(_ =>
-            {
-                this.RaisePropertyChanged(nameof(DataPath));
-                if (IsCreatingNewFile)
-                {
-                    UpdateDistributionFilePathFromNewFileName();
-                }
-            });
+        ScanNpcOutfitsCommand = ReactiveCommand.CreateFromTask(ScanNpcOutfitsAsync, notLoading);
+        PreviewNpcOutfitCommand = ReactiveCommand.CreateFromTask<NpcOutfitAssignmentViewModel>(PreviewNpcOutfitAsync, notLoading);
 
         // Trigger edit mode initialization when Edit tab is selected
         this.WhenAnyValue(vm => vm.SelectedTabIndex)
@@ -210,14 +195,10 @@ public class DistributionViewModel : ReactiveObject
             });
 
         this.WhenAnyValue(vm => vm.NpcSearchText)
-            .Throttle(TimeSpan.FromMilliseconds(150))
-            .ObserveOn(RxApp.MainThreadScheduler)
             .Subscribe(_ => UpdateFilteredNpcs());
         
         // NPCs tab search filtering
         this.WhenAnyValue(vm => vm.NpcOutfitSearchText)
-            .Throttle(TimeSpan.FromMilliseconds(150))
-            .ObserveOn(RxApp.MainThreadScheduler)
             .Subscribe(_ => UpdateFilteredNpcOutfitAssignments());
         
         // Update outfit contents when selection changes

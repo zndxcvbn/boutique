@@ -6,6 +6,20 @@ using ReactiveUI;
 
 namespace Boutique.ViewModels;
 
+/// <summary>
+/// Simple relay command that doesn't use ReactiveUI to avoid threading issues with WPF dialogs.
+/// </summary>
+public class RelayCommand : ICommand
+{
+    private readonly Action _execute;
+    public RelayCommand(Action execute) => _execute = execute;
+#pragma warning disable CS0067 // Event is never used - required by ICommand interface
+    public event EventHandler? CanExecuteChanged;
+#pragma warning restore CS0067
+    public bool CanExecute(object? parameter) => true;
+    public void Execute(object? parameter) => _execute();
+}
+
 public class SettingsViewModel : ReactiveObject
 {
     private readonly PatcherSettings _settings;
@@ -23,9 +37,10 @@ public class SettingsViewModel : ReactiveObject
         _patchFileName = settings.PatchFileName;
         _detectionSource = "";
 
-        BrowseDataPathCommand = ReactiveCommand.Create(BrowseDataPath);
-        BrowseOutputPathCommand = ReactiveCommand.Create(BrowseOutputPath);
-        AutoDetectPathCommand = ReactiveCommand.Create(AutoDetectPath);
+        // Use simple RelayCommand instead of ReactiveCommand to avoid threading issues
+        BrowseDataPathCommand = new RelayCommand(BrowseDataPath);
+        BrowseOutputPathCommand = new RelayCommand(BrowseOutputPath);
+        AutoDetectPathCommand = new RelayCommand(AutoDetectPath);
 
         // Auto-detect on creation if path is empty
         if (string.IsNullOrEmpty(_skyrimDataPath)) AutoDetectPath();
