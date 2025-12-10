@@ -188,6 +188,12 @@ public class DistributionEditTabViewModel : ReactiveObject
                         try
                         {
                             DistributionEntries.Clear();
+                            // Immediately clear conflict state when switching to new file
+                            HasConflicts = false;
+                            ConflictsResolvedByFilename = false;
+                            ConflictSummary = string.Empty;
+                            SuggestedFileName = string.Empty;
+                            ClearNpcConflictIndicators();
                         }
                         finally
                         {
@@ -793,6 +799,12 @@ public class DistributionEditTabViewModel : ReactiveObject
             try
             {
                 DistributionEntries.Clear();
+                // Clear conflict state when loading a file (will be recalculated if needed)
+                HasConflicts = false;
+                ConflictsResolvedByFilename = false;
+                ConflictSummary = string.Empty;
+                SuggestedFileName = string.Empty;
+                ClearNpcConflictIndicators();
                 
                 // Create all ViewModels first (can be done on background thread for large lists)
                 var entryVms = await Task.Run(() => 
@@ -1313,6 +1325,18 @@ public class DistributionEditTabViewModel : ReactiveObject
         {
             // Not creating a new file, no need to check conflicts
             HasConflicts = false;
+            ConflictsResolvedByFilename = false;
+            ConflictSummary = string.Empty;
+            SuggestedFileName = NewFileName;
+            ClearNpcConflictIndicators();
+            return;
+        }
+
+        // If no entries, immediately clear conflict state (no conflicts possible)
+        if (DistributionEntries.Count == 0)
+        {
+            HasConflicts = false;
+            ConflictsResolvedByFilename = false;
             ConflictSummary = string.Empty;
             SuggestedFileName = NewFileName;
             ClearNpcConflictIndicators();
@@ -1322,6 +1346,7 @@ public class DistributionEditTabViewModel : ReactiveObject
         if (_mutagenService.LinkCache is not ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
         {
             HasConflicts = false;
+            ConflictsResolvedByFilename = false;
             ConflictSummary = string.Empty;
             SuggestedFileName = NewFileName;
             ClearNpcConflictIndicators();
@@ -1332,11 +1357,16 @@ public class DistributionEditTabViewModel : ReactiveObject
         if (_distributionFiles == null || _distributionFiles.Count == 0)
         {
             HasConflicts = false;
+            ConflictsResolvedByFilename = false;
             ConflictSummary = string.Empty;
             SuggestedFileName = NewFileName;
             ClearNpcConflictIndicators();
             return;
         }
+
+        // Capture current entry count to detect if entries were cleared while async operation runs
+        var entryCountAtStart = DistributionEntries.Count;
+        var entriesSnapshot = DistributionEntries.ToList();
 
         // Run expensive conflict detection on background thread
         Task.Run(() =>
@@ -1345,7 +1375,7 @@ public class DistributionEditTabViewModel : ReactiveObject
             {
                 // Use the conflict detection service
                 var result = _conflictDetectionService.DetectConflicts(
-                    DistributionEntries.ToList(),
+                    entriesSnapshot,
                     _distributionFiles.ToList(),
                     NewFileName,
                     linkCache);
@@ -1353,32 +1383,46 @@ public class DistributionEditTabViewModel : ReactiveObject
                 // Update properties from result on UI thread
                 System.Windows.Application.Current?.Dispatcher.Invoke(() =>
                 {
-                    HasConflicts = result.HasConflicts;
-                    ConflictsResolvedByFilename = result.ConflictsResolvedByFilename;
-                    ConflictSummary = result.ConflictSummary;
-                    SuggestedFileName = result.SuggestedFileName;
-
-                    // Update NPC conflict indicators
-                    var conflictNpcFormKeys = result.Conflicts
-                        .Select(c => c.NpcFormKey)
-                        .ToHashSet();
-
-                    foreach (var entry in DistributionEntries)
+                    // Only update if entry count hasn't changed (entries weren't cleared while we were running)
+                    if (DistributionEntries.Count == entryCountAtStart && DistributionEntries.Count > 0)
                     {
-                        foreach (var npcVm in entry.SelectedNpcs)
+                        HasConflicts = result.HasConflicts;
+                        ConflictsResolvedByFilename = result.ConflictsResolvedByFilename;
+                        ConflictSummary = result.ConflictSummary;
+                        SuggestedFileName = result.SuggestedFileName;
+
+                        // Update NPC conflict indicators
+                        var conflictNpcFormKeys = result.Conflicts
+                            .Select(c => c.NpcFormKey)
+                            .ToHashSet();
+
+                        foreach (var entry in DistributionEntries)
                         {
-                            if (conflictNpcFormKeys.Contains(npcVm.FormKey))
+                            foreach (var npcVm in entry.SelectedNpcs)
                             {
-                                var conflict = result.Conflicts.First(c => c.NpcFormKey == npcVm.FormKey);
-                                npcVm.HasConflict = !result.ConflictsResolvedByFilename;
-                                npcVm.ConflictingFileName = conflict.ExistingFileName;
-                            }
-                            else
-                            {
-                                npcVm.HasConflict = false;
-                                npcVm.ConflictingFileName = null;
+                                if (conflictNpcFormKeys.Contains(npcVm.FormKey))
+                                {
+                                    var conflict = result.Conflicts.First(c => c.NpcFormKey == npcVm.FormKey);
+                                    npcVm.HasConflict = !result.ConflictsResolvedByFilename;
+                                    npcVm.ConflictingFileName = conflict.ExistingFileName;
+                                }
+                                else
+                                {
+                                    npcVm.HasConflict = false;
+                                    npcVm.ConflictingFileName = null;
+                                }
                             }
                         }
+                    }
+                    else
+                    {
+                        // Entries were cleared or changed, clear conflict state
+                        _logger.Debug("Conflict detection completed but entries were cleared/changed, clearing conflict state");
+                        HasConflicts = false;
+                        ConflictsResolvedByFilename = false;
+                        ConflictSummary = string.Empty;
+                        SuggestedFileName = NewFileName;
+                        ClearNpcConflictIndicators();
                     }
                 });
             }
