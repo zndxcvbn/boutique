@@ -231,7 +231,7 @@ public class NpcOutfitResolutionService
         }
 
         // Resolve the outfit FormKey
-        var outfitFormKey = ResolveOutfitFormKey(filter.OutfitIdentifier, linkCache);
+        var outfitFormKey = FormKeyHelper.ResolveOutfit(filter.OutfitIdentifier, linkCache);
         if (outfitFormKey == null || outfitFormKey.Value.IsNull)
         {
             _logger.Debug("Could not resolve outfit identifier: {Identifier}", filter.OutfitIdentifier);
@@ -358,10 +358,9 @@ public class NpcOutfitResolutionService
 
                 foreach (var npcPart in npcString.Split(','))
                 {
-                    var formKey = TryParseFormKey(npcPart.Trim());
-                    if (formKey.HasValue)
+                    if (FormKeyHelper.TryParse(npcPart.Trim(), out var formKey))
                     {
-                        npcFormKeys.Add(formKey.Value);
+                        npcFormKeys.Add(formKey);
                     }
                 }
             }
@@ -380,10 +379,13 @@ public class NpcOutfitResolutionService
                 ? trimmed.Substring(outfitStart, outfitEnd - outfitStart)
                 : trimmed.Substring(outfitStart);
 
-            outfitFormKey = TryParseFormKey(outfitString.Trim());
-            if (outfitFormKey.HasValue && linkCache.TryResolve<IOutfitGetter>(outfitFormKey.Value, out var outfit))
+            if (FormKeyHelper.TryParse(outfitString.Trim(), out var parsedOutfit))
             {
-                outfitEditorId = outfit.EditorID;
+                outfitFormKey = parsedOutfit;
+                if (linkCache.TryResolve<IOutfitGetter>(parsedOutfit, out var outfit))
+                {
+                    outfitEditorId = outfit.EditorID;
+                }
             }
         }
 
@@ -399,10 +401,13 @@ public class NpcOutfitResolutionService
                     ? trimmed.Substring(outfitStart, outfitEnd - outfitStart)
                     : trimmed.Substring(outfitStart);
 
-                outfitFormKey = TryParseFormKey(outfitString.Trim());
-                if (outfitFormKey.HasValue && linkCache.TryResolve<IOutfitGetter>(outfitFormKey.Value, out var outfit))
+                if (FormKeyHelper.TryParse(outfitString.Trim(), out var parsedOutfit))
                 {
-                    outfitEditorId = outfit.EditorID;
+                    outfitFormKey = parsedOutfit;
+                    if (linkCache.TryResolve<IOutfitGetter>(parsedOutfit, out var outfit))
+                    {
+                        outfitEditorId = outfit.EditorID;
+                    }
                 }
             }
         }
@@ -414,52 +419,6 @@ public class NpcOutfitResolutionService
                 results.Add((npcFormKey, outfitFormKey.Value, outfitEditorId));
             }
         }
-    }
-
-    private static FormKey? ResolveOutfitFormKey(string identifier, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
-    {
-        if (string.IsNullOrWhiteSpace(identifier))
-            return null;
-
-        // Try FormKey formats first
-        // Tilde format: 0x800~Plugin.esp
-        var tildeIndex = identifier.IndexOf('~');
-        if (tildeIndex > 0)
-        {
-            var formIdPart = identifier[..tildeIndex];
-            var modPart = identifier[(tildeIndex + 1)..];
-
-            formIdPart = formIdPart.Replace("0x", "").Replace("0X", "");
-            if (uint.TryParse(formIdPart, System.Globalization.NumberStyles.HexNumber, null, out var formId) &&
-                ModKey.TryFromNameAndExtension(modPart, out var modKey))
-            {
-                return new FormKey(modKey, formId);
-            }
-        }
-
-        // Pipe format: Plugin.esp|0x800
-        var pipeIndex = identifier.IndexOf('|');
-        if (pipeIndex > 0)
-        {
-            var modPart = identifier[..pipeIndex];
-            var formIdPart = identifier[(pipeIndex + 1)..];
-
-            if (ModKey.TryFromNameAndExtension(modPart, out var modKey))
-            {
-                formIdPart = formIdPart.Replace("0x", "").Replace("0X", "");
-                if (uint.TryParse(formIdPart, System.Globalization.NumberStyles.HexNumber, null, out var formId))
-                {
-                    return new FormKey(modKey, formId);
-                }
-            }
-        }
-
-        // Try to resolve by EditorID
-        var outfit = linkCache.WinningOverrides<IOutfitGetter>()
-            .FirstOrDefault(o => !string.IsNullOrWhiteSpace(o.EditorID) &&
-                                 o.EditorID.Equals(identifier, StringComparison.OrdinalIgnoreCase));
-
-        return outfit?.FormKey;
     }
 
     private static List<NpcOutfitAssignment> BuildNpcOutfitAssignmentsFromFilterData(
@@ -668,11 +627,10 @@ public class NpcOutfitResolutionService
 
                 foreach (var npcPart in npcString.Split(','))
                 {
-                    var formKey = TryParseFormKey(npcPart.Trim());
-                    if (formKey.HasValue)
+                    if (FormKeyHelper.TryParse(npcPart.Trim(), out var formKey))
                     {
-                        npcFormKeys.Add(formKey.Value);
-                        _logger.Debug("Parsed NPC FormKey: {FormKey}", formKey.Value);
+                        npcFormKeys.Add(formKey);
+                        _logger.Debug("Parsed NPC FormKey: {FormKey}", formKey);
                     }
                     else
                     {
@@ -699,11 +657,11 @@ public class NpcOutfitResolutionService
 
             _logger.Debug("Outfit string to parse: {OutfitString}", outfitString.Trim());
 
-            outfitFormKey = TryParseFormKey(outfitString.Trim());
-            if (outfitFormKey.HasValue)
+            if (FormKeyHelper.TryParse(outfitString.Trim(), out var parsedOutfitFormKey))
             {
-                _logger.Debug("Parsed outfit FormKey: {FormKey}", outfitFormKey.Value);
-                if (linkCache.TryResolve<IOutfitGetter>(outfitFormKey.Value, out var outfit))
+                outfitFormKey = parsedOutfitFormKey;
+                _logger.Debug("Parsed outfit FormKey: {FormKey}", parsedOutfitFormKey);
+                if (linkCache.TryResolve<IOutfitGetter>(parsedOutfitFormKey, out var outfit))
                 {
                     outfitEditorId = outfit.EditorID;
                     _logger.Debug("Resolved outfit EditorID: {EditorId}", outfitEditorId);
@@ -731,9 +689,10 @@ public class NpcOutfitResolutionService
                     ? trimmed.Substring(outfitStart, outfitEnd - outfitStart)
                     : trimmed.Substring(outfitStart);
 
-                outfitFormKey = TryParseFormKey(outfitString.Trim());
-                if (outfitFormKey.HasValue && linkCache.TryResolve<IOutfitGetter>(outfitFormKey.Value, out var outfit))
+                if (FormKeyHelper.TryParse(outfitString.Trim(), out var parsedOutfit) &&
+                    linkCache.TryResolve<IOutfitGetter>(parsedOutfit, out var outfit))
                 {
+                    outfitFormKey = parsedOutfit;
                     outfitEditorId = outfit.EditorID;
                 }
             }
@@ -1064,29 +1023,5 @@ public class NpcOutfitResolutionService
         return assignments
             .OrderBy(a => a.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ToList();
-    }
-
-    private static FormKey? TryParseFormKey(string text)
-    {
-        if (string.IsNullOrWhiteSpace(text))
-            return null;
-
-        var trimmed = text.Trim();
-        var pipeIndex = trimmed.IndexOf('|');
-        if (pipeIndex < 0)
-            return null;
-
-        var modKeyString = trimmed.Substring(0, pipeIndex).Trim();
-        var formIdString = trimmed.Substring(pipeIndex + 1).Trim();
-
-        if (!ModKey.TryFromNameAndExtension(modKeyString, out var modKey))
-            return null;
-
-        // Handle hex format with or without 0x prefix
-        formIdString = formIdString.Replace("0x", "").Replace("0X", "");
-        if (!uint.TryParse(formIdString, System.Globalization.NumberStyles.HexNumber, null, out var formId))
-            return null;
-
-        return new FormKey(modKey, formId);
     }
 }

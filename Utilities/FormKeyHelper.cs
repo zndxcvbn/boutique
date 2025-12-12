@@ -1,4 +1,7 @@
+using Mutagen.Bethesda;
 using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins.Cache;
+using Mutagen.Bethesda.Skyrim;
 
 namespace Boutique.Utilities;
 
@@ -160,5 +163,34 @@ public static class FormKeyHelper
 
         editorId = editorCandidate;
         return true;
+    }
+
+    /// <summary>
+    /// Formats a FormKey as "0x{FormID}~{ModKey}" for SPID format.
+    /// </summary>
+    public static string FormatForSpid(FormKey formKey)
+    {
+        return $"0x{formKey.ID:X}~{formKey.ModKey.FileName}";
+    }
+
+    /// <summary>
+    /// Resolves an outfit identifier to a FormKey.
+    /// Supports: tilde format (0x800~Plugin.esp), pipe format (Plugin.esp|0x800), or EditorID lookup.
+    /// </summary>
+    public static FormKey? ResolveOutfit(string identifier, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
+    {
+        if (string.IsNullOrWhiteSpace(identifier))
+            return null;
+
+        // Try FormKey formats first
+        if (TryParse(identifier, out var formKey))
+            return formKey;
+
+        // Try to resolve by EditorID
+        var outfit = linkCache.WinningOverrides<IOutfitGetter>()
+            .FirstOrDefault(o => !string.IsNullOrWhiteSpace(o.EditorID) &&
+                                 o.EditorID.Equals(identifier, StringComparison.OrdinalIgnoreCase));
+
+        return outfit?.FormKey;
     }
 }

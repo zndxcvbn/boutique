@@ -1038,7 +1038,7 @@ public class DistributionEditTabViewModel : ReactiveObject
                 if (effectiveFormat == DistributionFileType.Spid)
                 {
                     // SPID format: Outfit = FormOrEditorID|StringFilters|FormFilters|LevelFilters|TraitFilters|CountOrPackageIdx|Chance
-                    var outfitIdentifier = FormatOutfitIdentifier(entryVm.SelectedOutfit);
+                    var outfitIdentifier = FormKeyHelper.FormatForSpid(entryVm.SelectedOutfit.FormKey);
 
                     // StringFilters (position 2): NPC names (comma-separated for OR) and Keywords (with + for AND)
                     var stringFilters = new List<string>();
@@ -1185,12 +1185,6 @@ public class DistributionEditTabViewModel : ReactiveObject
             _logger.Error(ex, "Error updating distribution preview");
             DistributionPreviewText = $"; Error generating preview: {ex.Message}";
         }
-    }
-
-    private static string FormatOutfitIdentifier(IOutfitGetter outfit)
-    {
-        // Format as FormKey: 0x800~Plugin.esp
-        return $"0x{outfit.FormKey.ID:X}~{outfit.FormKey.ModKey.FileName}";
     }
 
     private async Task LoadAvailableOutfitsAsync()
