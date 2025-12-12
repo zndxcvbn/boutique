@@ -422,9 +422,9 @@ public partial class OutfitPreviewWindow
 
         const double scale = 0.6;
         const byte min = 70;
-        r = (byte)(min + r * scale);
-        g = (byte)(min + g * scale);
-        b = (byte)(min + b * scale);
+        r = (byte)(min + (r * scale));
+        g = (byte)(min + (g * scale));
+        b = (byte)(min + (b * scale));
 
         return Color.FromRgb(r, g, b);
     }

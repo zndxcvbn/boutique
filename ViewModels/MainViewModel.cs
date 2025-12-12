@@ -260,8 +260,6 @@ public class MainViewModel : ReactiveObject
     private ArmorRecordViewModel? SelectedSourceArmor =>
         _selectedSourceArmors.OfType<ArmorRecordViewModel>().FirstOrDefault();
 
-    private bool HasSourceSelection => _selectedSourceArmors.OfType<ArmorRecordViewModel>().Any();
-
     [Reactive] public ArmorRecordViewModel? SelectedTargetArmor { get; set; }
 
     public ICollectionView? SourceArmorsView
@@ -1015,7 +1013,7 @@ public class MainViewModel : ReactiveObject
         while (index > 0)
         {
             index--;
-            builder.Insert(0, (char)('A' + index % 26));
+            builder.Insert(0, (char)('A' + (index % 26)));
             index /= 26;
         }
 

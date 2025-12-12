@@ -1,4 +1,3 @@
-using Boutique.Models;
 using Boutique.Utilities;
 using Xunit;
 
@@ -15,7 +14,7 @@ public class SpidLineParserTests
     public void TryParse_SimpleEditorId_ParsesCorrectly()
     {
         var result = SpidLineParser.TryParse("Outfit = VampireOutfit", out var filter);
-        
+
         Assert.True(result);
         Assert.NotNull(filter);
         Assert.Equal("VampireOutfit", filter.OutfitIdentifier);
@@ -28,7 +27,7 @@ public class SpidLineParserTests
     public void TryParse_FormKeyWithTilde_ParsesCorrectly()
     {
         var result = SpidLineParser.TryParse("Outfit = 0x800~MyMod.esp", out var filter);
-        
+
         Assert.True(result);
         Assert.NotNull(filter);
         Assert.Equal("0x800~MyMod.esp", filter.OutfitIdentifier);
@@ -38,7 +37,7 @@ public class SpidLineParserTests
     public void TryParse_FormKeyWithPipe_ParsesCorrectly()
     {
         var result = SpidLineParser.TryParse("Outfit = MyMod.esp|0x800", out var filter);
-        
+
         Assert.True(result);
         Assert.NotNull(filter);
         Assert.Equal("MyMod.esp|0x800", filter.OutfitIdentifier);
@@ -48,7 +47,7 @@ public class SpidLineParserTests
     public void TryParse_NotOutfitLine_ReturnsFalse()
     {
         var result = SpidLineParser.TryParse("Spell = 0x800~MyMod.esp", out var filter);
-        
+
         Assert.False(result);
         Assert.Null(filter);
     }
@@ -57,7 +56,7 @@ public class SpidLineParserTests
     public void TryParse_EmptyLine_ReturnsFalse()
     {
         var result = SpidLineParser.TryParse("", out var filter);
-        
+
         Assert.False(result);
         Assert.Null(filter);
     }
@@ -66,7 +65,7 @@ public class SpidLineParserTests
     public void TryParse_Comment_ReturnsFalse()
     {
         var result = SpidLineParser.TryParse("; Outfit = Something", out var filter);
-        
+
         Assert.False(result);
         Assert.Null(filter);
     }
@@ -79,7 +78,7 @@ public class SpidLineParserTests
     public void TryParse_WithNpcName_ParsesStringFilters()
     {
         var result = SpidLineParser.TryParse("Outfit = VampireOutfit|Serana", out var filter);
-        
+
         Assert.True(result);
         Assert.NotNull(filter);
         Assert.Equal("VampireOutfit", filter.OutfitIdentifier);
@@ -92,7 +91,7 @@ public class SpidLineParserTests
     public void TryParse_WithKeyword_ParsesStringFilters()
     {
         var result = SpidLineParser.TryParse("Outfit = VampireOutfit|ActorTypeNPC", out var filter);
-        
+
         Assert.True(result);
         Assert.NotNull(filter);
         Assert.True(filter.StringFilters.HasKeywords);
@@ -102,7 +101,7 @@ public class SpidLineParserTests
     public void TryParse_WithMultipleOrFilters_ParsesCorrectly()
     {
         var result = SpidLineParser.TryParse("Outfit = VampireOutfit|Serana,Harkon,Valerica", out var filter);
-        
+
         Assert.True(result);
         Assert.NotNull(filter);
         Assert.Equal(3, filter.StringFilters.Expressions.Count);
@@ -115,7 +114,7 @@ public class SpidLineParserTests
     public void TryParse_WithAndFilters_ParsesCorrectly()
     {
         var result = SpidLineParser.TryParse("Outfit = BanditOutfit|ActorTypeNPC+Bandit", out var filter);
-        
+
         Assert.True(result);
         Assert.NotNull(filter);
         Assert.Single(filter.StringFilters.Expressions);
@@ -128,7 +127,7 @@ public class SpidLineParserTests
     public void TryParse_WithNegatedFilter_ParsesCorrectly()
     {
         var result = SpidLineParser.TryParse("Outfit = GuardOutfit|*Guard+-Stormcloak", out var filter);
-        
+
         Assert.True(result);
         Assert.NotNull(filter);
         Assert.Equal(2, filter.StringFilters.Expressions[0].Parts.Count);
@@ -142,7 +141,7 @@ public class SpidLineParserTests
     public void TryParse_WithWildcard_ParsesCorrectly()
     {
         var result = SpidLineParser.TryParse("Outfit = GuardOutfit|*Guard*", out var filter);
-        
+
         Assert.True(result);
         Assert.NotNull(filter);
         Assert.True(filter.StringFilters.Expressions[0].Parts[0].HasWildcard);
@@ -156,7 +155,7 @@ public class SpidLineParserTests
     public void TryParse_WithFaction_ParsesFormFilters()
     {
         var result = SpidLineParser.TryParse("Outfit = VampireOutfit|NONE|VampireFaction", out var filter);
-        
+
         Assert.True(result);
         Assert.NotNull(filter);
         Assert.True(filter.StringFilters.IsEmpty);
@@ -169,7 +168,7 @@ public class SpidLineParserTests
     public void TryParse_WithRace_ParsesFormFilters()
     {
         var result = SpidLineParser.TryParse("Outfit = NordOutfit|NONE|NordRace", out var filter);
-        
+
         Assert.True(result);
         Assert.NotNull(filter);
         Assert.Single(filter.FormFilters.Expressions);
@@ -180,7 +179,7 @@ public class SpidLineParserTests
     public void TryParse_WithKeywordAndFaction_ParsesBothFilters()
     {
         var result = SpidLineParser.TryParse("Outfit = VampireOutfit|ActorTypeNPC|VampireFaction", out var filter);
-        
+
         Assert.True(result);
         Assert.NotNull(filter);
         Assert.True(filter.StringFilters.HasKeywords);
@@ -191,7 +190,7 @@ public class SpidLineParserTests
     public void TryParse_WithMultipleFactions_ParsesCorrectly()
     {
         var result = SpidLineParser.TryParse("Outfit = CriminalOutfit|NONE|CrimeFactionWhiterun,CrimeFactionRiften", out var filter);
-        
+
         Assert.True(result);
         Assert.NotNull(filter);
         Assert.Equal(2, filter.FormFilters.Expressions.Count);
@@ -205,7 +204,7 @@ public class SpidLineParserTests
     public void TryParse_WithFemale_ParsesTraitFilters()
     {
         var result = SpidLineParser.TryParse("Outfit = FemaleOutfit|NONE|NONE|NONE|F", out var filter);
-        
+
         Assert.True(result);
         Assert.NotNull(filter);
         Assert.True(filter.TraitFilters.IsFemale);
@@ -215,7 +214,7 @@ public class SpidLineParserTests
     public void TryParse_WithMale_ParsesTraitFilters()
     {
         var result = SpidLineParser.TryParse("Outfit = MaleOutfit|NONE|NONE|NONE|M", out var filter);
-        
+
         Assert.True(result);
         Assert.NotNull(filter);
         Assert.False(filter.TraitFilters.IsFemale);
@@ -225,7 +224,7 @@ public class SpidLineParserTests
     public void TryParse_WithMultipleTraits_ParsesCorrectly()
     {
         var result = SpidLineParser.TryParse("Outfit = UniqueOutfit|NONE|NONE|NONE|-U/M/-C", out var filter);
-        
+
         Assert.True(result);
         Assert.NotNull(filter);
         Assert.False(filter.TraitFilters.IsUnique); // -U = not unique
@@ -237,7 +236,7 @@ public class SpidLineParserTests
     public void TryParse_WithUnique_ParsesCorrectly()
     {
         var result = SpidLineParser.TryParse("Outfit = BossOutfit|NONE|NONE|NONE|U", out var filter);
-        
+
         Assert.True(result);
         Assert.NotNull(filter);
         Assert.True(filter.TraitFilters.IsUnique);
@@ -251,7 +250,7 @@ public class SpidLineParserTests
     public void TryParse_WithChance_ParsesCorrectly()
     {
         var result = SpidLineParser.TryParse("Outfit = RareOutfit|NONE|NONE|NONE|NONE|NONE|5", out var filter);
-        
+
         Assert.True(result);
         Assert.NotNull(filter);
         Assert.Equal(5, filter.Chance);
@@ -261,7 +260,7 @@ public class SpidLineParserTests
     public void TryParse_NoChance_DefaultsTo100()
     {
         var result = SpidLineParser.TryParse("Outfit = CommonOutfit|NONE", out var filter);
-        
+
         Assert.True(result);
         Assert.NotNull(filter);
         Assert.Equal(100, filter.Chance);
@@ -276,9 +275,9 @@ public class SpidLineParserTests
     {
         // Real SPID example: Outfit to Female NPCs in Vampire faction with 5% chance
         var result = SpidLineParser.TryParse(
-            "Outfit = 1_Obi_Druchii|ActorTypeNPC|VampireFaction|NONE|F|NONE|5", 
+            "Outfit = 1_Obi_Druchii|ActorTypeNPC|VampireFaction|NONE|F|NONE|5",
             out var filter);
-        
+
         Assert.True(result);
         Assert.NotNull(filter);
         Assert.Equal("1_Obi_Druchii", filter.OutfitIdentifier);
@@ -292,9 +291,9 @@ public class SpidLineParserTests
     public void TryParse_RealExample_BanditDistribution()
     {
         var result = SpidLineParser.TryParse(
-            "Outfit = BanditOutfit|ActorTypeNPC+*Bandit*|BanditFaction", 
+            "Outfit = BanditOutfit|ActorTypeNPC+*Bandit*|BanditFaction",
             out var filter);
-        
+
         Assert.True(result);
         Assert.NotNull(filter);
         Assert.Equal("BanditOutfit", filter.OutfitIdentifier);
@@ -306,9 +305,9 @@ public class SpidLineParserTests
     public void TryParse_RealExample_FormKeyWithFilters()
     {
         var result = SpidLineParser.TryParse(
-            "Outfit = 0x800~RequiredMod.esp|ActorTypeNPC|SomeFaction|NONE|F", 
+            "Outfit = 0x800~RequiredMod.esp|ActorTypeNPC|SomeFaction|NONE|F",
             out var filter);
-        
+
         Assert.True(result);
         Assert.NotNull(filter);
         Assert.Equal("0x800~RequiredMod.esp", filter.OutfitIdentifier);
@@ -322,7 +321,7 @@ public class SpidLineParserTests
         var result = SpidLineParser.TryParse(
             "Outfit = VampireOutfit|Serana ; This is a comment",
             out var filter);
-        
+
         Assert.True(result);
         Assert.NotNull(filter);
         Assert.Equal("VampireOutfit", filter.OutfitIdentifier);
@@ -337,9 +336,9 @@ public class SpidLineParserTests
     public void GetSpecificNpcIdentifiers_ReturnsOnlyNpcNames()
     {
         SpidLineParser.TryParse("Outfit = VampireOutfit|Serana,ActorTypeNPC,Harkon", out var filter);
-        
+
         var npcs = SpidLineParser.GetSpecificNpcIdentifiers(filter!);
-        
+
         Assert.Equal(2, npcs.Count);
         Assert.Contains("Serana", npcs);
         Assert.Contains("Harkon", npcs);
@@ -350,9 +349,9 @@ public class SpidLineParserTests
     public void GetKeywordIdentifiers_ReturnsOnlyKeywords()
     {
         SpidLineParser.TryParse("Outfit = VampireOutfit|ActorTypeNPC+VampireKeyword,Serana", out var filter);
-        
+
         var keywords = SpidLineParser.GetKeywordIdentifiers(filter!);
-        
+
         // ActorTypeNPC looks like a keyword
         Assert.Contains("ActorTypeNPC", keywords);
     }
@@ -361,9 +360,9 @@ public class SpidLineParserTests
     public void GetFactionIdentifiers_ReturnsOnlyFactions()
     {
         SpidLineParser.TryParse("Outfit = VampireOutfit|NONE|VampireFaction,NordRace", out var filter);
-        
+
         var factions = SpidLineParser.GetFactionIdentifiers(filter!);
-        
+
         Assert.Single(factions);
         Assert.Contains("VampireFaction", factions);
     }
@@ -372,9 +371,9 @@ public class SpidLineParserTests
     public void GetRaceIdentifiers_ReturnsOnlyRaces()
     {
         SpidLineParser.TryParse("Outfit = VampireOutfit|NONE|VampireFaction,NordRace", out var filter);
-        
+
         var races = SpidLineParser.GetRaceIdentifiers(filter!);
-        
+
         Assert.Single(races);
         Assert.Contains("NordRace", races);
     }
@@ -387,9 +386,9 @@ public class SpidLineParserTests
     public void GetTargetingDescription_AllNpcs_ReturnsAllNpcs()
     {
         SpidLineParser.TryParse("Outfit = VampireOutfit", out var filter);
-        
+
         var description = filter!.GetTargetingDescription();
-        
+
         Assert.Equal("All NPCs", description);
     }
 
@@ -397,9 +396,9 @@ public class SpidLineParserTests
     public void GetTargetingDescription_WithFilters_ReturnsDescription()
     {
         SpidLineParser.TryParse("Outfit = VampireOutfit|ActorTypeNPC|VampireFaction|NONE|F|NONE|5", out var filter);
-        
+
         var description = filter!.GetTargetingDescription();
-        
+
         Assert.Contains("Names/Keywords", description);
         Assert.Contains("Factions/Forms", description);
         Assert.Contains("Female", description);
@@ -410,7 +409,7 @@ public class SpidLineParserTests
     public void TargetsAllNpcs_WithNoFilters_ReturnsTrue()
     {
         SpidLineParser.TryParse("Outfit = VampireOutfit", out var filter);
-        
+
         Assert.True(filter!.TargetsAllNpcs);
     }
 
@@ -418,7 +417,7 @@ public class SpidLineParserTests
     public void TargetsAllNpcs_WithFilters_ReturnsFalse()
     {
         SpidLineParser.TryParse("Outfit = VampireOutfit|Serana", out var filter);
-        
+
         Assert.False(filter!.TargetsAllNpcs);
     }
 

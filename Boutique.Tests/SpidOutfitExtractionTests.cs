@@ -123,7 +123,7 @@ public class SpidOutfitExtractionTests
     {
         var result = DistributionDiscoveryService.ExtractSpidOutfitKeys(
             "Outfit = 1_Obi_Druchii|ActorTypeNPC|VampireFaction|NONE|F|NONE|5");
-        
+
         Assert.Single(result);
         Assert.Equal("1_Obi_Druchii", result[0]);
     }
@@ -133,7 +133,7 @@ public class SpidOutfitExtractionTests
     {
         var result = DistributionDiscoveryService.ExtractSpidOutfitKeys(
             "Outfit = 0x800~RequiredMod.esp|NpcEditorId");
-        
+
         Assert.Single(result);
         Assert.Equal("0x800~RequiredMod.esp", result[0]);
     }
@@ -143,7 +143,7 @@ public class SpidOutfitExtractionTests
     {
         var result = DistributionDiscoveryService.ExtractSpidOutfitKeys(
             "Outfit = OutfitA|NONE, OutfitB|NONE, OutfitC");
-        
+
         Assert.Equal(3, result.Count);
         Assert.Equal("OutfitA", result[0]);
         Assert.Equal("OutfitB", result[1]);
@@ -154,7 +154,7 @@ public class SpidOutfitExtractionTests
     public void ExtractSpidOutfitKeys_PlainEditorId_ExtractsEditorId()
     {
         var result = DistributionDiscoveryService.ExtractSpidOutfitKeys("Outfit = VampireOutfit");
-        
+
         Assert.Single(result);
         Assert.Equal("VampireOutfit", result[0]);
     }
@@ -178,7 +178,7 @@ public class SpidOutfitExtractionTests
     {
         var result = DistributionDiscoveryService.ExtractSpidOutfitKeys(
             "Outfit = SomeOutfit|NONE ; This is a comment");
-        
+
         Assert.Single(result);
         Assert.Equal("SomeOutfit", result[0]);
     }
@@ -251,7 +251,7 @@ public class SpidOutfitExtractionTests
         // SPID is case-insensitive for the Outfit keyword
         var result = DistributionDiscoveryService.ExtractSpidOutfitKeys(
             "OUTFIT = MyOutfit|NONE");
-        
+
         Assert.Single(result);
         Assert.Equal("MyOutfit", result[0]);
     }

@@ -70,10 +70,7 @@ public class DistributionNpcsTabViewModel : ReactiveObject
             this.RaiseAndSetIfChanged(ref field, value);
 
             // Set new selection
-            if (value != null)
-            {
-                value.IsSelected = true;
-            }
+            value?.IsSelected = true;
         }
     }
 

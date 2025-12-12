@@ -1,4 +1,3 @@
-using Mutagen.Bethesda;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
@@ -105,11 +104,11 @@ public static class FormKeyHelper
 
         var trimmed = identifier.Trim();
         string? modCandidate = null;
-        string? editorCandidate = null;
 
         var pipeIndex = trimmed.IndexOf('|');
         var tildeIndex = trimmed.IndexOf('~');
 
+        string? editorCandidate;
         if (pipeIndex >= 0)
         {
             var firstPart = trimmed[..pipeIndex].Trim();

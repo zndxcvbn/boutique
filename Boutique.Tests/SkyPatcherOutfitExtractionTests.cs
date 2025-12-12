@@ -15,7 +15,7 @@ public class SkyPatcherOutfitExtractionTests
     {
         var result = DistributionDiscoveryService.ExtractSkyPatcherOutfitKeys(
             "filterByOutfits=MyMod.esp|0x12345:outfitDefault=OtherMod.esp|0x800");
-        
+
         Assert.Contains("MyMod.esp|0x12345", result);
     }
 
@@ -24,7 +24,7 @@ public class SkyPatcherOutfitExtractionTests
     {
         var result = DistributionDiscoveryService.ExtractSkyPatcherOutfitKeys(
             "filterByOutfits=Mod1.esp|0x100,Mod2.esp|0x200:outfitDefault=Mod3.esp|0x300");
-        
+
         Assert.Contains("Mod1.esp|0x100", result);
         Assert.Contains("Mod2.esp|0x200", result);
     }
@@ -34,7 +34,7 @@ public class SkyPatcherOutfitExtractionTests
     {
         var result = DistributionDiscoveryService.ExtractSkyPatcherOutfitKeys(
             "filterByNpcs=Skyrim.esm|0x1234:outfitDefault=MyMod.esp|0x800");
-        
+
         Assert.Contains("MyMod.esp|0x800", result);
     }
 
@@ -43,7 +43,7 @@ public class SkyPatcherOutfitExtractionTests
     {
         var result = DistributionDiscoveryService.ExtractSkyPatcherOutfitKeys(
             "filterByOutfits=Mod1.esp|0x100:outfitDefault=Mod2.esp|0x200");
-        
+
         Assert.Equal(2, result.Count);
         Assert.Contains("Mod1.esp|0x100", result);
         Assert.Contains("Mod2.esp|0x200", result);
@@ -54,7 +54,7 @@ public class SkyPatcherOutfitExtractionTests
     {
         var result = DistributionDiscoveryService.ExtractSkyPatcherOutfitKeys(
             "filterByNpcs=Skyrim.esm|0x1234:filterByFactions=VampireFaction");
-        
+
         Assert.Empty(result);
     }
 
@@ -74,7 +74,7 @@ public class SkyPatcherOutfitExtractionTests
     {
         var result = DistributionDiscoveryService.ExtractSkyPatcherOutfitKeys(
             "outfitDefault=0x800~MyMod.esp");
-        
+
         Assert.Single(result);
         // The normalization should produce ModKey|FormID format
         Assert.Contains("MyMod.esp|0x800", result);
@@ -89,7 +89,7 @@ public class SkyPatcherOutfitExtractionTests
     {
         var result = DistributionDiscoveryService.ExtractSkyPatcherOutfitKeys(
             "FILTERBYOUTFITS=MyMod.esp|0x100:OUTFITDEFAULT=MyMod.esp|0x200");
-        
+
         Assert.Equal(2, result.Count);
     }
 
@@ -98,7 +98,7 @@ public class SkyPatcherOutfitExtractionTests
     {
         var result = DistributionDiscoveryService.ExtractSkyPatcherOutfitKeys(
             "outfitDefault= MyMod.esp|0x800 ");
-        
+
         Assert.Single(result);
     }
 
@@ -107,7 +107,7 @@ public class SkyPatcherOutfitExtractionTests
     {
         var result = DistributionDiscoveryService.ExtractSkyPatcherOutfitKeys(
             "section1:filterByOutfits=Mod1.esp|0x100:section2:outfitDefault=Mod2.esp|0x200");
-        
+
         Assert.Contains("Mod1.esp|0x100", result);
         Assert.Contains("Mod2.esp|0x200", result);
     }
