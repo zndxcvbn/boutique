@@ -38,4 +38,3 @@ public class DistributionFileTypeConverter : IValueConverter
         return DistributionFileType.SkyPatcher;
     }
 }
-

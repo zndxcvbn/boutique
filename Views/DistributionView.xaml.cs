@@ -69,7 +69,7 @@ public partial class DistributionView
         {
             // Start refresh and subscribe to wait for it to complete
             _ = viewModel.RefreshCommand.Execute();
-            
+
             // Subscribe to wait for refresh to complete, then trigger NPC scan
             viewModel.WhenAnyValue(vm => vm.IsLoading)
                 .Where(isLoading => !isLoading) // Wait for loading to complete
@@ -110,7 +110,6 @@ public partial class DistributionView
             viewModel.EnsureOutfitsLoaded();
         }
     }
-
 
     private void RemoveNpc_Click(object sender, RoutedEventArgs e)
     {

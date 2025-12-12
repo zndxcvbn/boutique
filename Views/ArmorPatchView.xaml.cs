@@ -45,7 +45,8 @@ public partial class ArmorPatchView : UserControl
         if (ReferenceEquals(viewModel, _currentViewModel))
             return;
 
-        if (_currentViewModel is not null) _currentViewModel.PropertyChanged -= ViewModelOnPropertyChanged;
+        if (_currentViewModel is not null)
+            _currentViewModel.PropertyChanged -= ViewModelOnPropertyChanged;
 
         _currentViewModel = viewModel;
 
@@ -58,12 +59,14 @@ public partial class ArmorPatchView : UserControl
 
     private void ViewModelOnPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(MainViewModel.SelectedSourceArmors)) SynchronizeSourceSelection();
+        if (e.PropertyName == nameof(MainViewModel.SelectedSourceArmors))
+            SynchronizeSourceSelection();
     }
 
     private void TargetArmorsGridOnLoaded(object sender, RoutedEventArgs e)
     {
-        if (TargetArmorsGrid.Columns.Count > 0) TargetArmorsGrid.Columns[0].SortDirection = ListSortDirection.Ascending;
+        if (TargetArmorsGrid.Columns.Count > 0)
+            TargetArmorsGrid.Columns[0].SortDirection = ListSortDirection.Ascending;
     }
 
     private void TargetArmorsDataGrid_Sorting(object sender, DataGridSortingEventArgs e)
@@ -89,7 +92,8 @@ public partial class ArmorPatchView : UserControl
             if (boundColumn.Binding is Binding binding && binding.Path != null)
                 sortMember = binding.Path.Path;
 
-        if (string.IsNullOrWhiteSpace(sortMember)) sortMember = nameof(ArmorRecordViewModel.DisplayName);
+        if (string.IsNullOrWhiteSpace(sortMember))
+            sortMember = nameof(ArmorRecordViewModel.DisplayName);
 
         viewModel.ApplyTargetSort(sortMember, newDirection);
     }

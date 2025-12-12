@@ -42,4 +42,3 @@ public class OutfitRecordViewModel : ReactiveObject
         return _searchCache.Contains(searchTerm.Trim().ToLowerInvariant());
     }
 }
-

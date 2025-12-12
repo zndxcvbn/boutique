@@ -8,13 +8,13 @@ using HelixToolkit.Wpf.SharpDX.Model.Scene;
 using Serilog;
 using SharpDX.Direct3D11;
 using Color = System.Windows.Media.Color;
-using Vector3 = System.Numerics.Vector3;
+using Color4 = SharpDX.Color4;
 using MeshGeometry3D = HelixToolkit.Wpf.SharpDX.MeshGeometry3D;
 using PerspectiveCamera = HelixToolkit.Wpf.SharpDX.PerspectiveCamera;
-using Color4 = SharpDX.Color4;
 using ProjectionCamera = HelixToolkit.Wpf.SharpDX.ProjectionCamera;
 using SharpDXVector2 = SharpDX.Vector2;
 using SharpDXVector3 = SharpDX.Vector3;
+using Vector3 = System.Numerics.Vector3;
 
 namespace Boutique.Views;
 
@@ -400,7 +400,8 @@ public partial class OutfitPreviewWindow
 
     private void UpdateFrontalLightDirection()
     {
-        if (PreviewViewport.Camera is not ProjectionCamera camera) return;
+        if (PreviewViewport.Camera is not ProjectionCamera camera)
+            return;
         var direction = camera.LookDirection;
         if (direction.LengthSquared > 1e-6)
         {

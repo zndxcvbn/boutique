@@ -25,8 +25,7 @@ public static class SkyrimConstants
     {
         if (string.IsNullOrWhiteSpace(pluginName))
             return false;
-        
+
         return VanillaPluginNames.Contains(pluginName);
     }
 }
-

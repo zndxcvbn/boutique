@@ -24,14 +24,14 @@ public class DistributionEntryViewModel : ReactiveObject
         SelectedOutfit = entry.Outfit;
         UseChance = entry.Chance.HasValue;
         Chance = entry.Chance ?? 100;
-        
+
         // Initialize selected NPCs from entry
         if (entry.NpcFormKeys.Count > 0)
         {
             var npcVms = entry.NpcFormKeys
                 .Select(fk => new NpcRecordViewModel(new NpcRecord(fk, null, null, fk.ModKey)))
                 .ToList();
-            
+
             foreach (var npcVm in npcVms)
             {
                 // Don't set IsSelected - that's only for temporary picker selection state
@@ -46,7 +46,7 @@ public class DistributionEntryViewModel : ReactiveObject
             var factionVms = entry.FactionFormKeys
                 .Select(fk => new FactionRecordViewModel(new FactionRecord(fk, null, null, fk.ModKey)))
                 .ToList();
-            
+
             foreach (var factionVm in factionVms)
             {
                 _selectedFactions.Add(factionVm);
@@ -59,7 +59,7 @@ public class DistributionEntryViewModel : ReactiveObject
             var keywordVms = entry.KeywordFormKeys
                 .Select(fk => new KeywordRecordViewModel(new KeywordRecord(fk, null, fk.ModKey)))
                 .ToList();
-            
+
             foreach (var keywordVm in keywordVms)
             {
                 _selectedKeywords.Add(keywordVm);
@@ -72,7 +72,7 @@ public class DistributionEntryViewModel : ReactiveObject
             var raceVms = entry.RaceFormKeys
                 .Select(fk => new RaceRecordViewModel(new RaceRecord(fk, null, null, fk.ModKey)))
                 .ToList();
-            
+
             foreach (var raceVm in raceVms)
             {
                 _selectedRaces.Add(raceVm);
@@ -92,7 +92,7 @@ public class DistributionEntryViewModel : ReactiveObject
             {
                 var wasEnabled = previousUseChance;
                 previousUseChance = useChance; // Update for next time
-                
+
                 if (useChance && !wasEnabled && onUseChanceChanging != null)
                 {
                     // User is enabling chance - show warning
@@ -104,7 +104,7 @@ public class DistributionEntryViewModel : ReactiveObject
                         "Format Change Required",
                         System.Windows.MessageBoxButton.YesNo,
                         System.Windows.MessageBoxImage.Warning);
-                    
+
                     if (result == System.Windows.MessageBoxResult.No)
                     {
                         // Revert the change
@@ -112,14 +112,14 @@ public class DistributionEntryViewModel : ReactiveObject
                         UseChance = false;
                         return;
                     }
-                    
+
                     // User confirmed - allow the change
                     onUseChanceChanging();
                 }
-                
+
                 Entry.Chance = useChance ? Chance : null;
             });
-        
+
         this.WhenAnyValue(x => x.Chance)
             .Skip(1) // Skip initial value
             .Subscribe(chance =>

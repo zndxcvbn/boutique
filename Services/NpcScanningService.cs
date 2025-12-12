@@ -47,7 +47,7 @@ public class NpcScanningService
                         continue;
 
                     var name = GetNpcName(npc);
-                    
+
                     // Find the original master (topmost in load order) that first introduced this NPC
                     var originalModKey = FindOriginalMaster(linkCache, npc.FormKey);
 
@@ -74,7 +74,7 @@ public class NpcScanningService
             return npcs;
         }, cancellationToken);
     }
-    
+
     public async Task<IReadOnlyList<NpcFilterData>> ScanNpcsWithFilterDataAsync(CancellationToken cancellationToken = default)
     {
         return await Task.Run<IReadOnlyList<NpcFilterData>>(() =>
@@ -124,50 +124,50 @@ public class NpcScanningService
             return npcs;
         }, cancellationToken);
     }
-    
+
     private NpcFilterData? BuildNpcFilterData(INpcGetter npc, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
     {
         try
         {
             var originalModKey = FindOriginalMaster(linkCache, npc.FormKey);
-            
+
             // Collect keywords from NPC and its race
             var keywords = CollectNpcKeywords(npc, linkCache);
-            
+
             // Collect faction memberships
             var factions = CollectNpcFactions(npc, linkCache);
-            
+
             // Get race info
             var (raceFormKey, raceEditorId) = ResolveRace(npc, linkCache);
-            
+
             // Get class info
             var (classFormKey, classEditorId) = ResolveClass(npc, linkCache);
-            
+
             // Get combat style
             var (combatStyleFormKey, combatStyleEditorId) = ResolveCombatStyle(npc, linkCache);
-            
+
             // Get voice type
             var (voiceTypeFormKey, voiceTypeEditorId) = ResolveVoiceType(npc, linkCache);
-            
+
             // Get default outfit
             var (outfitFormKey, outfitEditorId) = ResolveOutfit(npc, linkCache);
-            
+
             // Get template info
             var (templateFormKey, templateEditorId) = ResolveTemplate(npc, linkCache);
-            
+
             // Extract traits from NPC configuration flags
             var configuration = npc.Configuration;
             var isFemale = configuration.Flags.HasFlag(NpcConfiguration.Flag.Female);
             var isUnique = configuration.Flags.HasFlag(NpcConfiguration.Flag.Unique);
             var isSummonable = configuration.Flags.HasFlag(NpcConfiguration.Flag.Summonable);
             var isLeveled = npc.Configuration.Level is PcLevelMult;
-            
+
             // Check if child via race
             var isChild = IsChildRace(raceEditorId);
-            
+
             // Get level
             var level = npc.Configuration.Level is NpcLevel npcLevel ? npcLevel.Level : (short)1;
-            
+
             return new NpcFilterData
             {
                 FormKey = npc.FormKey,
@@ -202,11 +202,11 @@ public class NpcScanningService
             return null;
         }
     }
-    
+
     private HashSet<string> CollectNpcKeywords(INpcGetter npc, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
     {
         var keywords = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        
+
         // Collect NPC's direct keywords
         if (npc.Keywords != null)
         {
@@ -218,7 +218,7 @@ public class NpcScanningService
                 }
             }
         }
-        
+
         // Collect race keywords
         if (npc.Race.TryResolve(linkCache, out var race) && race.Keywords != null)
         {
@@ -230,17 +230,17 @@ public class NpcScanningService
                 }
             }
         }
-        
+
         return keywords;
     }
-    
+
     private List<FactionMembership> CollectNpcFactions(INpcGetter npc, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
     {
         var factions = new List<FactionMembership>();
-        
+
         if (npc.Factions == null)
             return factions;
-        
+
         foreach (var factionRank in npc.Factions)
         {
             string? editorId = null;
@@ -248,7 +248,7 @@ public class NpcScanningService
             {
                 editorId = faction.EditorID;
             }
-            
+
             factions.Add(new FactionMembership
             {
                 FactionFormKey = factionRank.Faction.FormKey,
@@ -256,98 +256,98 @@ public class NpcScanningService
                 Rank = factionRank.Rank
             });
         }
-        
+
         return factions;
     }
-    
+
     private (FormKey? FormKey, string? EditorId) ResolveRace(INpcGetter npc, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
     {
         if (npc.Race.IsNull)
             return (null, null);
-        
+
         var formKey = npc.Race.FormKey;
         string? editorId = null;
-        
+
         if (npc.Race.TryResolve(linkCache, out var race))
         {
             editorId = race.EditorID;
         }
-        
+
         return (formKey, editorId);
     }
-    
+
     private (FormKey? FormKey, string? EditorId) ResolveClass(INpcGetter npc, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
     {
         if (npc.Class.IsNull)
             return (null, null);
-        
+
         var formKey = npc.Class.FormKey;
         string? editorId = null;
-        
+
         if (npc.Class.TryResolve(linkCache, out var npcClass))
         {
             editorId = npcClass.EditorID;
         }
-        
+
         return (formKey, editorId);
     }
-    
+
     private (FormKey? FormKey, string? EditorId) ResolveCombatStyle(INpcGetter npc, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
     {
         if (npc.CombatStyle.IsNull)
             return (null, null);
-        
+
         var formKey = npc.CombatStyle.FormKey;
         string? editorId = null;
-        
+
         if (npc.CombatStyle.TryResolve(linkCache, out var combatStyle))
         {
             editorId = combatStyle.EditorID;
         }
-        
+
         return (formKey, editorId);
     }
-    
+
     private (FormKey? FormKey, string? EditorId) ResolveVoiceType(INpcGetter npc, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
     {
         if (npc.Voice.IsNull)
             return (null, null);
-        
+
         var formKey = npc.Voice.FormKey;
         string? editorId = null;
-        
+
         if (npc.Voice.TryResolve(linkCache, out var voice))
         {
             editorId = voice.EditorID;
         }
-        
+
         return (formKey, editorId);
     }
-    
+
     private (FormKey? FormKey, string? EditorId) ResolveOutfit(INpcGetter npc, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
     {
         if (npc.DefaultOutfit.IsNull)
             return (null, null);
-        
+
         var formKey = npc.DefaultOutfit.FormKey;
         string? editorId = null;
-        
+
         if (npc.DefaultOutfit.TryResolve(linkCache, out var outfit))
         {
             editorId = outfit.EditorID;
         }
-        
+
         return (formKey, editorId);
     }
-    
+
     private (FormKey? FormKey, string? EditorId) ResolveTemplate(INpcGetter npc, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
     {
         if (npc.Template.IsNull)
             return (null, null);
-        
+
         var formKey = npc.Template.FormKey;
         string? editorId = null;
-        
+
         // Template can be either an NPC or a LeveledNpc
         if (linkCache.TryResolve<INpcGetter>(formKey, out var templateNpc))
         {
@@ -357,15 +357,15 @@ public class NpcScanningService
         {
             editorId = templateLvln.EditorID;
         }
-        
+
         return (formKey, editorId);
     }
-    
+
     private static bool IsChildRace(string? raceEditorId)
     {
         if (string.IsNullOrWhiteSpace(raceEditorId))
             return false;
-        
+
         // Common child race patterns in Skyrim
         return raceEditorId.Contains("Child", StringComparison.OrdinalIgnoreCase) ||
                raceEditorId.Contains("DA13", StringComparison.OrdinalIgnoreCase); // Daedric child form
@@ -382,7 +382,7 @@ public class NpcScanningService
             // Resolve all contexts for this FormKey - they are returned in load order
             // The first context is the original master that first introduced the record
             var contexts = linkCache.ResolveAllContexts<INpc, INpcGetter>(formKey);
-            
+
             // Get the first context (original master)
             var firstContext = contexts.FirstOrDefault();
             if (firstContext != null)
@@ -404,4 +404,3 @@ public class NpcScanningService
         return npc.Name?.String;
     }
 }
-

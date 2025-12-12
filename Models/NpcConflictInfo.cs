@@ -16,4 +16,3 @@ public sealed record NpcConflictInfo(
     string? ExistingOutfitName,
     /// <summary>The outfit that will be assigned by the new distribution</summary>
     string? NewOutfitName);
-

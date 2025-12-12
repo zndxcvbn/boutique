@@ -33,4 +33,3 @@ public class KeywordRecordViewModel : ReactiveObject
         return _searchCache.Contains(searchTerm.Trim().ToLowerInvariant());
     }
 }
-

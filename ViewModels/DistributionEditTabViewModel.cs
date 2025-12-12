@@ -69,8 +69,8 @@ public class DistributionEditTabViewModel : ReactiveObject
             vm => vm.DistributionFilePath,
             vm => vm.IsCreatingNewFile,
             vm => vm.NewFileName,
-            (count, path, isNew, newName) => 
-                count > 0 && 
+            (count, path, isNew, newName) =>
+                count > 0 &&
                 (!string.IsNullOrWhiteSpace(path) || (isNew && !string.IsNullOrWhiteSpace(newName))));
 
         SaveDistributionFileCommand = ReactiveCommand.CreateFromTask(SaveDistributionFileAsync, canSave);
@@ -87,12 +87,12 @@ public class DistributionEditTabViewModel : ReactiveObject
             .Subscribe(_ => UpdateFilteredKeywords());
         this.WhenAnyValue(vm => vm.RaceSearchText)
             .Subscribe(_ => UpdateFilteredRaces());
-        
+
         // Watch for format changes to update preview
         this.WhenAnyValue(vm => vm.DistributionFormat)
             .Skip(1) // Skip initial value
             .Subscribe(_ => UpdateDistributionPreview());
-        
+
         // When creating a new file, reset format to SkyPatcher
         this.WhenAnyValue(vm => vm.IsCreatingNewFile)
             .Where(isNew => isNew)
@@ -131,9 +131,9 @@ public class DistributionEditTabViewModel : ReactiveObject
         {
             // Clear previous selection
             field?.IsSelected = false;
-            
+
             this.RaiseAndSetIfChanged(ref field, value);
-            
+
             // Set new selection
             value?.IsSelected = true;
         }
@@ -158,7 +158,7 @@ public class DistributionEditTabViewModel : ReactiveObject
         {
             var previous = field;
             this.RaiseAndSetIfChanged(ref field, value);
-            
+
             if (value != null)
             {
                 IsCreatingNewFile = value.IsNewFile;
@@ -166,7 +166,7 @@ public class DistributionEditTabViewModel : ReactiveObject
                 {
                     DistributionFilePath = value.File.FullPath;
                     NewFileName = string.Empty; // Clear new filename when selecting existing file
-                    
+
                     // Automatically load the file when selected
                     if (File.Exists(DistributionFilePath) && !IsLoading)
                     {
@@ -175,7 +175,7 @@ public class DistributionEditTabViewModel : ReactiveObject
                     }
                     else
                     {
-                        _logger.Debug("Not auto-loading file - Exists: {Exists}, IsLoading: {IsLoading}", 
+                        _logger.Debug("Not auto-loading file - Exists: {Exists}, IsLoading: {IsLoading}",
                             File.Exists(DistributionFilePath), IsLoading);
                     }
                 }
@@ -202,7 +202,7 @@ public class DistributionEditTabViewModel : ReactiveObject
                         this.RaisePropertyChanged(nameof(DistributionEntriesCount));
                         UpdateDistributionPreview();
                     }
-                    
+
                     // Set default filename if empty
                     if (string.IsNullOrWhiteSpace(NewFileName))
                     {
@@ -211,7 +211,7 @@ public class DistributionEditTabViewModel : ReactiveObject
                     UpdateDistributionFilePathFromNewFileName();
                 }
             }
-            
+
             if (!Equals(previous, value))
             {
                 this.RaisePropertyChanged(nameof(ShowNewFileNameInput));
@@ -262,10 +262,10 @@ public class DistributionEditTabViewModel : ReactiveObject
         {
             if (_distributionFormat == value)
                 return;
-                
+
             _logger.Debug("DistributionFormat changing from {OldFormat} to {NewFormat}, EntryCount={Count}",
                 _distributionFormat, value, DistributionEntries.Count);
-                
+
             this.RaiseAndSetIfChanged(ref _distributionFormat, value);
             UpdateDistributionPreview();
         }
@@ -275,7 +275,7 @@ public class DistributionEditTabViewModel : ReactiveObject
     /// <summary>
     /// Available distribution file formats for the dropdown.
     /// </summary>
-    public IReadOnlyList<DistributionFileType> AvailableFormats { get; } = 
+    public IReadOnlyList<DistributionFileType> AvailableFormats { get; } =
         new[] { DistributionFileType.Spid, DistributionFileType.SkyPatcher };
 
     [Reactive] public ObservableCollection<NpcRecordViewModel> FilteredNpcs { get; private set; } = new();
@@ -347,13 +347,13 @@ public class DistributionEditTabViewModel : ReactiveObject
         // Skip expensive operations during bulk loading
         if (_isBulkLoading)
             return;
-            
-        _logger.Debug("OnDistributionEntriesChanged: Action={Action}, NewItems={NewCount}, OldItems={OldCount}", 
+
+        _logger.Debug("OnDistributionEntriesChanged: Action={Action}, NewItems={NewCount}, OldItems={OldCount}",
             e.Action, e.NewItems?.Count ?? 0, e.OldItems?.Count ?? 0);
-        
+
         // Raise PropertyChanged synchronously - this is fast and necessary for bindings
         this.RaisePropertyChanged(nameof(DistributionEntriesCount));
-        
+
         // Subscribe to property changes on new entries
         if (e.NewItems != null)
         {
@@ -362,13 +362,13 @@ public class DistributionEditTabViewModel : ReactiveObject
                 SubscribeToEntryChanges(entry);
             }
         }
-        
+
         // Update preview whenever entries change
         UpdateDistributionPreview();
-        
+
         _logger.Debug("OnDistributionEntriesChanged completed");
     }
-    
+
     private void SubscribeToEntryChanges(DistributionEntryViewModel entry)
     {
         // Debounce preview updates to avoid excessive calls during rapid changes
@@ -377,7 +377,7 @@ public class DistributionEditTabViewModel : ReactiveObject
             .Throttle(TimeSpan.FromMilliseconds(300))
             .ObserveOn(RxApp.MainThreadScheduler)
             .Subscribe(_ => UpdateDistributionPreview());
-        
+
         entry.WhenAnyValue(evm => evm.SelectedOutfit)
             .Skip(1) // Skip initial value
             .Subscribe(_ => previewUpdateSubject.OnNext(Unit.Default));
@@ -400,13 +400,13 @@ public class DistributionEditTabViewModel : ReactiveObject
         {
             _logger.Debug("Creating DistributionEntry");
             var entry = new DistributionEntry();
-            
+
             _logger.Debug("Creating DistributionEntryViewModel");
             var entryVm = new DistributionEntryViewModel(entry, RemoveDistributionEntry, OnUseChanceEnabling);
-            
+
             _logger.Debug("Adding to DistributionEntries collection");
             DistributionEntries.Add(entryVm);
-            
+
             _logger.Debug("Deferring SelectedEntry assignment");
             // Defer SelectedEntry assignment to avoid blocking UI thread
             System.Windows.Application.Current?.Dispatcher.BeginInvoke(new Action(() =>
@@ -414,7 +414,7 @@ public class DistributionEditTabViewModel : ReactiveObject
                 SelectedEntry = entryVm;
                 _logger.Debug("SelectedEntry set");
             }), System.Windows.Threading.DispatcherPriority.Background);
-            
+
             _logger.Debug("AddDistributionEntry completed successfully");
         }
         catch (Exception ex)
@@ -443,8 +443,8 @@ public class DistributionEditTabViewModel : ReactiveObject
             .Where(npc => npc.IsSelected)
             .ToList();
 
-        _logger.Debug("AddSelectedNpcsToEntry: Total NPCs={Total}, Filtered={Filtered}, Selected={Selected}", 
-            AvailableNpcs.Count, 
+        _logger.Debug("AddSelectedNpcsToEntry: Total NPCs={Total}, Filtered={Filtered}, Selected={Selected}",
+            AvailableNpcs.Count,
             FilteredNpcs.Count,
             selectedNpcs.Count);
 
@@ -693,7 +693,7 @@ public class DistributionEditTabViewModel : ReactiveObject
                 StatusMessage = "Save cancelled.";
                 return;
             }
-            
+
             if (result == System.Windows.MessageBoxResult.Yes)
             {
                 // Use the suggested filename
@@ -703,10 +703,10 @@ public class DistributionEditTabViewModel : ReactiveObject
                 {
                     finalFileName += ".ini";
                 }
-                finalFilePath = !string.IsNullOrEmpty(directory) 
-                    ? Path.Combine(directory, finalFileName) 
+                finalFilePath = !string.IsNullOrEmpty(directory)
+                    ? Path.Combine(directory, finalFileName)
                     : finalFileName;
-                
+
                 // Update the NewFileName to reflect the change
                 NewFileName = finalFileName;
             }
@@ -721,7 +721,7 @@ public class DistributionEditTabViewModel : ReactiveObject
                 "Confirm Overwrite",
                 System.Windows.MessageBoxButton.YesNo,
                 System.Windows.MessageBoxImage.Warning);
-            
+
             if (result != System.Windows.MessageBoxResult.Yes)
             {
                 StatusMessage = "Save cancelled.";
@@ -768,9 +768,9 @@ public class DistributionEditTabViewModel : ReactiveObject
 
     private async Task LoadDistributionFileAsync()
     {
-        _logger.Debug("LoadDistributionFileAsync called. DistributionFilePath: {Path}, Exists: {Exists}", 
+        _logger.Debug("LoadDistributionFileAsync called. DistributionFilePath: {Path}, Exists: {Exists}",
             DistributionFilePath, File.Exists(DistributionFilePath ?? string.Empty));
-            
+
         if (string.IsNullOrWhiteSpace(DistributionFilePath) || !File.Exists(DistributionFilePath))
         {
             StatusMessage = "File does not exist. Please select a valid file.";
@@ -805,17 +805,17 @@ public class DistributionEditTabViewModel : ReactiveObject
                 ConflictSummary = string.Empty;
                 SuggestedFileName = string.Empty;
                 ClearNpcConflictIndicators();
-                
+
                 // Create all ViewModels first (can be done on background thread for large lists)
-                var entryVms = await Task.Run(() => 
+                var entryVms = await Task.Run(() =>
                     entries.Select(entry => CreateEntryViewModel(entry)).ToList());
-                
+
                 // Add all entries to collection
                 foreach (var entryVm in entryVms)
                 {
                     DistributionEntries.Add(entryVm);
                 }
-                
+
                 // Subscribe to changes on all entries
                 foreach (var entryVm in entryVms)
                 {
@@ -826,7 +826,7 @@ public class DistributionEditTabViewModel : ReactiveObject
             {
                 _isBulkLoading = false;
             }
-            
+
             // Now do a single update for count and preview
             this.RaisePropertyChanged(nameof(DistributionEntriesCount));
             UpdateDistributionPreview();
@@ -882,7 +882,7 @@ public class DistributionEditTabViewModel : ReactiveObject
                 var npcVm = new NpcRecordViewModel(npc);
                 AvailableNpcs.Add(npcVm);
             }
-            
+
             // Update the filtered list after populating
             UpdateFilteredNpcs();
 
@@ -943,19 +943,19 @@ public class DistributionEditTabViewModel : ReactiveObject
     {
         var previousSelected = SelectedDistributionFile;
         var previousFilePath = DistributionFilePath;
-        
+
         // Update collection in place to maintain bindings
         AvailableDistributionFiles.Clear();
-        
+
         // Add "New File" option
         AvailableDistributionFiles.Add(new DistributionFileSelectionItem(isNewFile: true, file: null));
-        
+
         // Add existing files
         foreach (var file in files)
         {
             AvailableDistributionFiles.Add(new DistributionFileSelectionItem(isNewFile: false, file: file));
         }
-        
+
         // Try to restore previous selection
         if (previousSelected != null)
         {
@@ -972,7 +972,7 @@ public class DistributionEditTabViewModel : ReactiveObject
             else if (previousSelected.File != null)
             {
                 // Try to find the same file
-                var matchingItem = AvailableDistributionFiles.FirstOrDefault(item => 
+                var matchingItem = AvailableDistributionFiles.FirstOrDefault(item =>
                     !item.IsNewFile && item.File?.FullPath == previousSelected.File.FullPath);
                 if (matchingItem != null)
                 {
@@ -1031,152 +1031,152 @@ public class DistributionEditTabViewModel : ReactiveObject
                 DistributionEntries.Count, effectiveFormat, anyEntryUsesChance);
 
             foreach (var entryVm in DistributionEntries)
-        {
-            if (entryVm.SelectedOutfit == null)
-                continue;
-
-            if (effectiveFormat == DistributionFileType.Spid)
             {
-                // SPID format: Outfit = FormOrEditorID|StringFilters|FormFilters|LevelFilters|TraitFilters|CountOrPackageIdx|Chance
-                var outfitIdentifier = FormatOutfitIdentifier(entryVm.SelectedOutfit);
-                
-                // StringFilters (position 2): NPC names (comma-separated for OR) and Keywords (with + for AND)
-                var stringFilters = new List<string>();
-                
-                // Add NPC names (comma-separated for OR logic)
-                var npcNames = entryVm.SelectedNpcs
-                    .Where(npc => !string.IsNullOrWhiteSpace(npc.DisplayName))
-                    .Select(npc => npc.DisplayName)
-                    .ToList();
-                if (npcNames.Count > 0)
-                {
-                    // NPC names use comma-separated (OR logic)
-                    stringFilters.Add(string.Join(",", npcNames));
-                }
-                
-                // Add Keywords (with + for AND logic)
-                var keywordEditorIds = entryVm.SelectedKeywords
-                    .Where(k => !string.IsNullOrWhiteSpace(k.EditorID) && k.EditorID != "(No EditorID)")
-                    .Select(k => k.EditorID)
-                    .ToList();
-                if (keywordEditorIds.Count > 0)
-                {
-                    // Keywords use + for AND logic
-                    stringFilters.Add(string.Join("+", keywordEditorIds));
-                }
-                
-                var stringFiltersPart = stringFilters.Count > 0 ? string.Join(",", stringFilters) : null;
+                if (entryVm.SelectedOutfit == null)
+                    continue;
 
-                // FormFilters (position 3): Factions and Races (with + for AND logic)
-                var formFilters = new List<string>();
-                foreach (var faction in entryVm.SelectedFactions)
+                if (effectiveFormat == DistributionFileType.Spid)
                 {
-                    var editorId = faction.EditorID;
-                    if (!string.IsNullOrWhiteSpace(editorId) && editorId != "(No EditorID)")
+                    // SPID format: Outfit = FormOrEditorID|StringFilters|FormFilters|LevelFilters|TraitFilters|CountOrPackageIdx|Chance
+                    var outfitIdentifier = FormatOutfitIdentifier(entryVm.SelectedOutfit);
+
+                    // StringFilters (position 2): NPC names (comma-separated for OR) and Keywords (with + for AND)
+                    var stringFilters = new List<string>();
+
+                    // Add NPC names (comma-separated for OR logic)
+                    var npcNames = entryVm.SelectedNpcs
+                        .Where(npc => !string.IsNullOrWhiteSpace(npc.DisplayName))
+                        .Select(npc => npc.DisplayName)
+                        .ToList();
+                    if (npcNames.Count > 0)
                     {
-                        formFilters.Add(editorId);
+                        // NPC names use comma-separated (OR logic)
+                        stringFilters.Add(string.Join(",", npcNames));
                     }
-                }
-                foreach (var race in entryVm.SelectedRaces)
-                {
-                    var editorId = race.EditorID;
-                    if (!string.IsNullOrWhiteSpace(editorId) && editorId != "(No EditorID)")
+
+                    // Add Keywords (with + for AND logic)
+                    var keywordEditorIds = entryVm.SelectedKeywords
+                        .Where(k => !string.IsNullOrWhiteSpace(k.EditorID) && k.EditorID != "(No EditorID)")
+                        .Select(k => k.EditorID)
+                        .ToList();
+                    if (keywordEditorIds.Count > 0)
                     {
-                        formFilters.Add(editorId);
+                        // Keywords use + for AND logic
+                        stringFilters.Add(string.Join("+", keywordEditorIds));
                     }
+
+                    var stringFiltersPart = stringFilters.Count > 0 ? string.Join(",", stringFilters) : null;
+
+                    // FormFilters (position 3): Factions and Races (with + for AND logic)
+                    var formFilters = new List<string>();
+                    foreach (var faction in entryVm.SelectedFactions)
+                    {
+                        var editorId = faction.EditorID;
+                        if (!string.IsNullOrWhiteSpace(editorId) && editorId != "(No EditorID)")
+                        {
+                            formFilters.Add(editorId);
+                        }
+                    }
+                    foreach (var race in entryVm.SelectedRaces)
+                    {
+                        var editorId = race.EditorID;
+                        if (!string.IsNullOrWhiteSpace(editorId) && editorId != "(No EditorID)")
+                        {
+                            formFilters.Add(editorId);
+                        }
+                    }
+                    var formFiltersPart = formFilters.Count > 0 ? string.Join("+", formFilters) : null;
+
+                    // LevelFilters (position 4): Not supported yet
+                    var levelFiltersPart = (string?)null;
+
+                    // TraitFilters (position 5): Not supported yet
+                    var traitFiltersPart = (string?)null;
+
+                    // CountOrPackageIdx (position 6): Not supported yet
+                    var countPart = (string?)null;
+
+                    // Chance (position 7) - only include if not 100 or if explicitly set
+                    var chancePart = entryVm.UseChance && entryVm.Chance != 100
+                        ? entryVm.Chance.ToString()
+                        : null;
+
+                    // Build SPID line - only include positions up to the last non-null value
+                    var parts = new List<string> { outfitIdentifier };
+                    if (stringFiltersPart != null)
+                        parts.Add(stringFiltersPart);
+                    if (formFiltersPart != null)
+                        parts.Add(formFiltersPart);
+                    if (levelFiltersPart != null)
+                        parts.Add(levelFiltersPart);
+                    if (traitFiltersPart != null)
+                        parts.Add(traitFiltersPart);
+                    if (countPart != null)
+                        parts.Add(countPart);
+                    if (chancePart != null)
+                        parts.Add(chancePart);
+
+                    var spidLine = $"Outfit = {string.Join("|", parts)}";
+                    lines.Add(spidLine);
                 }
-                var formFiltersPart = formFilters.Count > 0 ? string.Join("+", formFilters) : null;
-
-                // LevelFilters (position 4): Not supported yet
-                var levelFiltersPart = (string?)null;
-
-                // TraitFilters (position 5): Not supported yet
-                var traitFiltersPart = (string?)null;
-
-                // CountOrPackageIdx (position 6): Not supported yet
-                var countPart = (string?)null;
-
-                // Chance (position 7) - only include if not 100 or if explicitly set
-                var chancePart = entryVm.UseChance && entryVm.Chance != 100
-                    ? entryVm.Chance.ToString()
-                    : null;
-
-                // Build SPID line - only include positions up to the last non-null value
-                var parts = new List<string> { outfitIdentifier };
-                if (stringFiltersPart != null)
-                    parts.Add(stringFiltersPart);
-                if (formFiltersPart != null)
-                    parts.Add(formFiltersPart);
-                if (levelFiltersPart != null)
-                    parts.Add(levelFiltersPart);
-                if (traitFiltersPart != null)
-                    parts.Add(traitFiltersPart);
-                if (countPart != null)
-                    parts.Add(countPart);
-                if (chancePart != null)
-                    parts.Add(chancePart);
-
-                var spidLine = $"Outfit = {string.Join("|", parts)}";
-                lines.Add(spidLine);
-            }
-            else
-            {
-                // SkyPatcher format: filterByNpcs=...:filterByFactions=...:filterByKeywords=...:filterByRaces=...:outfitDefault=...
-                var filterParts = new List<string>();
-
-                // Add NPC filter if present
-                if (entryVm.SelectedNpcs.Count > 0)
+                else
                 {
-                    var npcFormKeys = entryVm.SelectedNpcs
-                        .Select(npc => FormKeyHelper.Format(npc.FormKey))
-                        .ToList();
-                    var npcList = string.Join(",", npcFormKeys);
-                    filterParts.Add($"filterByNpcs={npcList}");
+                    // SkyPatcher format: filterByNpcs=...:filterByFactions=...:filterByKeywords=...:filterByRaces=...:outfitDefault=...
+                    var filterParts = new List<string>();
+
+                    // Add NPC filter if present
+                    if (entryVm.SelectedNpcs.Count > 0)
+                    {
+                        var npcFormKeys = entryVm.SelectedNpcs
+                            .Select(npc => FormKeyHelper.Format(npc.FormKey))
+                            .ToList();
+                        var npcList = string.Join(",", npcFormKeys);
+                        filterParts.Add($"filterByNpcs={npcList}");
+                    }
+
+                    // Add faction filter if present
+                    if (entryVm.SelectedFactions.Count > 0)
+                    {
+                        var factionFormKeys = entryVm.SelectedFactions
+                            .Select(faction => FormKeyHelper.Format(faction.FormKey))
+                            .ToList();
+                        var factionList = string.Join(",", factionFormKeys);
+                        filterParts.Add($"filterByFactions={factionList}");
+                    }
+
+                    // Add keyword filter if present
+                    if (entryVm.SelectedKeywords.Count > 0)
+                    {
+                        var keywordFormKeys = entryVm.SelectedKeywords
+                            .Select(keyword => FormKeyHelper.Format(keyword.FormKey))
+                            .ToList();
+                        var keywordList = string.Join(",", keywordFormKeys);
+                        filterParts.Add($"filterByKeywords={keywordList}");
+                    }
+
+                    // Add race filter if present
+                    if (entryVm.SelectedRaces.Count > 0)
+                    {
+                        var raceFormKeys = entryVm.SelectedRaces
+                            .Select(race => FormKeyHelper.Format(race.FormKey))
+                            .ToList();
+                        var raceList = string.Join(",", raceFormKeys);
+                        filterParts.Add($"filterByRaces={raceList}");
+                    }
+
+                    // Add outfit
+                    var outfitFormKey = FormKeyHelper.Format(entryVm.SelectedOutfit.FormKey);
+                    filterParts.Add($"outfitDefault={outfitFormKey}");
+
+                    var line = string.Join(":", filterParts);
+                    lines.Add(line);
                 }
-
-                // Add faction filter if present
-                if (entryVm.SelectedFactions.Count > 0)
-                {
-                    var factionFormKeys = entryVm.SelectedFactions
-                        .Select(faction => FormKeyHelper.Format(faction.FormKey))
-                        .ToList();
-                    var factionList = string.Join(",", factionFormKeys);
-                    filterParts.Add($"filterByFactions={factionList}");
-                }
-
-                // Add keyword filter if present
-                if (entryVm.SelectedKeywords.Count > 0)
-                {
-                    var keywordFormKeys = entryVm.SelectedKeywords
-                        .Select(keyword => FormKeyHelper.Format(keyword.FormKey))
-                        .ToList();
-                    var keywordList = string.Join(",", keywordFormKeys);
-                    filterParts.Add($"filterByKeywords={keywordList}");
-                }
-
-                // Add race filter if present
-                if (entryVm.SelectedRaces.Count > 0)
-                {
-                    var raceFormKeys = entryVm.SelectedRaces
-                        .Select(race => FormKeyHelper.Format(race.FormKey))
-                        .ToList();
-                    var raceList = string.Join(",", raceFormKeys);
-                    filterParts.Add($"filterByRaces={raceList}");
-                }
-
-                // Add outfit
-                var outfitFormKey = FormKeyHelper.Format(entryVm.SelectedOutfit.FormKey);
-                filterParts.Add($"outfitDefault={outfitFormKey}");
-
-                var line = string.Join(":", filterParts);
-                lines.Add(line);
-            }
             }
 
             DistributionPreviewText = string.Join(Environment.NewLine, lines);
-            
+
             _logger.Debug("UpdateDistributionPreview: Generated {LineCount} lines", lines.Count);
-            
+
             // Also detect conflicts when preview is updated (runs asynchronously internally)
             DetectConflicts();
         }
@@ -1192,7 +1192,6 @@ public class DistributionEditTabViewModel : ReactiveObject
         // Format as FormKey: 0x800~Plugin.esp
         return $"0x{outfit.FormKey.ID:X}~{outfit.FormKey.ModKey.FileName}";
     }
-
 
     private async Task LoadAvailableOutfitsAsync()
     {
@@ -1214,7 +1213,7 @@ public class DistributionEditTabViewModel : ReactiveObject
         try
         {
             // Load outfits from the active load order (enabled plugins)
-            var outfits = await Task.Run(() => 
+            var outfits = await Task.Run(() =>
                 linkCache.WinningOverrides<IOutfitGetter>().ToList());
 
             // Also load outfits from the patch file if it exists but isn't in the active load order
@@ -1468,10 +1467,10 @@ public class DistributionEditTabViewModel : ReactiveObject
     private DistributionEntryViewModel CreateEntryViewModel(DistributionEntry entry)
     {
         var entryVm = new DistributionEntryViewModel(entry, RemoveDistributionEntry, OnUseChanceEnabling);
-        
+
         // Resolve outfit to AvailableOutfits instance for ComboBox binding
         ResolveEntryOutfit(entryVm);
-        
+
         // Resolve NPCs from FormKeys
         var npcVms = ResolveNpcFormKeys(entry.NpcFormKeys);
         if (npcVms.Count > 0)
@@ -1503,7 +1502,7 @@ public class DistributionEditTabViewModel : ReactiveObject
             entryVm.SelectedRaces = new ObservableCollection<RaceRecordViewModel>(raceVms);
             entryVm.UpdateEntryRaces();
         }
-        
+
         return entryVm;
     }
 
@@ -1518,7 +1517,7 @@ public class DistributionEditTabViewModel : ReactiveObject
 
         var outfitFormKey = entryVm.SelectedOutfit.FormKey;
         var matchingOutfit = AvailableOutfits.FirstOrDefault(o => o.FormKey == outfitFormKey);
-        
+
         if (matchingOutfit != null)
         {
             entryVm.SelectedOutfit = matchingOutfit;
@@ -1532,7 +1531,7 @@ public class DistributionEditTabViewModel : ReactiveObject
     private List<NpcRecordViewModel> ResolveNpcFormKeys(IEnumerable<FormKey> formKeys)
     {
         var npcVms = new List<NpcRecordViewModel>();
-        
+
         foreach (var npcFormKey in formKeys)
         {
             var npcVm = ResolveNpcFormKey(npcFormKey);
@@ -1541,7 +1540,7 @@ public class DistributionEditTabViewModel : ReactiveObject
                 npcVms.Add(npcVm);
             }
         }
-        
+
         return npcVms;
     }
 
@@ -1557,7 +1556,7 @@ public class DistributionEditTabViewModel : ReactiveObject
         {
             return existingNpc;
         }
-        
+
         // If not in AvailableNpcs, resolve from LinkCache
         if (_mutagenService.LinkCache is ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache &&
             linkCache.TryResolve<INpcGetter>(formKey, out var npc))
@@ -1569,14 +1568,14 @@ public class DistributionEditTabViewModel : ReactiveObject
                 npc.FormKey.ModKey);
             return new NpcRecordViewModel(npcRecord);
         }
-        
+
         return null;
     }
 
     private List<FactionRecordViewModel> ResolveFactionFormKeys(IEnumerable<FormKey> formKeys)
     {
         var factionVms = new List<FactionRecordViewModel>();
-        
+
         foreach (var formKey in formKeys)
         {
             var factionVm = ResolveFactionFormKey(formKey);
@@ -1585,7 +1584,7 @@ public class DistributionEditTabViewModel : ReactiveObject
                 factionVms.Add(factionVm);
             }
         }
-        
+
         return factionVms;
     }
 
@@ -1596,7 +1595,7 @@ public class DistributionEditTabViewModel : ReactiveObject
         {
             return existingFaction;
         }
-        
+
         if (_mutagenService.LinkCache is ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache &&
             linkCache.TryResolve<IFactionGetter>(formKey, out var faction))
         {
@@ -1607,14 +1606,14 @@ public class DistributionEditTabViewModel : ReactiveObject
                 faction.FormKey.ModKey);
             return new FactionRecordViewModel(factionRecord);
         }
-        
+
         return null;
     }
 
     private List<KeywordRecordViewModel> ResolveKeywordFormKeys(IEnumerable<FormKey> formKeys)
     {
         var keywordVms = new List<KeywordRecordViewModel>();
-        
+
         foreach (var formKey in formKeys)
         {
             var keywordVm = ResolveKeywordFormKey(formKey);
@@ -1623,7 +1622,7 @@ public class DistributionEditTabViewModel : ReactiveObject
                 keywordVms.Add(keywordVm);
             }
         }
-        
+
         return keywordVms;
     }
 
@@ -1634,7 +1633,7 @@ public class DistributionEditTabViewModel : ReactiveObject
         {
             return existingKeyword;
         }
-        
+
         if (_mutagenService.LinkCache is ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache &&
             linkCache.TryResolve<IKeywordGetter>(formKey, out var keyword))
         {
@@ -1644,14 +1643,14 @@ public class DistributionEditTabViewModel : ReactiveObject
                 keyword.FormKey.ModKey);
             return new KeywordRecordViewModel(keywordRecord);
         }
-        
+
         return null;
     }
 
     private List<RaceRecordViewModel> ResolveRaceFormKeys(IEnumerable<FormKey> formKeys)
     {
         var raceVms = new List<RaceRecordViewModel>();
-        
+
         foreach (var formKey in formKeys)
         {
             var raceVm = ResolveRaceFormKey(formKey);
@@ -1660,7 +1659,7 @@ public class DistributionEditTabViewModel : ReactiveObject
                 raceVms.Add(raceVm);
             }
         }
-        
+
         return raceVms;
     }
 
@@ -1671,7 +1670,7 @@ public class DistributionEditTabViewModel : ReactiveObject
         {
             return existingRace;
         }
-        
+
         if (_mutagenService.LinkCache is ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache &&
             linkCache.TryResolve<IRaceGetter>(formKey, out var race))
         {
@@ -1682,7 +1681,7 @@ public class DistributionEditTabViewModel : ReactiveObject
                 race.FormKey.ModKey);
             return new RaceRecordViewModel(raceRecord);
         }
-        
+
         return null;
     }
 
@@ -1693,7 +1692,7 @@ public class DistributionEditTabViewModel : ReactiveObject
     private void UpdateFilteredNpcs()
     {
         IEnumerable<NpcRecordViewModel> filtered;
-        
+
         if (string.IsNullOrWhiteSpace(NpcSearchText))
         {
             filtered = AvailableNpcs;
@@ -1703,7 +1702,7 @@ public class DistributionEditTabViewModel : ReactiveObject
             var term = NpcSearchText.Trim().ToLowerInvariant();
             filtered = AvailableNpcs.Where(npc => npc.MatchesSearch(term));
         }
-        
+
         // Update the collection in-place to preserve checkbox state
         FilteredNpcs.Clear();
         foreach (var npc in filtered)
@@ -1715,7 +1714,7 @@ public class DistributionEditTabViewModel : ReactiveObject
     private void UpdateFilteredFactions()
     {
         IEnumerable<FactionRecordViewModel> filtered;
-        
+
         if (string.IsNullOrWhiteSpace(FactionSearchText))
         {
             filtered = AvailableFactions;
@@ -1725,7 +1724,7 @@ public class DistributionEditTabViewModel : ReactiveObject
             var term = FactionSearchText.Trim().ToLowerInvariant();
             filtered = AvailableFactions.Where(faction => faction.MatchesSearch(term));
         }
-        
+
         FilteredFactions.Clear();
         foreach (var faction in filtered)
         {
@@ -1736,7 +1735,7 @@ public class DistributionEditTabViewModel : ReactiveObject
     private void UpdateFilteredKeywords()
     {
         IEnumerable<KeywordRecordViewModel> filtered;
-        
+
         if (string.IsNullOrWhiteSpace(KeywordSearchText))
         {
             filtered = AvailableKeywords;
@@ -1746,7 +1745,7 @@ public class DistributionEditTabViewModel : ReactiveObject
             var term = KeywordSearchText.Trim().ToLowerInvariant();
             filtered = AvailableKeywords.Where(keyword => keyword.MatchesSearch(term));
         }
-        
+
         FilteredKeywords.Clear();
         foreach (var keyword in filtered)
         {
@@ -1757,7 +1756,7 @@ public class DistributionEditTabViewModel : ReactiveObject
     private void UpdateFilteredRaces()
     {
         IEnumerable<RaceRecordViewModel> filtered;
-        
+
         if (string.IsNullOrWhiteSpace(RaceSearchText))
         {
             filtered = AvailableRaces;
@@ -1767,7 +1766,7 @@ public class DistributionEditTabViewModel : ReactiveObject
             var term = RaceSearchText.Trim().ToLowerInvariant();
             filtered = AvailableRaces.Where(race => race.MatchesSearch(term));
         }
-        
+
         FilteredRaces.Clear();
         foreach (var race in filtered)
         {
@@ -1840,4 +1839,3 @@ public class DistributionEditTabViewModel : ReactiveObject
         }
     }
 }
-

@@ -51,18 +51,21 @@ public partial class OutfitCreatorView
         if (ReferenceEquals(viewModel, _currentViewModel))
             return;
 
-        if (_currentViewModel is not null) _currentViewModel.PropertyChanged -= ViewModelOnPropertyChanged;
+        if (_currentViewModel is not null)
+            _currentViewModel.PropertyChanged -= ViewModelOnPropertyChanged;
 
         _currentViewModel = viewModel;
 
-        if (_currentViewModel is null) return;
+        if (_currentViewModel is null)
+            return;
         _currentViewModel.PropertyChanged += ViewModelOnPropertyChanged;
         SynchronizeOutfitSelection();
     }
 
     private void ViewModelOnPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(MainViewModel.SelectedOutfitArmors)) SynchronizeOutfitSelection();
+        if (e.PropertyName == nameof(MainViewModel.SelectedOutfitArmors))
+            SynchronizeOutfitSelection();
     }
 
     private void OutfitArmorsGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -135,7 +138,8 @@ public partial class OutfitCreatorView
         if (selected.Count == 0)
         {
             var underMouse = GetArmorRecordFromEvent(e);
-            if (underMouse != null) selected.Add(underMouse);
+            if (underMouse != null)
+                selected.Add(underMouse);
         }
 
         if (selected.Count == 0)
@@ -158,7 +162,8 @@ public partial class OutfitCreatorView
         if (pieces.Count == 0)
         {
             var underMouse = GetArmorRecordFromEvent(e);
-            if (underMouse != null) pieces.Add(underMouse);
+            if (underMouse != null)
+                pieces.Add(underMouse);
         }
 
         if (pieces.Count == 0)
@@ -215,14 +220,16 @@ public partial class OutfitCreatorView
 
     private void NewOutfitDropZone_OnDragLeave(object sender, DragEventArgs e)
     {
-        if (sender is Border border) SetDropTargetState(border, false);
+        if (sender is Border border)
+            SetDropTargetState(border, false);
 
         e.Handled = true;
     }
 
     private async void NewOutfitDropZone_OnDrop(object sender, DragEventArgs e)
     {
-        if (sender is Border border) SetDropTargetState(border, false);
+        if (sender is Border border)
+            SetDropTargetState(border, false);
 
         if (ViewModel is not MainViewModel viewModel)
         {
@@ -252,14 +259,16 @@ public partial class OutfitCreatorView
 
     private void OutfitDraftBorder_OnDragLeave(object sender, DragEventArgs e)
     {
-        if (sender is Border border) SetDropTargetState(border, false);
+        if (sender is Border border)
+            SetDropTargetState(border, false);
 
         e.Handled = true;
     }
 
     private void OutfitDraftBorder_OnDrop(object sender, DragEventArgs e)
     {
-        if (sender is Border border) SetDropTargetState(border, false);
+        if (sender is Border border)
+            SetDropTargetState(border, false);
 
         if (ViewModel is not MainViewModel viewModel)
         {

@@ -1,0 +1,29 @@
+{
+  // Format on save
+  "editor.formatOnSave": true,
+  "editor.formatOnPaste": false,
+
+  // C# specific settings
+  "[csharp]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "anysphere.csharp"
+  },
+
+  // XAML specific settings
+  "[xml]": {
+    "editor.formatOnSave": true
+  },
+
+  // Trim trailing whitespace on save (applies to all files)
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "files.trimFinalNewlines": true,
+
+  // Use .editorconfig
+  "editor.detectIndentation": false,
+
+  // Organize imports on save for C#
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "explicit"
+  }
+}

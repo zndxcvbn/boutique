@@ -131,7 +131,8 @@ public class DistributionDiscoveryService(ILogger logger)
             .Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar)
             .ToLowerInvariant();
 
-        if (!normalized.Contains(skyPatcherPath)) return false;
+        if (!normalized.Contains(skyPatcherPath))
+            return false;
 
         var fileName = Path.GetFileName(iniFile);
         return !string.Equals(fileName, "SkyPatcher.ini", StringComparison.OrdinalIgnoreCase);
@@ -204,7 +205,7 @@ public class DistributionDiscoveryService(ILogger logger)
 
             var relativePath = Path.GetRelativePath(dataFolderPath, filePath);
 
-            _logger.Debug("Parsed {Type} file {Path}: {TotalLines} total lines, {OutfitCount} outfit distributions", 
+            _logger.Debug("Parsed {Type} file {Path}: {TotalLines} total lines, {OutfitCount} outfit distributions",
                 type, filePath, totalLines, outfitCount);
 
             if (outfitCount == 0)
@@ -282,18 +283,18 @@ public class DistributionDiscoveryService(ILogger logger)
         // - FormKey with tilde: 0x12345~Plugin.esp
         // - FormKey with pipe: Plugin.esp|0x12345
         // We need to extract just the outfit identifier(s), not the filter parameters.
-        
+
         // Handle comma-separated multiple outfit identifiers
         var tokens = valuePortion.Split([','], StringSplitOptions.RemoveEmptyEntries);
         var results = new List<string>();
-        
+
         foreach (var token in tokens)
         {
             var outfitId = ExtractSpidOutfitIdentifier(token.Trim());
             if (!string.IsNullOrWhiteSpace(outfitId))
                 results.Add(outfitId);
         }
-        
+
         return results;
     }
 
@@ -317,7 +318,7 @@ public class DistributionDiscoveryService(ILogger logger)
             // We need FormID~ModKey
             var afterTilde = cleaned[(tildeIndex + 1)..];
             var pipeAfterMod = afterTilde.IndexOf('|');
-            
+
             if (pipeAfterMod >= 0)
             {
                 // Check if there's a valid mod extension before the pipe
@@ -328,13 +329,13 @@ public class DistributionDiscoveryService(ILogger logger)
                     return cleaned[..(tildeIndex + 1 + pipeAfterMod)];
                 }
             }
-            
+
             // No pipe after mod, or the part after tilde to pipe isn't a valid mod
             // Check if the whole part after tilde is a mod key
             var endOfModKey = FindEndOfModKey(afterTilde);
             if (endOfModKey > 0)
                 return cleaned[..(tildeIndex + 1 + endOfModKey)];
-            
+
             // Fallback: return everything up to first pipe after tilde
             return pipeAfterMod >= 0 ? cleaned[..(tildeIndex + 1 + pipeAfterMod)] : cleaned;
         }
@@ -344,13 +345,13 @@ public class DistributionDiscoveryService(ILogger logger)
         if (pipeIndex >= 0)
         {
             var firstPart = cleaned[..pipeIndex];
-            
+
             // If first part is a mod key (ends with .esp/.esm/.esl), then second part is FormID
             if (IsModKeyFileName(firstPart))
             {
                 var afterFirstPipe = cleaned[(pipeIndex + 1)..];
                 var secondPipe = afterFirstPipe.IndexOf('|');
-                
+
                 if (secondPipe >= 0)
                 {
                     // Check if the part between pipes looks like a FormID (hex number)
@@ -367,7 +368,7 @@ public class DistributionDiscoveryService(ILogger logger)
                     return cleaned;
                 }
             }
-            
+
             // First part is not a mod key, so this is EditorID|filters format
             // Return just the EditorID
             return firstPart;
@@ -384,7 +385,7 @@ public class DistributionDiscoveryService(ILogger logger)
     {
         if (string.IsNullOrWhiteSpace(text))
             return false;
-        
+
         return text.EndsWith(".esp", StringComparison.OrdinalIgnoreCase) ||
                text.EndsWith(".esm", StringComparison.OrdinalIgnoreCase) ||
                text.EndsWith(".esl", StringComparison.OrdinalIgnoreCase);
@@ -412,23 +413,23 @@ public class DistributionDiscoveryService(ILogger logger)
     {
         if (string.IsNullOrWhiteSpace(text))
             return false;
-        
+
         var trimmed = text.Trim();
         if (trimmed.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
             trimmed = trimmed[2..];
-        
+
         // FormIDs are hex numbers, typically 6-8 characters
-        return trimmed.Length >= 1 && trimmed.Length <= 8 && 
+        return trimmed.Length >= 1 && trimmed.Length <= 8 &&
                trimmed.All(c => char.IsAsciiHexDigit(c));
     }
 
     internal static IReadOnlyList<string> ExtractSkyPatcherOutfitKeys(string trimmed)
     {
         var keys = new List<string>();
-        
+
         // Extract from filterByOutfits= syntax
         ExtractFromMarker(trimmed, "filterByOutfits=", keys);
-        
+
         // Extract from outfitDefault= syntax
         ExtractFromMarker(trimmed, "outfitDefault=", keys);
 

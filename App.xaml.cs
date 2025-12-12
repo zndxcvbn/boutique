@@ -90,13 +90,13 @@ public partial class App
             AutoUpdater.ReportErrors = false; // Fail silently if no internet connection
             AutoUpdater.RunUpdateAsAdmin = false;
             AutoUpdater.HttpUserAgent = "Boutique-Updater"; // Required for GitHub API
-            
+
             // Use custom parser for GitHub releases API
             AutoUpdater.ParseUpdateInfoEvent += ParseGitHubRelease;
-            
+
             // GitHub releases API endpoint
             const string updateUrl = "https://api.github.com/repos/aglowinthefield/Boutique/releases/latest";
-            
+
             AutoUpdater.Start(updateUrl);
             Log.Information("Update check initiated.");
         }
@@ -113,14 +113,14 @@ public partial class App
         {
             using var doc = JsonDocument.Parse(args.RemoteData);
             var root = doc.RootElement;
-            
+
             // Get tag name (e.g., "0.0.1-alpha2" or "v1.0.0")
             var tagName = root.GetProperty("tag_name").GetString() ?? "";
             var version = tagName.TrimStart('v');
-            
+
             // Get changelog URL
             var changelogUrl = root.GetProperty("html_url").GetString() ?? "";
-            
+
             // Find the zip asset in the release
             string? downloadUrl = null;
             if (root.TryGetProperty("assets", out var assets))
@@ -135,13 +135,13 @@ public partial class App
                     }
                 }
             }
-            
+
             if (string.IsNullOrEmpty(downloadUrl))
             {
                 Log.Warning("No zip asset found in GitHub release.");
                 return;
             }
-            
+
             // Parse version - handle semantic versioning with pre-release tags
             var parsedVersion = ParseSemanticVersion(version);
             if (parsedVersion == null)
@@ -149,7 +149,7 @@ public partial class App
                 Log.Warning("Could not parse version from tag: {Tag}", tagName);
                 return;
             }
-            
+
             args.UpdateInfo = new UpdateInfoEventArgs
             {
                 CurrentVersion = parsedVersion.ToString(),
@@ -157,7 +157,7 @@ public partial class App
                 DownloadURL = downloadUrl,
                 Mandatory = new Mandatory { Value = false }
             };
-            
+
             Log.Information("Found update: {Version} at {Url}", version, downloadUrl);
         }
         catch (Exception ex)
@@ -174,15 +174,16 @@ public partial class App
     {
         // Remove 'v' prefix if present
         versionString = versionString.TrimStart('v');
-        
+
         // Extract just the numeric part (before any hyphen for pre-release)
         var match = Regex.Match(versionString, @"^(\d+)\.(\d+)\.(\d+)");
-        if (!match.Success) return null;
-        
+        if (!match.Success)
+            return null;
+
         var major = int.Parse(match.Groups[1].Value);
         var minor = int.Parse(match.Groups[2].Value);
         var patch = int.Parse(match.Groups[3].Value);
-        
+
         return new Version(major, minor, patch);
     }
 
@@ -199,11 +200,13 @@ public partial class App
         try
         {
             var configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".config", "theme.json");
-            if (!File.Exists(configPath)) return;
+            if (!File.Exists(configPath))
+                return;
 
             var json = File.ReadAllText(configPath);
             using var doc = JsonDocument.Parse(json);
-            if (!doc.RootElement.TryGetProperty("EnableTheme", out var enableThemeElement)) return;
+            if (!doc.RootElement.TryGetProperty("EnableTheme", out var enableThemeElement))
+                return;
 
             var enableTheme = enableThemeElement.GetBoolean();
             if (!enableTheme && Current.Resources.MergedDictionaries.Count > 0)

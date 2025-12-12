@@ -10,10 +10,9 @@ public sealed class DistributionEntry
     public List<FormKey> FactionFormKeys { get; set; } = new();
     public List<FormKey> KeywordFormKeys { get; set; } = new();
     public List<FormKey> RaceFormKeys { get; set; } = new();
-    
+
     /// <summary>
     /// Chance percentage (0-100) for distribution. Null means 100% (default).
     /// </summary>
     public int? Chance { get; set; }
 }
-

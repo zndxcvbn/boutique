@@ -42,7 +42,7 @@ public class DistributionConflictDetectionService
         foreach (var entry in entries)
         {
             var newOutfitName = entry.SelectedOutfit?.EditorID ?? entry.SelectedOutfit?.FormKey.ToString();
-            
+
             foreach (var npcVm in entry.SelectedNpcs)
             {
                 if (existingDistributions.TryGetValue(npcVm.FormKey, out var existing))
@@ -53,7 +53,7 @@ public class DistributionConflictDetectionService
                         existing.FileName,
                         existing.OutfitName,
                         newOutfitName));
-                    
+
                     conflictingFileNames.Add(existing.FileName);
                 }
             }
@@ -82,17 +82,17 @@ public class DistributionConflictDetectionService
                 // Build conflict summary
                 var sb = new StringBuilder();
                 sb.AppendLine($"⚠ {conflicts.Count} NPC(s) already have outfit distributions in existing files:");
-                
+
                 foreach (var conflict in conflicts.Take(5)) // Show first 5
                 {
                     sb.AppendLine($"  • {conflict.DisplayName ?? conflict.NpcFormKey.ToString()} ({conflict.ExistingFileName})");
                 }
-                
+
                 if (conflicts.Count > 5)
                 {
                     sb.AppendLine($"  ... and {conflicts.Count - 5} more");
                 }
-                
+
                 conflictSummary = sb.ToString().TrimEnd();
 
                 // Calculate suggested filename with Z-prefix
@@ -187,7 +187,6 @@ public class DistributionConflictDetectionService
         return map;
     }
 
-
     /// <summary>
     /// Calculates a Z-prefixed filename that will load after all conflicting files.
     /// </summary>
@@ -213,12 +212,10 @@ public class DistributionConflictDetectionService
 
         // Add one more Z than the maximum
         var zPrefix = new string('Z', maxZCount + 1);
-        
+
         // Remove any existing Z prefix from the new filename
         var baseName = newFileName.TrimStart('Z', 'z');
-        
+
         return zPrefix + baseName;
     }
-
 }
-

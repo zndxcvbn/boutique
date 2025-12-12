@@ -47,7 +47,7 @@ public class DistributionNpcsTabViewModel : ReactiveObject
         // NPCs tab search filtering
         this.WhenAnyValue(vm => vm.NpcOutfitSearchText)
             .Subscribe(_ => UpdateFilteredNpcOutfitAssignments());
-        
+
         // Update outfit contents when selection changes
         this.WhenAnyValue(vm => vm.SelectedNpcAssignment)
             .Subscribe(_ => UpdateSelectedNpcOutfitContents());
@@ -66,9 +66,9 @@ public class DistributionNpcsTabViewModel : ReactiveObject
         {
             // Clear previous selection
             field?.IsSelected = false;
-            
+
             this.RaiseAndSetIfChanged(ref field, value);
-            
+
             // Set new selection
             if (value != null)
             {
@@ -115,7 +115,7 @@ public class DistributionNpcsTabViewModel : ReactiveObject
     public async Task ScanNpcOutfitsAsync()
     {
         _logger.Debug("ScanNpcOutfitsAsync started");
-        
+
         try
         {
             IsLoading = true;
@@ -125,7 +125,7 @@ public class DistributionNpcsTabViewModel : ReactiveObject
             {
                 var dataPath = _settings.SkyrimDataPath;
                 _logger.Debug("MutagenService not initialized, data path: {DataPath}", dataPath);
-                
+
                 if (string.IsNullOrWhiteSpace(dataPath))
                 {
                     StatusMessage = "Please set the Skyrim data path in Settings before scanning NPC outfits.";
@@ -170,7 +170,7 @@ public class DistributionNpcsTabViewModel : ReactiveObject
 
             // Get the raw distribution files from the discovered files
             _logger.Debug("Building distribution file list from {Count} file view models", files.Count);
-            
+
             var distributionFiles = files
                 .Select(fvm => new DistributionFile(
                     fvm.FileName,
@@ -192,9 +192,9 @@ public class DistributionNpcsTabViewModel : ReactiveObject
             _logger.Debug("Scanning NPCs with full filter data...");
             var npcFilterData = await _npcScanningService.ScanNpcsWithFilterDataAsync();
             _logger.Debug("Scanned {Count} NPCs with filter data", npcFilterData.Count);
-            
+
             StatusMessage = $"Resolving outfit assignments from {distributionFiles.Count} files...";
-            _logger.Debug("Calling ResolveNpcOutfitsWithFiltersAsync with {FileCount} files and {NpcCount} NPCs", 
+            _logger.Debug("Calling ResolveNpcOutfitsWithFiltersAsync with {FileCount} files and {NpcCount} NPCs",
                 distributionFiles.Count, npcFilterData.Count);
 
             var assignments = await _npcOutfitResolutionService.ResolveNpcOutfitsWithFiltersAsync(distributionFiles, npcFilterData);
@@ -212,7 +212,7 @@ public class DistributionNpcsTabViewModel : ReactiveObject
 
             var conflictCount = assignments.Count(a => a.HasConflict);
             StatusMessage = $"Found {assignments.Count} NPCs with outfit distributions ({conflictCount} conflicts).";
-            _logger.Information("Resolved {Count} NPC outfit assignments with {Conflicts} conflicts.", 
+            _logger.Information("Resolved {Count} NPC outfit assignments with {Conflicts} conflicts.",
                 assignments.Count, conflictCount);
         }
         catch (Exception ex)
@@ -249,7 +249,7 @@ public class DistributionNpcsTabViewModel : ReactiveObject
 
         var label = outfit.EditorID ?? outfit.FormKey.ToString();
         var armorPieces = OutfitResolver.GatherArmorPieces(outfit, linkCache);
-        
+
         if (armorPieces.Count == 0)
         {
             StatusMessage = $"Outfit '{label}' has no armor pieces to preview.";
@@ -281,7 +281,7 @@ public class DistributionNpcsTabViewModel : ReactiveObject
         else
         {
             var term = NpcOutfitSearchText.Trim().ToLowerInvariant();
-            filtered = NpcOutfitAssignments.Where(a => 
+            filtered = NpcOutfitAssignments.Where(a =>
                 (a.DisplayName?.ToLowerInvariant().Contains(term) ?? false) ||
                 (a.EditorId?.ToLowerInvariant().Contains(term) ?? false) ||
                 (a.FinalOutfitEditorId?.ToLowerInvariant().Contains(term) ?? false) ||
@@ -339,4 +339,3 @@ public class DistributionNpcsTabViewModel : ReactiveObject
         SelectedNpcOutfitContents = sb.ToString();
     }
 }
-

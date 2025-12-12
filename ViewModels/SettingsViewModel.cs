@@ -54,7 +54,8 @@ public class SettingsViewModel : ReactiveObject
         AutoDetectPathCommand = new RelayCommand(AutoDetectPath);
 
         // Auto-detect on creation if path is empty
-        if (string.IsNullOrEmpty(SkyrimDataPath)) AutoDetectPath();
+        if (string.IsNullOrEmpty(SkyrimDataPath))
+            AutoDetectPath();
     }
 
     [Reactive] public bool IsRunningFromMO2 { get; set; }

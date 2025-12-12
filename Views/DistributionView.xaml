@@ -1251,6 +1251,18 @@
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
+                                <DataGridTextColumn Header="NPCs" 
+                                                    Binding="{Binding NpcCount}" 
+                                                    Width="60"
+                                                    CanUserSort="True"
+                                                    SortDirection="Descending">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right" />
+                                            <Setter Property="Padding" Value="0,0,8,0" />
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
                                 <DataGridTemplateColumn Header="Preview" Width="80">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>

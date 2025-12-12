@@ -85,7 +85,8 @@ public class OutfitDraftViewModel : ReactiveObject
 
     public void RemovePiece(ArmorRecordViewModel piece)
     {
-        if (_pieces.Remove(piece)) this.RaisePropertyChanged(nameof(HasPieces));
+        if (_pieces.Remove(piece))
+            this.RaisePropertyChanged(nameof(HasPieces));
     }
 
     public (IReadOnlyList<ArmorRecordViewModel> added, IReadOnlyList<ArmorRecordViewModel> replaced) AddPieces(
@@ -105,7 +106,8 @@ public class OutfitDraftViewModel : ReactiveObject
             added.Add(piece);
         }
 
-        if (added.Count > 0) this.RaisePropertyChanged(nameof(HasPieces));
+        if (added.Count > 0)
+            this.RaisePropertyChanged(nameof(HasPieces));
 
         return (added, []);
     }
@@ -123,18 +125,21 @@ public class OutfitDraftViewModel : ReactiveObject
     private void SetNameInternal(string? value, bool updateHistory)
     {
         var sanitized = Sanitize(value);
-        if (string.IsNullOrEmpty(sanitized)) sanitized = string.IsNullOrEmpty(_name) ? "Outfit" : _name;
+        if (string.IsNullOrEmpty(sanitized))
+            sanitized = string.IsNullOrEmpty(_name) ? "Outfit" : _name;
 
         if (sanitized == _name)
             return;
 
-        if (updateHistory) _previousValidName = _name;
+        if (updateHistory)
+            _previousValidName = _name;
 
         this.RaiseAndSetIfChanged(ref _name, sanitized);
         this.RaiseAndSetIfChanged(ref _editorId, sanitized);
         this.RaisePropertyChanged(nameof(Header));
 
-        if (!updateHistory) _previousValidName = _name;
+        if (!updateHistory)
+            _previousValidName = _name;
     }
 
     private static string Sanitize(string? value)

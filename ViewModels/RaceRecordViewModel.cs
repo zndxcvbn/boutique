@@ -33,4 +33,3 @@ public class RaceRecordViewModel : ReactiveObject
         return _searchCache.Contains(searchTerm.Trim().ToLowerInvariant());
     }
 }
-

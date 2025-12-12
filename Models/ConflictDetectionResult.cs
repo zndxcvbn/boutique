@@ -14,4 +14,3 @@ public sealed record ConflictDetectionResult(
     string SuggestedFileName,
     /// <summary>List of all detected conflicts</summary>
     IReadOnlyList<NpcConflictInfo> Conflicts);
-

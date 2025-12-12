@@ -301,7 +301,8 @@ public class MainViewModel : ReactiveObject
             SelectedSourceArmors = Array.Empty<ArmorRecordViewModel>();
             SourceSearchText = string.Empty;
 
-            if (string.IsNullOrWhiteSpace(value)) return;
+            if (string.IsNullOrWhiteSpace(value))
+                return;
 
             _ = LoadSourceArmorsAsync(value);
         }
@@ -574,7 +575,8 @@ public class MainViewModel : ReactiveObject
 
         if (sources.Count == 0)
         {
-            foreach (var target in _targetArmors) target.IsSlotCompatible = true;
+            foreach (var target in _targetArmors)
+                target.IsSlotCompatible = true;
             return;
         }
 
@@ -669,7 +671,8 @@ public class MainViewModel : ReactiveObject
 
     private void ClearMappings()
     {
-        if (!ClearMappingsInternal()) return;
+        if (!ClearMappingsInternal())
+            return;
         StatusMessage = "Cleared all mappings.";
         _logger.Information("Cleared all manual mappings.");
     }
@@ -682,7 +685,8 @@ public class MainViewModel : ReactiveObject
 
     private void EndLoading()
     {
-        if (_activeLoadingOperations > 0) _activeLoadingOperations--;
+        if (_activeLoadingOperations > 0)
+            _activeLoadingOperations--;
 
         IsLoading = _activeLoadingOperations > 0;
     }
@@ -692,7 +696,8 @@ public class MainViewModel : ReactiveObject
         if (Matches.Count == 0)
             return false;
 
-        foreach (var mapping in Matches.ToList()) mapping.Source.IsMapped = false;
+        foreach (var mapping in Matches.ToList())
+            mapping.Source.IsMapped = false;
 
         Matches.Clear();
         return true;
@@ -700,7 +705,8 @@ public class MainViewModel : ReactiveObject
 
     private void RemoveMapping(ArmorMatchViewModel mapping)
     {
-        if (!Matches.Contains(mapping)) return;
+        if (!Matches.Contains(mapping))
+            return;
         Matches.Remove(mapping);
         mapping.Source.IsMapped = Matches.Any(m => m.Source.Armor.FormKey == mapping.Source.Armor.FormKey);
         StatusMessage = $"Removed mapping for {mapping.Source.DisplayName}";
@@ -1190,7 +1196,8 @@ public class MainViewModel : ReactiveObject
         if (sender is not OutfitDraftViewModel draft)
             return;
 
-        if (e.PropertyName == nameof(OutfitDraftViewModel.Name)) HandleOutfitDraftRename(draft);
+        if (e.PropertyName == nameof(OutfitDraftViewModel.Name))
+            HandleOutfitDraftRename(draft);
     }
 
     private void HandleOutfitDraftRename(OutfitDraftViewModel draft)
@@ -1220,7 +1227,8 @@ public class MainViewModel : ReactiveObject
     {
         draft.PropertyChanged -= OutfitDraftOnPropertyChanged;
 
-        if (!_outfitDrafts.Remove(draft)) return;
+        if (!_outfitDrafts.Remove(draft))
+            return;
         StatusMessage = $"Removed outfit '{draft.EditorId}'.";
         _logger.Information("Removed outfit draft {EditorId}.", draft.EditorId);
     }
@@ -1305,7 +1313,8 @@ public class MainViewModel : ReactiveObject
     public void ApplyTargetSort(string? propertyName = nameof(ArmorRecordViewModel.DisplayName),
         ListSortDirection direction = ListSortDirection.Ascending)
     {
-        if (TargetArmorsView is not ListCollectionView view) return;
+        if (TargetArmorsView is not ListCollectionView view)
+            return;
         view.SortDescriptions.Clear();
         view.SortDescriptions.Add(new SortDescription(nameof(ArmorRecordViewModel.SlotCompatibilityPriority),
             ListSortDirection.Ascending));

@@ -61,9 +61,11 @@ public class MutagenService(ILoggingService loggingService)
                 {
                     using var mod = SkyrimMod.CreateFromBinaryOverlay(pluginPath, SkyrimRelease.SkyrimSE);
 
-                    if (mod.Armors.Count <= 0 && mod.Outfits.Count <= 0) continue;
+                    if (mod.Armors.Count <= 0 && mod.Outfits.Count <= 0)
+                        continue;
                     var name = Path.GetFileName(pluginPath);
-                    if (!string.IsNullOrEmpty(name)) armorPlugins.Add(name);
+                    if (!string.IsNullOrEmpty(name))
+                        armorPlugins.Add(name);
                 }
                 catch
                 {

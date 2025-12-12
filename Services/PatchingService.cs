@@ -176,7 +176,8 @@ public class PatchingService(MutagenService mutagenService, ILoggingService logg
             try
             {
                 var outfitList = outfits.ToList();
-                if (outfitList.Count == 0) return (false, "No outfits to create.", (IReadOnlyList<OutfitCreationResult>)[]);
+                if (outfitList.Count == 0)
+                    return (false, "No outfits to create.", (IReadOnlyList<OutfitCreationResult>)[]);
 
                 if (!mutagenService.IsInitialized)
                     return (false, "Mutagen service is not initialized. Please set the Skyrim data path first.", (IReadOnlyList<OutfitCreationResult>)[]);
@@ -317,10 +318,12 @@ public class PatchingService(MutagenService mutagenService, ILoggingService logg
     private static void CopyKeywords(Armor target, IArmorGetter source)
     {
         // Clear existing keywords and copy from source
-        if (source.Keywords == null) return;
+        if (source.Keywords == null)
+            return;
         target.Keywords = [];
 
-        foreach (var keyword in source.Keywords) target.Keywords.Add(keyword);
+        foreach (var keyword in source.Keywords)
+            target.Keywords.Add(keyword);
     }
 
     private static void CopyEnchantment(Armor target, IArmorGetter source)
@@ -412,7 +415,8 @@ public class PatchingService(MutagenService mutagenService, ILoggingService logg
             if (master == patchMod.ModKey || master.IsNull)
                 continue;
 
-            if (!existing.Add(master)) continue;
+            if (!existing.Add(master))
+                continue;
             masterList.Add(new MasterReference { Master = master });
             _logger.Debug("Added master {Master} to patch header.", master);
         }

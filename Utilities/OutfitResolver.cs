@@ -104,4 +104,3 @@ public static class OutfitResolver
         return pieces;
     }
 }
-

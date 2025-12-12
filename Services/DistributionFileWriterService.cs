@@ -66,12 +66,12 @@ public class DistributionFileWriterService
                     {
                         // SPID format: Outfit = FormOrEditorID|StringFilters|FormFilters|LevelFilters|TraitFilters|CountOrPackageIdx|Chance
                         var outfitIdentifier = FormatOutfitIdentifier(entry.Outfit);
-                        
+
                         // StringFilters (position 2): Keywords
                         var stringFilters = new List<string>();
                         foreach (var keywordFormKey in entry.KeywordFormKeys)
                         {
-                            if (linkCache.TryResolve<IKeywordGetter>(keywordFormKey, out var keyword) && 
+                            if (linkCache.TryResolve<IKeywordGetter>(keywordFormKey, out var keyword) &&
                                 !string.IsNullOrWhiteSpace(keyword.EditorID))
                             {
                                 stringFilters.Add(keyword.EditorID);
@@ -83,7 +83,7 @@ public class DistributionFileWriterService
                         var formFilters = new List<string>();
                         foreach (var factionFormKey in entry.FactionFormKeys)
                         {
-                            if (linkCache.TryResolve<IFactionGetter>(factionFormKey, out var faction) && 
+                            if (linkCache.TryResolve<IFactionGetter>(factionFormKey, out var faction) &&
                                 !string.IsNullOrWhiteSpace(faction.EditorID))
                             {
                                 formFilters.Add(faction.EditorID);
@@ -91,7 +91,7 @@ public class DistributionFileWriterService
                         }
                         foreach (var raceFormKey in entry.RaceFormKeys)
                         {
-                            if (linkCache.TryResolve<IRaceGetter>(raceFormKey, out var race) && 
+                            if (linkCache.TryResolve<IRaceGetter>(raceFormKey, out var race) &&
                                 !string.IsNullOrWhiteSpace(race.EditorID))
                             {
                                 formFilters.Add(race.EditorID);
@@ -171,7 +171,7 @@ public class DistributionFileWriterService
 
                 // Write file with UTF-8 encoding
                 File.WriteAllLines(filePath, lines, Encoding.UTF8);
-                _logger.Information("Wrote {Format} distribution file: {FilePath} with {EntryCount} entries", 
+                _logger.Information("Wrote {Format} distribution file: {FilePath} with {EntryCount} entries",
                     effectiveFormat, filePath, entries.Count);
             }
             catch (OperationCanceledException)
@@ -220,7 +220,7 @@ public class DistributionFileWriterService
             try
             {
                 var lines = File.ReadAllLines(filePath, Encoding.UTF8);
-                
+
                 // Pre-cache NPCs for SPID parsing (only if we have SPID lines)
                 List<INpcGetter>? cachedNpcs = null;
 
@@ -235,8 +235,8 @@ public class DistributionFileWriterService
                     DistributionEntry? entry = null;
 
                     // Try SkyPatcher format first: filterByNpcs=...:filterByFactions=...:outfitDefault=...
-                    if (trimmed.Contains("outfitDefault=") && 
-                        (trimmed.Contains("filterByNpcs=") || trimmed.Contains("filterByFactions=") || 
+                    if (trimmed.Contains("outfitDefault=") &&
+                        (trimmed.Contains("filterByNpcs=") || trimmed.Contains("filterByFactions=") ||
                          trimmed.Contains("filterByKeywords=") || trimmed.Contains("filterByRaces=")))
                     {
                         entry = ParseDistributionLine(trimmed, linkCache);
@@ -257,7 +257,7 @@ public class DistributionFileWriterService
                 // Detect format: if we found SPID lines, use SPID; otherwise use SkyPatcher
                 detectedFormat = hasSpidLines ? DistributionFileType.Spid : DistributionFileType.SkyPatcher;
 
-                _logger.Information("Loaded {Count} distribution entries from {FilePath} (detected format: {Format})", 
+                _logger.Information("Loaded {Count} distribution entries from {FilePath} (detected format: {Format})",
                     entries.Count, filePath, detectedFormat);
             }
             catch (OperationCanceledException)
@@ -368,7 +368,6 @@ public class DistributionFileWriterService
         return $"0x{outfit.FormKey.ID:X}~{outfit.FormKey.ModKey.FileName}";
     }
 
-
     private static FormKey? TryParseFormKey(string text)
     {
         if (string.IsNullOrWhiteSpace(text))
@@ -397,13 +396,13 @@ public class DistributionFileWriterService
         {
             // Format: Outfit = 0x800~ModKey|EditorID[,EditorID,...]
             // Or: Outfit = 800~ModKey|EditorID[,EditorID,...]
-            
+
             var equalsIndex = line.IndexOf('=');
             if (equalsIndex < 0)
                 return null;
 
             var valuePart = line.Substring(equalsIndex + 1).Trim();
-            
+
             // Find the ~ separator between FormID and ModKey
             var tildeIndex = valuePart.IndexOf('~');
             if (tildeIndex < 0)
@@ -436,7 +435,7 @@ public class DistributionFileWriterService
 
             // Create FormKey for the outfit
             var outfitFormKey = new FormKey(modKey, formId);
-            
+
             // Resolve outfit
             if (!linkCache.TryResolve<IOutfitGetter>(outfitFormKey, out var outfit))
             {
@@ -466,7 +465,7 @@ public class DistributionFileWriterService
             foreach (var identifier in npcIdentifiers)
             {
                 // Try to find NPC by EditorID first, then by Name
-                var npc = cachedNpcs.FirstOrDefault(n => 
+                var npc = cachedNpcs.FirstOrDefault(n =>
                     string.Equals(n.EditorID, identifier, StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(n.Name?.String, identifier, StringComparison.OrdinalIgnoreCase));
 
@@ -499,4 +498,3 @@ public class DistributionFileWriterService
         }
     }
 }
-

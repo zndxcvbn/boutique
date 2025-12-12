@@ -17,4 +17,3 @@ public class DistributionFileSelectionItem(bool isNewFile, DistributionFileViewM
 
     public override string ToString() => DisplayName;
 }
-

@@ -49,11 +49,11 @@ public class DistributionOutfitsTabViewModel : ReactiveObject
         // Outfits tab search filtering
         this.WhenAnyValue(vm => vm.OutfitSearchText)
             .Subscribe(_ => UpdateFilteredOutfits());
-        
+
         // Vanilla outfit filtering
         this.WhenAnyValue(vm => vm.HideVanillaOutfits)
             .Subscribe(_ => UpdateFilteredOutfits());
-        
+
         // Update NPC assignments when selection changes
         this.WhenAnyValue(vm => vm.SelectedOutfit)
             .Subscribe(_ => UpdateSelectedOutfitNpcAssignments());
@@ -72,9 +72,9 @@ public class DistributionOutfitsTabViewModel : ReactiveObject
         {
             // Clear previous selection
             field?.IsSelected = false;
-            
+
             this.RaiseAndSetIfChanged(ref field, value);
-            
+
             // Set new selection
             if (value != null)
             {
@@ -123,7 +123,7 @@ public class DistributionOutfitsTabViewModel : ReactiveObject
     public async Task LoadOutfitsAsync()
     {
         _logger.Debug("LoadOutfitsAsync started");
-        
+
         try
         {
             IsLoading = true;
@@ -133,7 +133,7 @@ public class DistributionOutfitsTabViewModel : ReactiveObject
             {
                 var dataPath = _settings.SkyrimDataPath;
                 _logger.Debug("MutagenService not initialized, data path: {DataPath}", dataPath);
-                
+
                 if (string.IsNullOrWhiteSpace(dataPath))
                 {
                     StatusMessage = "Please set the Skyrim data path in Settings before loading outfits.";
@@ -165,7 +165,7 @@ public class DistributionOutfitsTabViewModel : ReactiveObject
             // Load all outfits from the load order
             StatusMessage = "Loading outfits from load order...";
             _logger.Debug("Loading outfits from load order...");
-            var outfits = await Task.Run(() => 
+            var outfits = await Task.Run(() =>
                 linkCache.WinningOverrides<IOutfitGetter>().ToList());
             _logger.Debug("Loaded {Count} outfits from load order", outfits.Count);
 
@@ -174,7 +174,7 @@ public class DistributionOutfitsTabViewModel : ReactiveObject
             {
                 StatusMessage = "Resolving NPC outfit assignments...";
                 _logger.Debug("Resolving NPC outfit assignments from {Count} files", _distributionFiles.Count);
-                
+
                 var distributionFiles = _distributionFiles
                     .Select(fvm => new DistributionFile(
                         fvm.FileName,
@@ -188,7 +188,7 @@ public class DistributionOutfitsTabViewModel : ReactiveObject
                 var npcFilterData = await _npcScanningService.ScanNpcsWithFilterDataAsync();
                 _npcAssignments = await _npcOutfitResolutionService.ResolveNpcOutfitsWithFiltersAsync(distributionFiles, npcFilterData);
                 _logger.Debug("Resolved {Count} NPC outfit assignments", _npcAssignments.Count);
-                
+
                 // Update counts now that we have both outfits and assignments
                 UpdateOutfitNpcCounts();
             }
@@ -241,7 +241,7 @@ public class DistributionOutfitsTabViewModel : ReactiveObject
         var outfit = outfitVm.Outfit;
         var label = outfit.EditorID ?? outfit.FormKey.ToString();
         var armorPieces = OutfitResolver.GatherArmorPieces(outfit, linkCache);
-        
+
         if (armorPieces.Count == 0)
         {
             StatusMessage = $"Outfit '{label}' has no armor pieces to preview.";
@@ -301,11 +301,11 @@ public class DistributionOutfitsTabViewModel : ReactiveObject
         var outfitFormKey = SelectedOutfit.FormKey;
         _logger.Debug("UpdateSelectedOutfitNpcAssignments: Looking for outfit {OutfitFormKey} ({EditorID})",
             outfitFormKey, SelectedOutfit.EditorID);
-        
+
         // Find all NPCs that have this outfit assigned
         // Check if the outfit is the final outfit OR if it appears in any distribution targeting this NPC
         var matchingAssignments = _npcAssignments
-            .Where(assignment => 
+            .Where(assignment =>
             {
                 // Check if this outfit is the final resolved outfit for this NPC
                 if (assignment.FinalOutfitFormKey == outfitFormKey)
@@ -313,7 +313,7 @@ public class DistributionOutfitsTabViewModel : ReactiveObject
                     _logger.Debug("  Match: NPC {NpcFormKey} has this outfit as final outfit", assignment.NpcFormKey);
                     return true;
                 }
-                
+
                 // Check if this outfit appears in any distribution targeting this NPC
                 // This includes distributions that might not be the winner but still target this NPC
                 var hasDistribution = assignment.Distributions.Any(d => d.OutfitFormKey == outfitFormKey);
@@ -348,7 +348,7 @@ public class DistributionOutfitsTabViewModel : ReactiveObject
         // Count unique NPCs for each outfit
         // Use HashSet to track which NPCs we've already counted for each outfit
         var outfitNpcSets = new Dictionary<FormKey, HashSet<FormKey>>();
-        
+
         foreach (var assignment in _npcAssignments)
         {
             // Count NPCs where this outfit is the final resolved outfit
@@ -359,7 +359,7 @@ public class DistributionOutfitsTabViewModel : ReactiveObject
                     outfitNpcSets[finalOutfitFormKey.Value] = new HashSet<FormKey>();
                 outfitNpcSets[finalOutfitFormKey.Value].Add(assignment.NpcFormKey);
             }
-            
+
             // Also count NPCs where this outfit appears in distributions (even if not final)
             foreach (var dist in assignment.Distributions)
             {
@@ -384,4 +384,3 @@ public class DistributionOutfitsTabViewModel : ReactiveObject
         }
     }
 }
-

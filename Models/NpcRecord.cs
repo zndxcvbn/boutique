@@ -12,4 +12,3 @@ public sealed record NpcRecord(
     public string FormKeyString => FormKey.ToString();
     public string ModDisplayName => ModKey.FileName;
 }
-

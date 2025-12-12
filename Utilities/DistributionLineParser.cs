@@ -33,7 +33,7 @@ public static class DistributionLineParser
         {
             return ExtractNpcFormKeysFromSkyPatcherLine(line.RawText);
         }
-        
+
         if (file.TypeDisplay == "SPID")
         {
             return ExtractNpcFormKeysFromSpidLine(line.RawText, linkCache, npcByEditorId, npcByName);
@@ -41,27 +41,27 @@ public static class DistributionLineParser
 
         return [];
     }
-    
+
     /// <summary>
     /// Extracts NPC FormKeys from a SkyPatcher distribution line.
     /// </summary>
     private static List<FormKey> ExtractNpcFormKeysFromSkyPatcherLine(string rawText)
     {
         var results = new List<FormKey>();
-        
+
         // SkyPatcher format: filterByNpcs=ModKey|FormID,ModKey|FormID:outfitDefault=ModKey|FormID
         var trimmed = rawText.Trim();
         var filterByNpcsIndex = trimmed.IndexOf("filterByNpcs=", StringComparison.OrdinalIgnoreCase);
-        
+
         if (filterByNpcsIndex >= 0)
         {
             var npcStart = filterByNpcsIndex + "filterByNpcs=".Length;
             var npcEnd = trimmed.IndexOf(':', npcStart);
-            
+
             if (npcEnd > npcStart)
             {
                 var npcString = trimmed.Substring(npcStart, npcEnd - npcStart);
-                
+
                 foreach (var npcPart in npcString.Split(','))
                 {
                     var formKey = TryParseFormKey(npcPart.Trim());
@@ -72,10 +72,10 @@ public static class DistributionLineParser
                 }
             }
         }
-        
+
         return results;
     }
-    
+
     /// <summary>
     /// Extracts NPC FormKeys from a SPID distribution line using SpidLineParser.
     /// </summary>
@@ -86,20 +86,20 @@ public static class DistributionLineParser
         Dictionary<string, INpcGetter>? npcByName)
     {
         var results = new List<FormKey>();
-        
+
         // Use SpidLineParser for robust SPID parsing
         if (!SpidLineParser.TryParse(rawText, out var filter) || filter == null)
         {
             return results;
         }
-        
+
         // Get specific NPC identifiers from the parsed filter
         var npcIdentifiers = SpidLineParser.GetSpecificNpcIdentifiers(filter);
         if (npcIdentifiers.Count == 0)
         {
             return results;
         }
-        
+
         // Build lookup dictionaries if not provided
         if (npcByEditorId == null || npcByName == null)
         {
@@ -113,7 +113,7 @@ public static class DistributionLineParser
                 .GroupBy(n => n.Name!.String!, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
         }
-        
+
         // Resolve each NPC identifier to a FormKey
         foreach (var identifier in npcIdentifiers)
         {
@@ -132,7 +132,7 @@ public static class DistributionLineParser
                 results.Add(npc.FormKey);
             }
         }
-        
+
         return results;
     }
 
@@ -185,4 +185,3 @@ public static class DistributionLineParser
         return new FormKey(modKey, formId);
     }
 }
-

@@ -33,4 +33,3 @@ public class FactionRecordViewModel : ReactiveObject
         return _searchCache.Contains(searchTerm.Trim().ToLowerInvariant());
     }
 }
-

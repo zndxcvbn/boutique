@@ -46,7 +46,7 @@ public class DistributionFilesTabViewModel : ReactiveObject
     [Reactive] public ObservableCollection<DistributionFileViewModel> Files { get; private set; } = new();
 
     private DistributionFileViewModel? _selectedFile;
-    
+
     public DistributionFileViewModel? SelectedFile
     {
         get => _selectedFile;
@@ -54,12 +54,12 @@ public class DistributionFilesTabViewModel : ReactiveObject
         {
             if (Equals(_selectedFile, value))
                 return;
-                
-            _logger.Debug("SelectedFile changed from {Old} to {New} (Lines: {LineCount})", 
-                _selectedFile?.FileName ?? "null", 
+
+            _logger.Debug("SelectedFile changed from {Old} to {New} (Lines: {LineCount})",
+                _selectedFile?.FileName ?? "null",
                 value?.FileName ?? "null",
                 value?.Lines.Count ?? 0);
-                
+
             this.RaiseAndSetIfChanged(ref _selectedFile, value);
             // Explicitly notify FilteredLines when SelectedFile changes
             this.RaisePropertyChanged(nameof(FilteredLines));
@@ -120,10 +120,10 @@ public class DistributionFilesTabViewModel : ReactiveObject
 
             StatusMessage = "Scanning for distribution files...";
             _logger.Debug("Starting distribution file discovery in {DataPath}", dataPath);
-            
+
             var discovered = await _discoveryService.DiscoverAsync(dataPath);
             _logger.Debug("Discovery service returned {Count} files", discovered.Count);
-            
+
             var outfitFiles = discovered
                 .Where(file => file.OutfitDistributionCount > 0)
                 .ToList();
@@ -140,14 +140,14 @@ public class DistributionFilesTabViewModel : ReactiveObject
             {
                 Files.Add(vm);
             }
-            
+
             LineFilter = string.Empty;
             var newSelectedFile = Files.FirstOrDefault();
             SelectedFile = newSelectedFile;
-            
+
             // Explicitly notify that FilteredLines may have changed (in case SelectedFile didn't change reference)
             this.RaisePropertyChanged(nameof(FilteredLines));
-            
+
             // Explicitly notify that Files collection changed (for WhenAnyValue subscribers)
             this.RaisePropertyChanged(nameof(Files));
 
@@ -156,7 +156,7 @@ public class DistributionFilesTabViewModel : ReactiveObject
                 StatusMessage = discovered.Count == 0
                     ? "No distribution files found. Check that your data path is correct and contains *_DISTR.ini files or SkyPatcher INI files."
                     : $"Found {discovered.Count} distribution file(s), but none contain outfit distributions.";
-                _logger.Warning("No outfit distribution files found. Discovered {TotalCount} files total, but {OutfitCount} had outfit distributions", 
+                _logger.Warning("No outfit distribution files found. Discovered {TotalCount} files total, but {OutfitCount} had outfit distributions",
                     discovered.Count, outfitFiles.Count);
             }
             else
@@ -225,4 +225,3 @@ public class DistributionFilesTabViewModel : ReactiveObject
         StatusMessage = "Unable to resolve outfit for preview.";
     }
 }
-

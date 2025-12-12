@@ -175,7 +175,8 @@ public class ArmorPreviewService(MutagenService mutagenService, GameAssetLocator
                 }
 
                 var identity = $"{variantForAddon}:{meshAssetKey}";
-                if (!visitedParts.Add(identity)) continue; // Avoid loading identical meshes multiple times
+                if (!visitedParts.Add(identity))
+                    continue; // Avoid loading identical meshes multiple times
 
                 var partName = $"{armorName} ({addon.EditorID ?? addon.FormKey.ToString()})";
                 meshes.AddRange(LoadMeshesFromNif(partName, fullPath, variantForAddon, addon.FormKey.ModKey,

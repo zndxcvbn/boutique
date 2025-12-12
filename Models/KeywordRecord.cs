@@ -11,4 +11,3 @@ public sealed record KeywordRecord(
     public string FormKeyString => FormKey.ToString();
     public string ModDisplayName => ModKey.FileName;
 }
-

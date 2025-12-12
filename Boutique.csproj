@@ -18,9 +18,10 @@
         <AssemblyVersion>0.0.1.0</AssemblyVersion>
         <FileVersion>0.0.1.0</FileVersion>
         
-        <!-- Code analysis for detecting unused code -->
+        <!-- Code analysis -->
         <EnableNETAnalyzers>true</EnableNETAnalyzers>
-        <AnalysisLevel>latest</AnalysisLevel>
+        <AnalysisLevel>latest-recommended</AnalysisLevel>
+        <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     </PropertyGroup>
 
     <!-- Allow test project to access internal members -->
@@ -48,6 +49,12 @@
             <NoWarn>NU1701</NoWarn>
         </PackageReference>
         <PackageReference Include="Autoupdater.NET.Official" Version="1.9.2" />
+        
+        <!-- Code analyzers -->
+        <PackageReference Include="Roslynator.Analyzers" Version="4.12.9">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+        </PackageReference>
     </ItemGroup>
 
     <ItemGroup>

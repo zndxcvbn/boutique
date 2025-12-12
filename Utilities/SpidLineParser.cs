@@ -17,61 +17,61 @@ public static class SpidLineParser
     public static bool TryParse(string line, out SpidDistributionFilter? result)
     {
         result = null;
-        
+
         if (string.IsNullOrWhiteSpace(line))
             return false;
-        
+
         var trimmed = line.Trim();
-        
+
         // Must start with "Outfit" (case-insensitive)
         if (!trimmed.StartsWith("Outfit", StringComparison.OrdinalIgnoreCase))
             return false;
-        
+
         // Find the = sign
         var equalsIndex = trimmed.IndexOf('=');
         if (equalsIndex < 0)
             return false;
-        
+
         // Verify it's "Outfit =" or "Outfit="
         var beforeEquals = trimmed[..equalsIndex].Trim();
         if (!beforeEquals.Equals("Outfit", StringComparison.OrdinalIgnoreCase))
             return false;
-        
+
         var valuePart = trimmed[(equalsIndex + 1)..].Trim();
         if (string.IsNullOrWhiteSpace(valuePart))
             return false;
-        
+
         // Remove inline comments
         valuePart = RemoveInlineComment(valuePart);
         if (string.IsNullOrWhiteSpace(valuePart))
             return false;
-        
+
         result = ParseValuePart(valuePart, trimmed);
         return result != null;
     }
-    
+
     private static SpidDistributionFilter? ParseValuePart(string valuePart, string rawLine)
     {
         // Split by | to get all sections
         // But first we need to extract the outfit identifier, which can itself contain | or ~
         var (outfitIdentifier, remainder) = ExtractOutfitIdentifier(valuePart);
-        
+
         if (string.IsNullOrWhiteSpace(outfitIdentifier))
             return null;
-        
+
         // Now split the remainder by | to get filter sections
         // Sections: StringFilters|FormFilters|LevelFilters|TraitFilters|CountOrPackageIdx|Chance
-        var sections = string.IsNullOrWhiteSpace(remainder) 
-            ? Array.Empty<string>() 
+        var sections = string.IsNullOrWhiteSpace(remainder)
+            ? Array.Empty<string>()
             : remainder.Split('|');
-        
+
         var stringFilters = ParseFilterSection(GetSection(sections, 0));
         var formFilters = ParseFilterSection(GetSection(sections, 1));
         var levelFilters = GetSection(sections, 2);
         var traitFilters = ParseTraitFilters(GetSection(sections, 3));
         var countOrPackageIdx = GetSection(sections, 4);
         var chance = ParseChance(GetSection(sections, 5));
-        
+
         return new SpidDistributionFilter
         {
             OutfitIdentifier = outfitIdentifier,
@@ -84,7 +84,7 @@ public static class SpidLineParser
             RawLine = rawLine
         };
     }
-    
+
     /// <summary>
     /// Extracts the outfit identifier from the value part, handling FormKey formats.
     /// Returns the identifier and the remaining filter sections.
@@ -98,7 +98,7 @@ public static class SpidLineParser
             // Format: FormID~ModKey|filters
             var afterTilde = valuePart[(tildeIndex + 1)..];
             var modEndIndex = FindModKeyEnd(afterTilde);
-            
+
             if (modEndIndex > 0)
             {
                 var identifier = valuePart[..(tildeIndex + 1 + modEndIndex)];
@@ -108,19 +108,19 @@ public static class SpidLineParser
                 return (identifier, remainder);
             }
         }
-        
+
         // Check for pipe-format FormKey: Plugin.esp|0x12345|filters
         var firstPipe = valuePart.IndexOf('|');
         if (firstPipe >= 0)
         {
             var firstPart = valuePart[..firstPipe];
-            
+
             // If first part is a mod key
             if (IsModKeyFileName(firstPart))
             {
                 var afterFirstPipe = valuePart[(firstPipe + 1)..];
                 var secondPipe = afterFirstPipe.IndexOf('|');
-                
+
                 if (secondPipe >= 0)
                 {
                     var potentialFormId = afterFirstPipe[..secondPipe];
@@ -141,15 +141,15 @@ public static class SpidLineParser
                     }
                 }
             }
-            
+
             // First part is not a mod key, so it's EditorID|filters
             return (firstPart, valuePart[(firstPipe + 1)..]);
         }
-        
+
         // No pipe or tilde - just an EditorID
         return (valuePart, string.Empty);
     }
-    
+
     private static int FindModKeyEnd(string text)
     {
         var extensions = new[] { ".esp", ".esm", ".esl" };
@@ -161,55 +161,55 @@ public static class SpidLineParser
         }
         return -1;
     }
-    
+
     private static bool IsModKeyFileName(string text)
     {
         if (string.IsNullOrWhiteSpace(text))
             return false;
-        
+
         return text.EndsWith(".esp", StringComparison.OrdinalIgnoreCase) ||
                text.EndsWith(".esm", StringComparison.OrdinalIgnoreCase) ||
                text.EndsWith(".esl", StringComparison.OrdinalIgnoreCase);
     }
-    
+
     private static bool LooksLikeFormId(string text)
     {
         if (string.IsNullOrWhiteSpace(text))
             return false;
-        
+
         var trimmed = text.Trim();
         if (trimmed.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
             trimmed = trimmed[2..];
-        
-        return trimmed.Length >= 1 && trimmed.Length <= 8 && 
+
+        return trimmed.Length >= 1 && trimmed.Length <= 8 &&
                trimmed.All(char.IsAsciiHexDigit);
     }
-    
+
     private static string? GetSection(string[] sections, int index)
     {
         if (index < 0 || index >= sections.Length)
             return null;
-        
+
         var value = sections[index].Trim();
         return string.IsNullOrWhiteSpace(value) ? null : value;
     }
-    
+
     private static bool IsNone(string? value)
     {
-        return string.IsNullOrWhiteSpace(value) || 
+        return string.IsNullOrWhiteSpace(value) ||
                value.Equals("NONE", StringComparison.OrdinalIgnoreCase);
     }
-    
+
     private static SpidFilterSection ParseFilterSection(string? sectionText)
     {
         var section = new SpidFilterSection();
-        
+
         if (IsNone(sectionText))
             return section;
-        
+
         // Split by comma for OR expressions
         var expressions = sectionText!.Split(',', StringSplitOptions.RemoveEmptyEntries);
-        
+
         foreach (var expr in expressions)
         {
             var expression = ParseFilterExpression(expr.Trim());
@@ -218,29 +218,29 @@ public static class SpidLineParser
                 section.Expressions.Add(expression);
             }
         }
-        
+
         return section;
     }
-    
+
     private static SpidFilterExpression ParseFilterExpression(string exprText)
     {
         var expression = new SpidFilterExpression();
-        
+
         if (string.IsNullOrWhiteSpace(exprText))
             return expression;
-        
+
         // Split by + for AND parts
         var parts = exprText.Split('+', StringSplitOptions.RemoveEmptyEntries);
-        
+
         foreach (var part in parts)
         {
             var trimmedPart = part.Trim();
             if (string.IsNullOrWhiteSpace(trimmedPart))
                 continue;
-            
+
             var isNegated = trimmedPart.StartsWith('-');
             var value = isNegated ? trimmedPart[1..].Trim() : trimmedPart;
-            
+
             if (!string.IsNullOrWhiteSpace(value))
             {
                 expression.Parts.Add(new SpidFilterPart
@@ -250,15 +250,15 @@ public static class SpidLineParser
                 });
             }
         }
-        
+
         return expression;
     }
-    
+
     private static SpidTraitFilters ParseTraitFilters(string? traitText)
     {
         if (IsNone(traitText))
             return new SpidTraitFilters();
-        
+
         bool? isFemale = null;
         bool? isUnique = null;
         bool? isSummonable = null;
@@ -266,19 +266,19 @@ public static class SpidLineParser
         bool? isLeveled = null;
         bool? isTeammate = null;
         bool? isDead = null;
-        
+
         // Trait filters can be separated by / and can be negated with -
         var traits = traitText!.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        
+
         foreach (var trait in traits)
         {
             var trimmed = trait.Trim();
             if (string.IsNullOrWhiteSpace(trimmed))
                 continue;
-            
+
             var isNegated = trimmed.StartsWith('-');
             var code = isNegated ? trimmed[1..].ToUpperInvariant() : trimmed.ToUpperInvariant();
-            
+
             switch (code)
             {
                 case "F":
@@ -307,7 +307,7 @@ public static class SpidLineParser
                     break;
             }
         }
-        
+
         return new SpidTraitFilters
         {
             IsFemale = isFemale,
@@ -319,27 +319,27 @@ public static class SpidLineParser
             IsDead = isDead
         };
     }
-    
+
     private static int ParseChance(string? chanceText)
     {
         if (IsNone(chanceText))
             return 100;
-        
+
         if (int.TryParse(chanceText, out var chance))
             return Math.Clamp(chance, 0, 100);
-        
+
         return 100;
     }
-    
+
     private static string RemoveInlineComment(string text)
     {
         var commentIndex = text.IndexOfAny([';', '#']);
         if (commentIndex >= 0)
             text = text[..commentIndex];
-        
+
         return text.Trim();
     }
-    
+
     /// <summary>
     /// Gets all identifiers from the string filters that look like specific NPC names/EditorIDs
     /// (not keywords or patterns).
@@ -347,7 +347,7 @@ public static class SpidLineParser
     public static IReadOnlyList<string> GetSpecificNpcIdentifiers(SpidDistributionFilter filter)
     {
         var results = new List<string>();
-        
+
         foreach (var expr in filter.StringFilters.Expressions)
         {
             foreach (var part in expr.Parts)
@@ -355,21 +355,21 @@ public static class SpidLineParser
                 // Skip if it has wildcards, looks like a keyword, or is negated
                 if (part.HasWildcard || part.LooksLikeKeyword || part.IsNegated)
                     continue;
-                
+
                 results.Add(part.Value);
             }
         }
-        
+
         return results;
     }
-    
+
     /// <summary>
     /// Gets all keyword identifiers from the string filters.
     /// </summary>
     public static IReadOnlyList<string> GetKeywordIdentifiers(SpidDistributionFilter filter)
     {
         var results = new List<string>();
-        
+
         foreach (var expr in filter.StringFilters.Expressions)
         {
             foreach (var part in expr.Parts)
@@ -380,17 +380,17 @@ public static class SpidLineParser
                 }
             }
         }
-        
+
         return results;
     }
-    
+
     /// <summary>
     /// Gets all faction identifiers from the form filters.
     /// </summary>
     public static IReadOnlyList<string> GetFactionIdentifiers(SpidDistributionFilter filter)
     {
         var results = new List<string>();
-        
+
         foreach (var expr in filter.FormFilters.Expressions)
         {
             foreach (var part in expr.Parts)
@@ -401,17 +401,17 @@ public static class SpidLineParser
                 }
             }
         }
-        
+
         return results;
     }
-    
+
     /// <summary>
     /// Gets all race identifiers from the form filters.
     /// </summary>
     public static IReadOnlyList<string> GetRaceIdentifiers(SpidDistributionFilter filter)
     {
         var results = new List<string>();
-        
+
         foreach (var expr in filter.FormFilters.Expressions)
         {
             foreach (var part in expr.Parts)
@@ -422,8 +422,7 @@ public static class SpidLineParser
                 }
             }
         }
-        
+
         return results;
     }
 }
-
