@@ -959,7 +959,7 @@ public class MainViewModel : ReactiveObject
         }
     }
 
-    private bool ValidateOutfitPieces(IReadOnlyList<ArmorRecordViewModel> pieces, out string validationMessage)
+    private static bool ValidateOutfitPieces(IReadOnlyList<ArmorRecordViewModel> pieces, out string validationMessage)
     {
         var slotsInUse = new Dictionary<BipedObjectFlag, ArmorRecordViewModel>();
 

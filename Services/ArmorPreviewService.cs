@@ -187,7 +187,7 @@ public class ArmorPreviewService(MutagenService mutagenService, GameAssetLocator
         return new ArmorPreviewScene(gender, meshes, missingAssets);
     }
 
-    private GenderedModelVariant DetermineEffectiveGender(
+    private static GenderedModelVariant DetermineEffectiveGender(
         IReadOnlyList<ArmorRecordViewModel> pieces,
         GenderedModelVariant preferredGender,
         ILinkCache linkCache)

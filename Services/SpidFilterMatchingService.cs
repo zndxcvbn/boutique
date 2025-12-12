@@ -43,7 +43,7 @@ public class SpidFilterMatchingService
     /// Matches string filters against NPC name, EditorID, and keywords.
     /// String filters use OR logic between expressions, AND logic within + combined expressions.
     /// </summary>
-    private bool MatchesStringFilters(NpcFilterData npc, SpidFilterSection filters)
+    private static bool MatchesStringFilters(NpcFilterData npc, SpidFilterSection filters)
     {
         if (filters.IsEmpty)
             return true;
@@ -61,7 +61,7 @@ public class SpidFilterMatchingService
     /// <summary>
     /// Matches a single string expression (which may have AND-combined parts).
     /// </summary>
-    private bool MatchesStringExpression(NpcFilterData npc, SpidFilterExpression expression)
+    private static bool MatchesStringExpression(NpcFilterData npc, SpidFilterExpression expression)
     {
         // AND logic: all parts must match
         foreach (var part in expression.Parts)
@@ -78,7 +78,7 @@ public class SpidFilterMatchingService
     /// Checks: NPC name, EditorID, keywords, and race keywords.
     /// Supports wildcards (*) and negation (-).
     /// </summary>
-    private bool MatchesStringPart(NpcFilterData npc, SpidFilterPart part)
+    private static bool MatchesStringPart(NpcFilterData npc, SpidFilterPart part)
     {
         var value = part.Value;
         var hasWildcard = part.HasWildcard;
@@ -161,7 +161,7 @@ public class SpidFilterMatchingService
     /// <summary>
     /// Matches form filters against NPC race, class, faction, combat style, outfit, voice type, etc.
     /// </summary>
-    private bool MatchesFormFilters(NpcFilterData npc, SpidFilterSection filters)
+    private static bool MatchesFormFilters(NpcFilterData npc, SpidFilterSection filters)
     {
         if (filters.IsEmpty)
             return true;
@@ -179,7 +179,7 @@ public class SpidFilterMatchingService
     /// <summary>
     /// Matches a single form expression (which may have AND-combined parts).
     /// </summary>
-    private bool MatchesFormExpression(NpcFilterData npc, SpidFilterExpression expression)
+    private static bool MatchesFormExpression(NpcFilterData npc, SpidFilterExpression expression)
     {
         // AND logic: all parts must match
         foreach (var part in expression.Parts)
@@ -195,7 +195,7 @@ public class SpidFilterMatchingService
     /// Matches a single form filter part against NPC data.
     /// Checks: race, class, faction, combat style, outfit, voice type, specific NPC, plugin.
     /// </summary>
-    private bool MatchesFormPart(NpcFilterData npc, SpidFilterPart part)
+    private static bool MatchesFormPart(NpcFilterData npc, SpidFilterPart part)
     {
         var value = part.Value;
 
@@ -357,7 +357,7 @@ public class SpidFilterMatchingService
     /// <summary>
     /// Matches level filters against NPC level.
     /// </summary>
-    private bool MatchesLevelFilters(NpcFilterData npc, string? levelFilters)
+    private static bool MatchesLevelFilters(NpcFilterData npc, string? levelFilters)
     {
         if (string.IsNullOrWhiteSpace(levelFilters) ||
             levelFilters.Equals("NONE", StringComparison.OrdinalIgnoreCase))

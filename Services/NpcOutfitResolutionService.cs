@@ -285,7 +285,7 @@ public class NpcOutfitResolutionService
         }
     }
 
-    private void ProcessSkyPatcherLineWithFilters(
+    private static void ProcessSkyPatcherLineWithFilters(
         DistributionFile file,
         DistributionLine line,
         int processingOrder,
@@ -334,7 +334,7 @@ public class NpcOutfitResolutionService
         }
     }
 
-    private void ParseSkyPatcherLineForFilteredResolution(
+    private static void ParseSkyPatcherLineForFilteredResolution(
         string lineText,
         ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache,
         Dictionary<string, NpcFilterData> npcByEditorId,
@@ -416,7 +416,7 @@ public class NpcOutfitResolutionService
         }
     }
 
-    private FormKey? ResolveOutfitFormKey(string identifier, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
+    private static FormKey? ResolveOutfitFormKey(string identifier, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
     {
         if (string.IsNullOrWhiteSpace(identifier))
             return null;
@@ -462,7 +462,7 @@ public class NpcOutfitResolutionService
         return outfit?.FormKey;
     }
 
-    private List<NpcOutfitAssignment> BuildNpcOutfitAssignmentsFromFilterData(
+    private static List<NpcOutfitAssignment> BuildNpcOutfitAssignmentsFromFilterData(
         Dictionary<FormKey, List<OutfitDistribution>> npcDistributions,
         IReadOnlyList<NpcFilterData> allNpcs)
     {
@@ -976,7 +976,7 @@ public class NpcOutfitResolutionService
         _logger.Debug("Found {Count} NPCs with ESP-provided default outfits", espOutfitCount);
     }
 
-    private List<NpcOutfitAssignment> BuildNpcOutfitAssignments(
+    private static List<NpcOutfitAssignment> BuildNpcOutfitAssignments(
         Dictionary<FormKey, List<OutfitDistribution>> npcDistributions,
         ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache,
         List<INpcGetter> allNpcs)

@@ -4,7 +4,7 @@ namespace Boutique.Services;
 
 public class MatchingService
 {
-    public IEnumerable<IGrouping<string, IArmorGetter>> GroupByOutfit(IEnumerable<IArmorGetter> armors)
+    public static IEnumerable<IGrouping<string, IArmorGetter>> GroupByOutfit(IEnumerable<IArmorGetter> armors)
     {
         return armors.GroupBy(armor =>
         {

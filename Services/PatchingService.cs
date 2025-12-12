@@ -383,7 +383,7 @@ public class PatchingService(MutagenService mutagenService, ILoggingService logg
         }
     }
 
-    private bool IsTemperingRecipe(IConstructibleObjectGetter recipe, ILinkCache linkCache)
+    private static bool IsTemperingRecipe(IConstructibleObjectGetter recipe, ILinkCache linkCache)
     {
         var editorId = recipe.EditorID?.ToLowerInvariant() ?? string.Empty;
         return editorId.Contains("temper") || IsTemperingWorkbench(recipe, linkCache);

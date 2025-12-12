@@ -140,7 +140,7 @@ public class DistributionConflictDetectionService
     /// <summary>
     /// Builds a map of NPC FormKey to existing distribution info from loaded distribution files.
     /// </summary>
-    private Dictionary<FormKey, (string FileName, string? OutfitName)> BuildExistingDistributionMap(
+    private static Dictionary<FormKey, (string FileName, string? OutfitName)> BuildExistingDistributionMap(
         IReadOnlyList<DistributionFileViewModel> files,
         ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
     {

@@ -331,7 +331,7 @@ public partial class OutfitPreviewWindow
             baseColor.Alpha);
     }
 
-    private PhongMaterial CreateMaterialForMesh(PreviewMeshShape mesh)
+    private static PhongMaterial CreateMaterialForMesh(PreviewMeshShape mesh)
     {
         var material = TryCreateTextureMaterial(mesh);
         if (material != null)
@@ -352,7 +352,7 @@ public partial class OutfitPreviewWindow
         };
     }
 
-    private PhongMaterial? TryCreateTextureMaterial(PreviewMeshShape mesh)
+    private static PhongMaterial? TryCreateTextureMaterial(PreviewMeshShape mesh)
     {
         var texturePath = mesh.DiffuseTexturePath;
         if (string.IsNullOrWhiteSpace(texturePath))
@@ -439,7 +439,7 @@ public partial class OutfitPreviewWindow
         return new Color4(color.R / 255f, color.G / 255f, color.B / 255f, color.A / 255f);
     }
 
-    private Color GetViewportBackgroundColor()
+    private static Color GetViewportBackgroundColor()
     {
         // Match BodySlide's light preview background (RGB 210,210,210).
         return Color.FromRgb(210, 210, 210);

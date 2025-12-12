@@ -292,7 +292,7 @@ public partial class OutfitCreatorView
         e.Handled = true;
     }
 
-    private void HandleDropTargetDrag(Border? border, DragEventArgs e)
+    private static void HandleDropTargetDrag(Border? border, DragEventArgs e)
     {
         if (border == null)
             return;
@@ -336,7 +336,7 @@ public partial class OutfitCreatorView
         return false;
     }
 
-    private void SetDropTargetState(Border? border, bool isActive)
+    private static void SetDropTargetState(Border? border, bool isActive)
     {
         if (border == null)
             return;
@@ -359,7 +359,7 @@ public partial class OutfitCreatorView
         }
     }
 
-    private ArmorRecordViewModel? GetArmorRecordFromEvent(MouseEventArgs e)
+    private static ArmorRecordViewModel? GetArmorRecordFromEvent(MouseEventArgs e)
     {
         if (e.OriginalSource is not DependencyObject source)
             return null;

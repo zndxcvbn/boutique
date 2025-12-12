@@ -95,10 +95,11 @@ public class DistributionNpcsTabViewModel : ReactiveObject
     /// Sets the distribution files from the Files tab. This allows the NPCs tab to work with
     /// the files discovered by the Files tab without duplicating the discovery logic.
     /// </summary>
-    public void SetDistributionFiles(IReadOnlyList<DistributionFileViewModel> files)
+    public static void SetDistributionFiles(IReadOnlyList<DistributionFileViewModel> files)
     {
         // This method allows the main ViewModel to pass files from Files tab
         // The files are used in ScanNpcOutfitsAsync
+        _ = files; // Suppress unused parameter warning
     }
 
     private IReadOnlyList<DistributionFileViewModel>? _distributionFiles;

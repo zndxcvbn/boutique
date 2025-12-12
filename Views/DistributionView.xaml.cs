@@ -62,7 +62,7 @@ public partial class DistributionView
         }
     }
 
-    private void TriggerInitialLoadIfNeeded(DistributionViewModel viewModel)
+    private static void TriggerInitialLoadIfNeeded(DistributionViewModel viewModel)
     {
         // First, refresh distribution files if they haven't been loaded yet
         if (viewModel.Files.Count == 0 && !viewModel.IsLoading)
@@ -88,7 +88,7 @@ public partial class DistributionView
         }
     }
 
-    private void TriggerNpcScanIfNeeded(DistributionViewModel viewModel)
+    private static void TriggerNpcScanIfNeeded(DistributionViewModel viewModel)
     {
         // Only scan if NPCs haven't been loaded yet and we're not already loading
         if (viewModel.AvailableNpcs.Count == 0 && !viewModel.IsLoading)
