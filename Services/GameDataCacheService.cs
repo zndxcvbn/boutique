@@ -302,9 +302,9 @@ public class GameDataCacheService
 
         foreach (var npc in linkCache.WinningOverrides<INpcGetter>())
         {
-            // Only skip null FormKeys - include NPCs without EditorIDs
-            // (some mods create NPCs without EditorIDs but they still need to be filtered)
-            if (npc.FormKey == FormKey.Null)
+            // Skip NPCs without EditorIDs - these are typically internal/generated NPCs
+            // that aren't useful for filtering or distribution purposes
+            if (npc.FormKey == FormKey.Null || string.IsNullOrWhiteSpace(npc.EditorID))
                 continue;
 
             try

@@ -1,0 +1,158 @@
+<UserControl x:Class="Boutique.Views.DistributionNpcsTabView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             d:DesignHeight="600"
+             d:DesignWidth="1100">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Action Buttons and Search -->
+        <Grid Grid.Row="0" Margin="0,6,0,6">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Button Content="↻ Refresh" Command="{Binding ScanNpcOutfitsCommand}" Padding="12,4" Margin="0,0,6,0" />
+            <StackPanel Grid.Column="2" Orientation="Horizontal">
+                <TextBlock Text="Search:" VerticalAlignment="Center" Margin="0,0,6,0" />
+                <TextBox Text="{Binding NpcOutfitSearchText, UpdateSourceTrigger=PropertyChanged}" MinWidth="250" />
+            </StackPanel>
+        </Grid>
+
+        <!-- SPID-Style Filter Controls -->
+        <GroupBox Grid.Row="1" Header="SPID-Style Filters" Margin="0,0,0,6" Padding="6">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <StackPanel Grid.Row="0" Orientation="Horizontal">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,16,0">
+                        <TextBlock Text="Gender:" VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <ComboBox ItemsSource="{Binding GenderFilterOptions}" SelectedItem="{Binding SelectedGenderFilter}" MinWidth="90" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,16,0">
+                        <TextBlock Text="Unique:" VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <ComboBox ItemsSource="{Binding UniqueFilterOptions}" SelectedItem="{Binding SelectedUniqueFilter}" MinWidth="100" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,16,0">
+                        <TextBlock Text="Faction:" VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <ComboBox ItemsSource="{Binding AvailableFactions}" SelectedItem="{Binding SelectedFaction}" DisplayMemberPath="DisplayName" MinWidth="150" IsEditable="True" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,16,0">
+                        <TextBlock Text="Race:" VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <ComboBox ItemsSource="{Binding AvailableRaces}" SelectedItem="{Binding SelectedRace}" DisplayMemberPath="DisplayName" MinWidth="120" IsEditable="True" />
+                    </StackPanel>
+                    <Button Content="Clear Filters" Command="{Binding ClearFiltersCommand}" Padding="8,2" />
+                </StackPanel>
+                <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,6,0,0">
+                    <TextBlock Text="{Binding FilterDescription}" FontStyle="Italic" Foreground="#0066CC" />
+                    <TextBlock Margin="12,0,0,0">
+                        <Run Text="Showing " /><Run Text="{Binding FilteredCount, Mode=OneWay}" FontWeight="Bold" /><Run Text=" of " /><Run Text="{Binding TotalCount, Mode=OneWay}" /><Run Text=" NPCs" />
+                    </TextBlock>
+                </StackPanel>
+            </Grid>
+        </GroupBox>
+
+        <!-- Main Content Area -->
+        <Grid Grid.Row="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="200" MinHeight="100" />
+            </Grid.RowDefinitions>
+
+            <DataGrid Grid.Row="0"
+                      ItemsSource="{Binding FilteredNpcOutfitAssignments}"
+                      SelectedItem="{Binding SelectedNpcAssignment, Mode=TwoWay}"
+                      AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
+                      IsReadOnly="True" CanUserSortColumns="True" SelectionMode="Single" SelectionUnit="FullRow"
+                      EnableRowVirtualization="True" EnableColumnVirtualization="True">
+                <DataGrid.RowStyle>
+                    <Style TargetType="DataGridRow">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding HasConflict}" Value="True">
+                                <Setter Property="Background" Value="#30FF8C00" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </DataGrid.RowStyle>
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Name" Binding="{Binding DisplayName}" Width="*" />
+                    <DataGridTextColumn Header="EditorID" Binding="{Binding EditorId}" Width="180" />
+                    <DataGridTextColumn Header="Final Outfit" Binding="{Binding FinalOutfitDisplay}" Width="200" />
+                    <DataGridTextColumn Header="Mod" Binding="{Binding ModDisplayName}" Width="150">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock"><Setter Property="Foreground" Value="Gray" /></Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="FormKey" Binding="{Binding FormKeyString}" Width="130">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock"><Setter Property="FontFamily" Value="Consolas" /><Setter Property="FontSize" Value="10" /></Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <GridSplitter Grid.Row="1" Height="5" HorizontalAlignment="Stretch" Background="LightGray" Margin="0,2" />
+
+            <!-- Detail Panel -->
+            <Grid Grid.Row="2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="10" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="10" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <GroupBox Grid.Column="0" Header="Distribution Files" Padding="6">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding SelectedNpcAssignment.Distributions}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Margin="0,0,0,4" Padding="6" BorderBrush="LightGray" BorderThickness="1">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding FileName}" FontWeight="Bold" />
+                                            <TextBlock Text="{Binding OutfitEditorId, StringFormat='Outfit: {0}'}" FontFamily="Consolas" FontSize="11" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </GroupBox>
+
+                <GroupBox Grid.Column="2" Header="Outfit Contents" Padding="6">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <TextBox Grid.Row="0" Text="{Binding SelectedNpcOutfitContents, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="11" />
+                        <Button Grid.Row="1" Content="Preview Outfit" Command="{Binding PreviewNpcOutfitCommand}" CommandParameter="{Binding SelectedNpcAssignment}" Padding="12,4" Margin="0,6,0,0" HorizontalAlignment="Left" />
+                    </Grid>
+                </GroupBox>
+
+                <GroupBox Grid.Column="4" Header="Filter Syntax Preview" Padding="6">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <TextBlock Text="SPID Format:" FontWeight="SemiBold" Margin="0,0,0,4" />
+                            <TextBox Text="{Binding GeneratedSpidSyntax, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" FontFamily="Consolas" FontSize="10" Background="#F5F5F5" Padding="4" Margin="0,0,0,8" />
+                            <TextBlock Text="SkyPatcher Format:" FontWeight="SemiBold" Margin="0,0,0,4" />
+                            <TextBox Text="{Binding GeneratedSkyPatcherSyntax, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" FontFamily="Consolas" FontSize="10" Background="#F5F5F5" Padding="4" />
+                        </StackPanel>
+                    </ScrollViewer>
+                </GroupBox>
+            </Grid>
+        </Grid>
+    </Grid>
+</UserControl>
