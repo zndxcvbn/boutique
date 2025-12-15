@@ -1,9 +1,9 @@
 using System.ComponentModel;
-using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using Boutique.Utilities;
 using Boutique.ViewModels;
 
 namespace Boutique.Views;
@@ -11,8 +11,6 @@ namespace Boutique.Views;
 public partial class OutfitCreatorView
 {
     private const string ArmorDragDataFormat = "Boutique.ArmorRecords";
-    private static readonly Regex _alphanumericInputRegex = new("^[A-Za-z0-9_]+$", RegexOptions.Compiled);
-    private static readonly Regex _alphanumericSanitizerRegex = new("[^A-Za-z0-9_]", RegexOptions.Compiled);
     private MainViewModel? _currentViewModel;
 
     private Point? _outfitDragStartPoint;
@@ -164,7 +162,7 @@ public partial class OutfitCreatorView
         e.Handled = true;
     }
 
-    private void OutfitNameTextBox_OnPreviewTextInput(object sender, TextCompositionEventArgs e) => e.Handled = !_alphanumericInputRegex.IsMatch(e.Text);
+    private void OutfitNameTextBox_OnPreviewTextInput(object sender, TextCompositionEventArgs e) => e.Handled = !InputPatterns.Identifier.IsValid(e.Text);
 
     private void OutfitNameTextBox_OnPasting(object sender, DataObjectPastingEventArgs e)
     {
@@ -177,7 +175,7 @@ public partial class OutfitCreatorView
             return;
         }
 
-        var sanitized = _alphanumericSanitizerRegex.Replace(rawText, string.Empty);
+        var sanitized = InputPatterns.Identifier.Sanitize(rawText);
         if (string.IsNullOrEmpty(sanitized))
         {
             e.CancelCommand();

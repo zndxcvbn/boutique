@@ -56,7 +56,7 @@
             </StackPanel>
         </Grid>
 
-        <!-- TabControl with Create, Files, NPCs, and Outfits tabs -->
+        <!-- TabControl with Create, NPCs, and Outfits tabs -->
         <TabControl Grid.Row="2" SelectedIndex="{Binding SelectedTabIndex}">
 
             <!-- CREATE TAB -->
@@ -64,10 +64,11 @@
                 <views:DistributionCreateTabView DataContext="{Binding EditTab}" />
             </TabItem>
 
-            <!-- FILES TAB -->
+            <!-- FILES TAB - Disabled, may remove later
             <TabItem Header="Files">
                 <views:DistributionFilesTabView DataContext="{Binding FilesTab}" />
             </TabItem>
+            -->
 
             <!-- NPCs TAB -->
             <TabItem Header="NPCs">

@@ -6,11 +6,11 @@ using System.Reactive;
 using System.Reactive.Linq;
 using System.Reactive.Threading.Tasks;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Windows.Data;
 using System.Windows.Input;
 using Boutique.Models;
 using Boutique.Services;
+using Boutique.Utilities;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Skyrim;
 using ReactiveUI;
@@ -21,7 +21,6 @@ namespace Boutique.ViewModels;
 
 public class MainViewModel : ReactiveObject
 {
-    private static readonly Regex OutfitNameSanitizer = new("[^A-Za-z0-9_]", RegexOptions.Compiled);
     private static readonly BipedObjectFlag[] BipedObjectFlags = Enum.GetValues<BipedObjectFlag>()
         .Where(f => f != 0 && ((uint)f & ((uint)f - 1)) == 0) // Only single-bit flags (powers of 2)
         .ToArray();
@@ -43,6 +42,7 @@ public class MainViewModel : ReactiveObject
     private ICollectionView? _sourceArmorsView;
     private ObservableCollection<ArmorRecordViewModel> _targetArmors = [];
     private ICollectionView? _targetArmorsView;
+    private ICollectionView? _filteredOutfitPluginsView;
 
     public MainViewModel(
         MutagenService mutagenService,
@@ -84,6 +84,12 @@ public class MainViewModel : ReactiveObject
             .Subscribe(_ => TargetArmorsView?.Refresh());
         this.WhenAnyValue(x => x.OutfitSearchText)
             .Subscribe(_ => OutfitArmorsView?.Refresh());
+        this.WhenAnyValue(x => x.OutfitPluginSearchText)
+            .Subscribe(_ => FilteredOutfitPlugins?.Refresh());
+
+        // Reconfigure filtered plugins view when available plugins change
+        this.WhenAnyValue(x => x.AvailablePlugins)
+            .Subscribe(_ => ConfigureFilteredOutfitPluginsView());
 
         InitializeCommand = ReactiveCommand.CreateFromTask(InitializeAsync);
         CreatePatchCommand = ReactiveCommand.CreateFromTask(CreatePatchAsync,
@@ -126,6 +132,14 @@ public class MainViewModel : ReactiveObject
     public DistributionViewModel Distribution { get; }
 
     [Reactive] public ObservableCollection<string> AvailablePlugins { get; set; } = [];
+
+    [Reactive] public string OutfitPluginSearchText { get; set; } = string.Empty;
+
+    public ICollectionView? FilteredOutfitPlugins
+    {
+        get => _filteredOutfitPluginsView;
+        private set => this.RaiseAndSetIfChanged(ref _filteredOutfitPluginsView, value);
+    }
 
     public ObservableCollection<ArmorRecordViewModel> SourceArmors
     {
@@ -539,6 +553,25 @@ public class MainViewModel : ReactiveObject
     {
         OutfitArmorsView = CollectionViewSource.GetDefaultView(_outfitArmors);
         OutfitArmorsView?.Filter = OutfitArmorsFilter;
+    }
+
+    private void ConfigureFilteredOutfitPluginsView()
+    {
+        var view = CollectionViewSource.GetDefaultView(AvailablePlugins);
+        if (view != null)
+            view.Filter = OutfitPluginFilter;
+        FilteredOutfitPlugins = view;
+    }
+
+    private bool OutfitPluginFilter(object? item)
+    {
+        if (item is not string plugin)
+            return false;
+
+        if (string.IsNullOrWhiteSpace(OutfitPluginSearchText))
+            return true;
+
+        return plugin.Contains(OutfitPluginSearchText, StringComparison.OrdinalIgnoreCase);
     }
 
     private bool SourceArmorsFilter(object? item)
@@ -1017,11 +1050,8 @@ public class MainViewModel : ReactiveObject
         return builder.ToString();
     }
 
-    private static string SanitizeOutfitName(string? value)
-    {
-        var sanitized = value is null ? string.Empty : OutfitNameSanitizer.Replace(value, string.Empty);
-        return string.IsNullOrEmpty(sanitized) ? "Outfit" : sanitized;
-    }
+    private static string SanitizeOutfitName(string? value) =>
+        InputPatterns.Identifier.SanitizeOrDefault(value, "Outfit");
 
     private static List<ArmorRecordViewModel> DistinctArmorPieces(IEnumerable<ArmorRecordViewModel> pieces)
     {
@@ -1143,7 +1173,7 @@ public class MainViewModel : ReactiveObject
             if (existingConflict != null)
             {
                 var overlap = piece.SlotMask & existingConflict.SlotMask;
-                var slot = overlap != 0 ? overlap.ToString() : piece.SlotSummary;
+                var slot = overlap != 0 ? ArmorRecordViewModel.FormatSlotMask(overlap) : piece.SlotSummary;
                 StatusMessage = $"Slot conflict: {piece.DisplayName} overlaps {existingConflict.DisplayName} ({slot}).";
                 _logger.Warning(
                     "Prevented adding {Piece} to outfit {EditorId} due to conflict with {Existing} on slot {Slot}.",
@@ -1155,7 +1185,7 @@ public class MainViewModel : ReactiveObject
             if (stagedConflict != null)
             {
                 var overlap = piece.SlotMask & stagedConflict.SlotMask;
-                var slot = overlap != 0 ? overlap.ToString() : piece.SlotSummary;
+                var slot = overlap != 0 ? ArmorRecordViewModel.FormatSlotMask(overlap) : piece.SlotSummary;
                 StatusMessage = $"Slot conflict: {piece.DisplayName} overlaps {stagedConflict.DisplayName} ({slot}).";
                 _logger.Warning(
                     "Prevented adding {Piece} to outfit {EditorId} due to conflict with staged piece {Staged} on slot {Slot}.",

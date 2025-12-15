@@ -1,7 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Reactive;
-using System.Text.RegularExpressions;
+using Boutique.Utilities;
 using Mutagen.Bethesda.Plugins;
 using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
@@ -10,8 +10,6 @@ namespace Boutique.ViewModels;
 
 public class OutfitDraftViewModel : ReactiveObject
 {
-    private static readonly Regex AlphaOnlyRegex = new("[^A-Za-z]", RegexOptions.Compiled);
-
     private readonly ObservableCollection<ArmorRecordViewModel> _pieces;
     private readonly Func<OutfitDraftViewModel, Task> _previewDraft;
     private readonly Action<OutfitDraftViewModel> _removeDraft;
@@ -133,10 +131,5 @@ public class OutfitDraftViewModel : ReactiveObject
             _previousValidName = _name;
     }
 
-    private static string Sanitize(string? value)
-    {
-        return string.IsNullOrEmpty(value)
-            ? string.Empty
-            : AlphaOnlyRegex.Replace(value, string.Empty);
-    }
+    private static string Sanitize(string? value) => InputPatterns.Identifier.Sanitize(value);
 }

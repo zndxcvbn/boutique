@@ -6,10 +6,9 @@
              xmlns:views="clr-namespace:Boutique.Views"
              mc:Ignorable="d"
              d:DesignHeight="800"
-             d:DesignWidth="1200">
+             d:DesignWidth="1400">
     <Grid Margin="4,0,0,6">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
@@ -17,37 +16,67 @@
 
         <views:SettingsPanelView Grid.Row="0" Margin="0,0,0,4" DataContext="{Binding}" />
 
-        <Grid Grid.Row="1" Margin="0,0,0,4">
+        <!-- Three-panel layout: Plugins | Armors | Outfit Drafts -->
+        <Grid Grid.Row="1" Margin="0,6,0,6">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <TextBlock Text="Outfit Source Plugin:"
-                       FontWeight="Bold"
-                       VerticalAlignment="Center"
-                       Margin="0,0,6,0" />
-            <ComboBox Grid.Column="1"
-                      ItemsSource="{Binding AvailablePlugins}"
-                      SelectedItem="{Binding SelectedOutfitPlugin}"
-                      IsEditable="True"
-                      IsTextSearchEnabled="True"
-                      StaysOpenOnEdit="True"
-                      IsTextSearchCaseSensitive="False"
-                      ToolTip="Type to search plugins" />
-            <Button Grid.Column="2"
-                    Content="Load"
-                    Command="{Binding LoadOutfitPluginCommand}" />
-        </Grid>
-
-        <Grid Grid.Row="2" Margin="0,6,0,6">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="3*" />
+                <ColumnDefinition Width="220" MinWidth="150" />
                 <ColumnDefinition Width="6" />
-                <ColumnDefinition Width="2*" />
+                <ColumnDefinition Width="2*" MinWidth="300" />
+                <ColumnDefinition Width="6" />
+                <ColumnDefinition Width="*" MinWidth="280" />
             </Grid.ColumnDefinitions>
 
-            <GroupBox Grid.Column="0" Header="Available Armors" Padding="6">
+            <!-- Left Panel: Plugin Selection -->
+            <GroupBox Grid.Column="0" Header="Source Plugins" Padding="6">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <Grid Grid.Row="0" Margin="0,0,0,6">
+                        <TextBox x:Name="PluginSearchBox"
+                                 Text="{Binding OutfitPluginSearchText, UpdateSourceTrigger=PropertyChanged}"
+                                 ToolTip="Filter plugins by name" />
+                        <TextBlock Text="🔍 Filter..."
+                                   Foreground="Gray"
+                                   IsHitTestVisible="False"
+                                   Margin="6,0,0,0"
+                                   VerticalAlignment="Center">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Text, ElementName=PluginSearchBox}" Value="">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+
+                    <ListBox Grid.Row="1"
+                             x:Name="PluginListBox"
+                             ItemsSource="{Binding FilteredOutfitPlugins}"
+                             SelectedItem="{Binding SelectedOutfitPlugin}"
+                             SelectionMode="Single"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}"
+                                           TextTrimming="CharacterEllipsis"
+                                           ToolTip="{Binding}" />
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </GroupBox>
+
+            <GridSplitter Grid.Column="1" Width="4" HorizontalAlignment="Stretch" Background="LightGray" />
+
+            <!-- Middle Panel: Armors from Selected Plugin -->
+            <GroupBox Grid.Column="2" Header="Available Armors" Padding="6">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -55,16 +84,23 @@
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
-                    <StackPanel Grid.Row="0"
-                                Orientation="Horizontal"
-                                Margin="0,0,0,4">
-                        <TextBlock Text="Search:" VerticalAlignment="Center" Margin="0,0,4,0" />
-                        <TextBox Width="220"
+                    <Grid Grid.Row="0" Margin="0,0,0,4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0"
+                                   Text="Search:"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,4,0" />
+                        <TextBox Grid.Column="1"
                                  Text="{Binding OutfitSearchText, UpdateSourceTrigger=PropertyChanged}" />
-                        <TextBlock Text="{Binding OutfitArmors.Count, StringFormat='{}{0} armors'}"
+                        <TextBlock Grid.Column="2"
+                                   Text="{Binding OutfitArmors.Count, StringFormat='{}{0} armors'}"
                                    Margin="8,0,0,0"
                                    VerticalAlignment="Center" />
-                    </StackPanel>
+                    </Grid>
 
                     <DataGrid x:Name="OutfitArmorsGrid"
                               Grid.Row="1"
@@ -84,20 +120,15 @@
                                     <Binding Path="DisplayName" Mode="OneWay" />
                                 </DataGridTextColumn.Binding>
                             </DataGridTextColumn>
-                            <DataGridTextColumn Header="Slots" Width="130" IsReadOnly="True">
+                            <DataGridTextColumn Header="Slots" Width="100" IsReadOnly="True">
                                 <DataGridTextColumn.Binding>
                                     <Binding Path="SlotSummary" Mode="OneWay" />
                                 </DataGridTextColumn.Binding>
                             </DataGridTextColumn>
-                            <DataGridTextColumn Header="Form ID" Width="120" IsReadOnly="True"
+                            <DataGridTextColumn Header="Form ID" Width="100" IsReadOnly="True"
                                                 SortMemberPath="FormIdSortable">
                                 <DataGridTextColumn.Binding>
                                     <Binding Path="FormIdDisplay" Mode="OneWay" />
-                                </DataGridTextColumn.Binding>
-                            </DataGridTextColumn>
-                            <DataGridTextColumn Header="Mod" Width="150" IsReadOnly="True">
-                                <DataGridTextColumn.Binding>
-                                    <Binding Path="ModDisplayName" Mode="OneWay" />
                                 </DataGridTextColumn.Binding>
                             </DataGridTextColumn>
                         </DataGrid.Columns>
@@ -112,9 +143,10 @@
                 </Grid>
             </GroupBox>
 
-            <GridSplitter Grid.Column="1" Width="4" HorizontalAlignment="Stretch" Background="LightGray" />
+            <GridSplitter Grid.Column="3" Width="4" HorizontalAlignment="Stretch" Background="LightGray" />
 
-            <GroupBox Grid.Column="2" Header="Plugin Outfits" Padding="6">
+            <!-- Right Panel: Outfit Drafts (unchanged) -->
+            <GroupBox Grid.Column="4" Header="Outfit Queue" Padding="6">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -161,7 +193,7 @@
                             <TextBlock Text="{Binding ExistingOutfits.Count, StringFormat='This plugin already defines {0} outfit(s).'}"
                                        FontWeight="Bold"
                                        Margin="0,0,0,6" />
-                            <ScrollViewer MaxHeight="200"
+                            <ScrollViewer MaxHeight="120"
                                           VerticalScrollBarVisibility="Auto">
                                 <ItemsControl ItemsSource="{Binding ExistingOutfits}">
                                     <ItemsControl.ItemTemplate>
@@ -182,7 +214,7 @@
                     </Border>
 
                     <Grid Grid.Row="2">
-                        <TextBlock Text="No outfits queued. Select armors on the left and click Create Outfit."
+                        <TextBlock Text="No outfits queued. Select armors and click Create Outfit."
                                    Foreground="Gray" FontStyle="Italic"
                                    HorizontalAlignment="Center"
                                    VerticalAlignment="Center">
@@ -218,29 +250,30 @@
                                                         <ColumnDefinition Width="*" />
                                                         <ColumnDefinition Width="Auto" />
                                                     </Grid.ColumnDefinitions>
-                                                    <StackPanel Grid.Column="0" Orientation="Horizontal"
-                                                                VerticalAlignment="Center">
-                                                        <TextBox Width="200"
+                                                    <StackPanel Grid.Column="0" Orientation="Vertical">
+                                                        <TextBox Width="180"
                                                                  Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                                  PreviewTextInput="OutfitNameTextBox_OnPreviewTextInput"
                                                                  DataObject.Pasting="OutfitNameTextBox_OnPasting"
-                                                                 Margin="0,0,8,0"
-                                                                 MaxLength="40" />
-                                                        <TextBlock Text="{Binding EditorId, StringFormat='ID: {0}'}"
-                                                                   VerticalAlignment="Center" Margin="0,0,12,0" />
-                                                        <TextBlock
-                                                            Text="{Binding FormIdDisplay, StringFormat='FormID {0}'}"
-                                                            VerticalAlignment="Center" />
+                                                                 MaxLength="40"
+                                                                 HorizontalAlignment="Left" />
+                                                        <TextBlock Margin="0,2,0,0" FontSize="11" Foreground="Gray">
+                                                            <Run Text="{Binding EditorId, Mode=OneWay}" />
+                                                            <Run Text=" • " />
+                                                            <Run Text="{Binding FormIdDisplay, Mode=OneWay}" />
+                                                        </TextBlock>
                                                     </StackPanel>
                                                     <StackPanel Grid.Column="1" Orientation="Horizontal"
-                                                                VerticalAlignment="Center">
-                                                        <Button Content="Preview"
+                                                                VerticalAlignment="Top">
+                                                        <Button Content="👁"
                                                                 Command="{Binding PreviewCommand}"
-                                                                Padding="8,4"
-                                                                Margin="0,0,6,0" />
-                                                        <Button Content="Remove Outfit"
+                                                                Padding="6,4"
+                                                                Margin="0,0,4,0"
+                                                                ToolTip="Preview outfit" />
+                                                        <Button Content="✕"
                                                                 Command="{Binding RemoveSelfCommand}"
-                                                                Padding="8,4" />
+                                                                Padding="6,4"
+                                                                ToolTip="Remove outfit" />
                                                     </StackPanel>
                                                 </Grid>
                                                 <ItemsControl ItemsSource="{Binding Pieces}">
@@ -255,17 +288,21 @@
                                                                            Text="{Binding SummaryLine}"
                                                                            VerticalAlignment="Center"
                                                                            TextWrapping="NoWrap"
-                                                                           TextTrimming="CharacterEllipsis" />
-                                                                <Button Grid.Column="1" Content="Remove"
+                                                                           TextTrimming="CharacterEllipsis"
+                                                                           FontSize="12" />
+                                                                <Button Grid.Column="1" Content="✕"
                                                                         Command="{Binding DataContext.RemovePieceCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                                         CommandParameter="{Binding}"
-                                                                        Margin="4,0,0,0" />
+                                                                        Padding="4,2"
+                                                                        Margin="4,0,0,0"
+                                                                        FontSize="10"
+                                                                        ToolTip="Remove piece" />
                                                             </Grid>
                                                         </DataTemplate>
                                                     </ItemsControl.ItemTemplate>
                                                 </ItemsControl>
                                                 <TextBlock Text="No pieces selected." Foreground="Gray"
-                                                           FontStyle="Italic" Margin="0,2,0,0">
+                                                           FontStyle="Italic" Margin="0,2,0,0" FontSize="12">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
                                                             <Setter Property="Visibility" Value="Collapsed" />
@@ -289,7 +326,7 @@
             </GroupBox>
         </Grid>
 
-        <Grid Grid.Row="3" Margin="0,0,0,6">
+        <Grid Grid.Row="2" Margin="0,0,0,6">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />

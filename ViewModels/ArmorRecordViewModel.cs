@@ -34,11 +34,39 @@ public class ArmorRecordViewModel : ReactiveObject
     public float Weight => Armor.Weight;
     public uint Value => Armor.Value;
     public BipedObjectFlag SlotMask => Armor.BodyTemplate?.FirstPersonFlags ?? 0;
-    public string SlotSummary => SlotMask == 0 ? "Unassigned" : SlotMask.ToString();
+    public string SlotSummary => SlotMask == 0 ? "Unassigned" : FormatSlotMask(SlotMask);
     public string ModDisplayName => Armor.FormKey.ModKey.FileName;
     public string FormIdDisplay { get; }
 
     public uint FormIdSortable { get; }
+
+    /// <summary>
+    /// Formats a BipedObjectFlag for display. If the enum has a friendly name, use it.
+    /// Otherwise, convert the bit flag to its slot number (30-61) which is more readable than the raw value.
+    /// </summary>
+    public static string FormatSlotMask(BipedObjectFlag mask)
+    {
+        var parts = new List<string>();
+        var value = (uint)mask;
+
+        // Check each bit position (0-31)
+        for (var i = 0; i < 32 && value != 0; i++)
+        {
+            var bit = 1u << i;
+            if ((value & bit) == 0) continue;
+
+            var singleFlag = (BipedObjectFlag)bit;
+            var flagName = singleFlag.ToString();
+
+            // If ToString() returns a number, it has no friendly name - use the slot number instead
+            // Biped slots are numbered 30-61 in Skyrim (bit 0 = Slot 30, bit 1 = Slot 31, etc.)
+            parts.Add(uint.TryParse(flagName, out _) ? $"Slot{i + 30}" : flagName);
+
+            value &= ~bit; // Clear this bit
+        }
+
+        return parts.Count > 0 ? string.Join(", ", parts) : mask.ToString();
+    }
 
     public string Keywords
     {
