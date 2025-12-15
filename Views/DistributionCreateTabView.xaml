@@ -77,13 +77,13 @@
                     <ItemsControl ItemsSource="{Binding DistributionEntries}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border BorderBrush="Gray" BorderThickness="1" Margin="0,0,0,6" Padding="6" Cursor="Hand">
+                                <Border BorderThickness="1" Margin="0,0,0,6" Padding="6" Cursor="Hand" Background="{DynamicResource Brush.CardBackground}">
                                     <Border.Style>
                                         <Style TargetType="Border">
-                                            <Setter Property="BorderBrush" Value="Gray" />
+                                            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}" />
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                                    <Setter Property="BorderBrush" Value="#0078D4" />
+                                                    <Setter Property="BorderBrush" Value="{DynamicResource Brush.Accent}" />
                                                     <Setter Property="BorderThickness" Value="2" />
                                                 </DataTrigger>
                                             </Style.Triggers>
@@ -129,10 +129,10 @@
                                                 </ItemsControl.ItemsPanel>
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate>
-                                                        <Border Margin="0,0,0,2" Padding="4,1" BorderBrush="LightGray" BorderThickness="1" CornerRadius="2" Background="#F8F8F8">
+                                                        <Border Margin="0,0,0,2" Padding="4,1" BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1" CornerRadius="2" Background="{DynamicResource Brush.CardBackground}">
                                                             <StackPanel Orientation="Horizontal">
                                                                 <TextBlock Text="{Binding DisplayName}" FontSize="11" VerticalAlignment="Center" />
-                                                                <TextBlock Text="{Binding FormKeyString}" FontFamily="Consolas" FontSize="9" Foreground="Gray" Margin="4,0,0,0" VerticalAlignment="Center" />
+                                                                <TextBlock Text="{Binding FormKeyString}" FontFamily="Consolas" FontSize="9" Foreground="{DynamicResource Brush.TextDisabled}" Margin="4,0,0,0" VerticalAlignment="Center" />
                                                                 <Button Content="×" Click="RemoveNpc_Click" Tag="{Binding}" Padding="3,0" Margin="3,0,0,0"
                                                                         Background="Transparent" BorderThickness="0" FontSize="10" VerticalAlignment="Center" />
                                                             </StackPanel>
@@ -160,10 +160,10 @@
                                                 </ItemsControl.ItemsPanel>
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate>
-                                                        <Border Margin="0,0,0,2" Padding="4,1" BorderBrush="LightGray" BorderThickness="1" CornerRadius="2" Background="#F8F8F8">
+                                                        <Border Margin="0,0,0,2" Padding="4,1" BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1" CornerRadius="2" Background="{DynamicResource Brush.CardBackground}">
                                                             <StackPanel Orientation="Horizontal">
                                                                 <TextBlock Text="{Binding DisplayName}" FontSize="11" VerticalAlignment="Center" />
-                                                                <TextBlock Text="{Binding FormKeyString}" FontFamily="Consolas" FontSize="9" Foreground="Gray" Margin="4,0,0,0" VerticalAlignment="Center" />
+                                                                <TextBlock Text="{Binding FormKeyString}" FontFamily="Consolas" FontSize="9" Foreground="{DynamicResource Brush.TextDisabled}" Margin="4,0,0,0" VerticalAlignment="Center" />
                                                                 <Button Content="×" Click="RemoveFaction_Click" Tag="{Binding}" Padding="3,0" Margin="3,0,0,0"
                                                                         Background="Transparent" BorderThickness="0" FontSize="10" VerticalAlignment="Center" />
                                                             </StackPanel>
@@ -191,10 +191,10 @@
                                                 </ItemsControl.ItemsPanel>
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate>
-                                                        <Border Margin="0,0,0,2" Padding="4,1" BorderBrush="LightGray" BorderThickness="1" CornerRadius="2" Background="#F8F8F8">
+                                                        <Border Margin="0,0,0,2" Padding="4,1" BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1" CornerRadius="2" Background="{DynamicResource Brush.CardBackground}">
                                                             <StackPanel Orientation="Horizontal">
                                                                 <TextBlock Text="{Binding DisplayName}" FontSize="11" VerticalAlignment="Center" />
-                                                                <TextBlock Text="{Binding FormKeyString}" FontFamily="Consolas" FontSize="9" Foreground="Gray" Margin="4,0,0,0" VerticalAlignment="Center" />
+                                                                <TextBlock Text="{Binding FormKeyString}" FontFamily="Consolas" FontSize="9" Foreground="{DynamicResource Brush.TextDisabled}" Margin="4,0,0,0" VerticalAlignment="Center" />
                                                                 <Button Content="×" Click="RemoveKeyword_Click" Tag="{Binding}" Padding="3,0" Margin="3,0,0,0"
                                                                         Background="Transparent" BorderThickness="0" FontSize="10" VerticalAlignment="Center" />
                                                             </StackPanel>
@@ -222,10 +222,10 @@
                                                 </ItemsControl.ItemsPanel>
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate>
-                                                        <Border Margin="0,0,0,2" Padding="4,1" BorderBrush="LightGray" BorderThickness="1" CornerRadius="2" Background="#F8F8F8">
+                                                        <Border Margin="0,0,0,2" Padding="4,1" BorderBrush="{DynamicResource Brush.Border}" BorderThickness="1" CornerRadius="2" Background="{DynamicResource Brush.CardBackground}">
                                                             <StackPanel Orientation="Horizontal">
                                                                 <TextBlock Text="{Binding DisplayName}" FontSize="11" VerticalAlignment="Center" />
-                                                                <TextBlock Text="{Binding FormKeyString}" FontFamily="Consolas" FontSize="9" Foreground="Gray" Margin="4,0,0,0" VerticalAlignment="Center" />
+                                                                <TextBlock Text="{Binding FormKeyString}" FontFamily="Consolas" FontSize="9" Foreground="{DynamicResource Brush.TextDisabled}" Margin="4,0,0,0" VerticalAlignment="Center" />
                                                                 <Button Content="×" Click="RemoveRace_Click" Tag="{Binding}" Padding="3,0" Margin="3,0,0,0"
                                                                         Background="Transparent" BorderThickness="0" FontSize="10" VerticalAlignment="Center" />
                                                             </StackPanel>

@@ -1,8 +1,10 @@
 using System.IO;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media.Media3D;
 using Boutique.Models;
+using Boutique.Services;
 using HelixToolkit.Wpf.SharpDX;
 using HelixToolkit.Wpf.SharpDX.Model.Scene;
 using Serilog;
@@ -38,6 +40,7 @@ public partial class OutfitPreviewWindow : IDisposable
     private readonly DirectionalLight3D _frontRightLight = new();
     private readonly GroupModel3D _meshGroup = new();
     private readonly ArmorPreviewScene _scene;
+    private readonly ThemeService _themeService;
 
     private float _ambientMultiplier;
     private float _frontalMultiplier = 7f;
@@ -45,13 +48,24 @@ public partial class OutfitPreviewWindow : IDisposable
     private float _keyFillMultiplier = 1.6f;
     private float _rimMultiplier = 1f;
 
-    public OutfitPreviewWindow(ArmorPreviewScene scene)
+    public OutfitPreviewWindow(ArmorPreviewScene scene, ThemeService themeService)
     {
         InitializeComponent();
         _scene = scene ?? throw new ArgumentNullException(nameof(scene));
+        _themeService = themeService;
+
+        // Apply title bar theme
+        SourceInitialized += (_, _) => _themeService.ApplyTitleBarTheme(this);
+        _themeService.ThemeChanged += OnThemeChanged;
 
         InitializeViewport();
         BuildScene();
+    }
+
+    private void OnThemeChanged(object? sender, bool isDark)
+    {
+        var hwnd = new WindowInteropHelper(this).Handle;
+        ThemeService.ApplyTitleBarTheme(hwnd, isDark);
     }
 
     private void InitializeViewport()
@@ -473,6 +487,8 @@ public partial class OutfitPreviewWindow : IDisposable
 
         if (disposing)
         {
+            _themeService.ThemeChanged -= OnThemeChanged;
+
             _meshGroup.Children.Clear();
             PreviewViewport.Items.Clear();
 

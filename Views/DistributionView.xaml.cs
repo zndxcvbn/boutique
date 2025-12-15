@@ -1,6 +1,7 @@
 using System.Reactive;
 using System.Reactive.Linq;
 using System.Windows;
+using Boutique.Services;
 using Boutique.ViewModels;
 using ReactiveUI;
 
@@ -32,7 +33,10 @@ public partial class DistributionView
             await Dispatcher.InvokeAsync(() =>
             {
                 var owner = Window.GetWindow(this);
-                var window = new OutfitPreviewWindow(interaction.Input)
+                var themeService = ThemeService.Current;
+                if (themeService == null) return;
+
+                var window = new OutfitPreviewWindow(interaction.Input, themeService)
                 {
                     Owner = owner
                 };

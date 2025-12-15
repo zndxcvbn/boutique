@@ -9,6 +9,13 @@ using ReactiveUI.Fody.Helpers;
 
 namespace Boutique.ViewModels;
 
+public enum ThemeOption
+{
+    System,
+    Light,
+    Dark
+}
+
 /// <summary>
 /// Simple relay command that doesn't use ReactiveUI to avoid threading issues with WPF dialogs.
 /// </summary>
@@ -27,16 +34,21 @@ public class SettingsViewModel : ReactiveObject
 {
     private readonly PatcherSettings _settings;
     private readonly CrossSessionCacheService _cacheService;
+    private readonly ThemeService _themeService;
 
-    public SettingsViewModel(PatcherSettings settings, CrossSessionCacheService cacheService)
+    public SettingsViewModel(PatcherSettings settings, CrossSessionCacheService cacheService, ThemeService themeService)
     {
         _settings = settings;
         _cacheService = cacheService;
+        _themeService = themeService;
 
         // Initialize from settings
         SkyrimDataPath = settings.SkyrimDataPath;
         OutputPatchPath = settings.OutputPatchPath;
         PatchFileName = settings.PatchFileName;
+
+        // Initialize theme from service
+        SelectedTheme = (ThemeOption)_themeService.CurrentThemeSetting;
 
         // Sync property changes back to the settings model
         this.WhenAnyValue(x => x.SkyrimDataPath)
@@ -50,6 +62,11 @@ public class SettingsViewModel : ReactiveObject
         this.WhenAnyValue(x => x.PatchFileName)
             .Skip(1)
             .Subscribe(v => _settings.PatchFileName = v);
+
+        // Theme change subscription
+        this.WhenAnyValue(x => x.SelectedTheme)
+            .Skip(1)
+            .Subscribe(theme => _themeService.SetTheme((AppTheme)theme));
 
         // Use simple RelayCommand instead of ReactiveCommand to avoid threading issues
         BrowseDataPathCommand = new RelayCommand(BrowseDataPath);
@@ -72,6 +89,9 @@ public class SettingsViewModel : ReactiveObject
     [Reactive] public string PatchFileName { get; set; } = "";
     [Reactive] public string CacheStatus { get; set; } = "No cache";
     [Reactive] public bool HasCache { get; set; }
+    [Reactive] public ThemeOption SelectedTheme { get; set; }
+
+    public IReadOnlyList<ThemeOption> ThemeOptions { get; } = Enum.GetValues<ThemeOption>();
 
     public string FullOutputPath => Path.Combine(OutputPatchPath, PatchFileName);
 

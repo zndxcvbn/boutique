@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.IO;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Windows;
@@ -52,6 +51,7 @@ public partial class App
         builder.RegisterType<DistributionConflictDetectionService>().SingleInstance();
         builder.RegisterType<CrossSessionCacheService>().SingleInstance();
         builder.RegisterType<GameDataCacheService>().SingleInstance();
+        builder.RegisterType<ThemeService>().SingleInstance();
 
         // Register ViewModels
         builder.RegisterType<MainViewModel>().AsSelf().SingleInstance();
@@ -63,7 +63,9 @@ public partial class App
 
         _container = builder.Build();
 
-        ApplyThemeToggle();
+        // Initialize theme service before showing window
+        var themeService = _container.Resolve<ThemeService>();
+        themeService.Initialize();
 
         // Show main window
         try
@@ -199,29 +201,6 @@ public partial class App
         _container?.Dispose();
         _loggingService?.Dispose();
         base.OnExit(e);
-    }
-
-    private static void ApplyThemeToggle()
-    {
-        try
-        {
-            var configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".config", "theme.json");
-            if (!File.Exists(configPath))
-                return;
-
-            var json = File.ReadAllText(configPath);
-            using var doc = JsonDocument.Parse(json);
-            if (!doc.RootElement.TryGetProperty("EnableTheme", out var enableThemeElement))
-                return;
-
-            var enableTheme = enableThemeElement.GetBoolean();
-            if (!enableTheme && Current.Resources.MergedDictionaries.Count > 0)
-                Current.Resources.MergedDictionaries.Clear();
-        }
-        catch (Exception ex)
-        {
-            Log.Warning(ex, "Failed to apply theme toggle configuration. Continuing with default resources.");
-        }
     }
 
     private void ConfigureExceptionLogging()

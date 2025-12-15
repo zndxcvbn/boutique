@@ -1,0 +1,14 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Light Theme (Warm paper / parchment inspired) -->
+    <Color x:Key="Color.PrimaryBackground">#FFF5F0E6</Color>
+    <Color x:Key="Color.PanelBackground">#FFFAF7F0</Color>
+    <Color x:Key="Color.CardBackground">#FFFFFFFF</Color>
+    <Color x:Key="Color.Border">#FFD4CFC4</Color>
+    <Color x:Key="Color.Accent">#FF5B8266</Color>
+    <Color x:Key="Color.AccentMuted">#FF7A9E85</Color>
+    <Color x:Key="Color.Warning">#FFC44D4D</Color>
+    <Color x:Key="Color.TextPrimary">#FF2C2A26</Color>
+    <Color x:Key="Color.TextSecondary">#FF5C5850</Color>
+    <Color x:Key="Color.TextDisabled">#FF9C9890</Color>
+</ResourceDictionary>

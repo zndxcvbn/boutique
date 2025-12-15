@@ -2,6 +2,8 @@ using System.Reactive;
 using System.Reactive.Disposables;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Interop;
+using Boutique.Services;
 using Boutique.ViewModels;
 using Microsoft.VisualBasic;
 
@@ -10,12 +12,18 @@ namespace Boutique.Views;
 public partial class MainWindow : Window
 {
     private readonly CompositeDisposable _bindings = [];
+    private readonly ThemeService _themeService;
     private bool _initialized;
 
-    public MainWindow(MainViewModel viewModel)
+    public MainWindow(MainViewModel viewModel, ThemeService themeService)
     {
         InitializeComponent();
         DataContext = viewModel;
+        _themeService = themeService;
+
+        // Apply title bar theme on initialization and when theme changes
+        SourceInitialized += (_, _) => _themeService.ApplyTitleBarTheme(this);
+        _themeService.ThemeChanged += OnThemeChanged;
 
         var notificationDisposable = viewModel.PatchCreatedNotification.RegisterHandler(async interaction =>
         {
@@ -53,7 +61,7 @@ public partial class MainWindow : Window
             var scene = interaction.Input;
             await Dispatcher.InvokeAsync(() =>
             {
-                var window = new OutfitPreviewWindow(scene)
+                var window = new OutfitPreviewWindow(scene, _themeService)
                 {
                     Owner = this
                 };
@@ -63,8 +71,18 @@ public partial class MainWindow : Window
         });
         _bindings.Add(previewDisposable);
 
-        Closed += (_, _) => { _bindings.Dispose(); };
+        Closed += (_, _) =>
+        {
+            _bindings.Dispose();
+            _themeService.ThemeChanged -= OnThemeChanged;
+        };
         Loaded += OnLoaded;
+    }
+
+    private void OnThemeChanged(object? sender, bool isDark)
+    {
+        var hwnd = new WindowInteropHelper(this).Handle;
+        ThemeService.ApplyTitleBarTheme(hwnd, isDark);
     }
 
     private async void TabControl_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
