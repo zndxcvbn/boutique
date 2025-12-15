@@ -108,6 +108,18 @@
                                   ToolTip="Filter by race (SPID FormFilter)" />
                     </StackPanel>
 
+                    <!-- Keyword Filter -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,16,0">
+                        <TextBlock Text="Keyword:" VerticalAlignment="Center" Margin="0,0,6,0" />
+                        <ComboBox ItemsSource="{Binding AvailableKeywords}"
+                                  SelectedItem="{Binding SelectedKeyword}"
+                                  DisplayMemberPath="DisplayName"
+                                  MinWidth="140"
+                                  IsEditable="True"
+                                  IsTextSearchEnabled="True"
+                                  ToolTip="Filter by keyword (SPID StringFilter)" />
+                    </StackPanel>
+
                     <!-- Clear Filters Button -->
                     <Button Content="Clear Filters"
                             Command="{Binding ClearFiltersCommand}"
