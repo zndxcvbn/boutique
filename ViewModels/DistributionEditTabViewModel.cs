@@ -362,20 +362,14 @@ public class DistributionEditTabViewModel : ReactiveObject
     /// Sets the distribution files from the Files tab. This is used for conflict detection
     /// and for populating the AvailableDistributionFiles dropdown.
     /// </summary>
-    public void SetDistributionFiles(IReadOnlyList<DistributionFileViewModel> files)
-    {
-        UpdateAvailableDistributionFiles(files);
-    }
+    public void SetDistributionFiles(IReadOnlyList<DistributionFileViewModel> files) => UpdateAvailableDistributionFiles(files);
 
     private IReadOnlyList<DistributionFileViewModel>? _distributionFiles;
 
     /// <summary>
     /// Internal method to store distribution files for conflict detection.
     /// </summary>
-    internal void SetDistributionFilesInternal(IReadOnlyList<DistributionFileViewModel> files)
-    {
-        _distributionFiles = files;
-    }
+    internal void SetDistributionFilesInternal(IReadOnlyList<DistributionFileViewModel> files) => _distributionFiles = files;
 
     private void OnDistributionEntriesChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
     {

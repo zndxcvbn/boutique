@@ -301,10 +301,7 @@ public class PatchingService(MutagenService mutagenService, ILoggingService logg
         return result;
     }
 
-    private static void ApplyGlamOnlyAdjustments(Armor target)
-    {
-        target.ArmorRating = 0;
-    }
+    private static void ApplyGlamOnlyAdjustments(Armor target) => target.ArmorRating = 0;
 
     private static void CopyArmorStats(Armor target, IArmorGetter source)
     {

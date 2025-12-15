@@ -31,20 +31,11 @@ public partial class OutfitCreatorView
 
     private MainViewModel? ViewModel => DataContext as MainViewModel;
 
-    private void OnLoaded(object sender, RoutedEventArgs e)
-    {
-        AttachToViewModel(ViewModel);
-    }
+    private void OnLoaded(object sender, RoutedEventArgs e) => AttachToViewModel(ViewModel);
 
-    private void OnUnloaded(object sender, RoutedEventArgs e)
-    {
-        AttachToViewModel(null);
-    }
+    private void OnUnloaded(object sender, RoutedEventArgs e) => AttachToViewModel(null);
 
-    private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
-    {
-        AttachToViewModel(e.NewValue as MainViewModel);
-    }
+    private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e) => AttachToViewModel(e.NewValue as MainViewModel);
 
     private void AttachToViewModel(MainViewModel? viewModel)
     {
@@ -173,10 +164,7 @@ public partial class OutfitCreatorView
         e.Handled = true;
     }
 
-    private void OutfitNameTextBox_OnPreviewTextInput(object sender, TextCompositionEventArgs e)
-    {
-        e.Handled = !AlphaInputRegex.IsMatch(e.Text);
-    }
+    private void OutfitNameTextBox_OnPreviewTextInput(object sender, TextCompositionEventArgs e) => e.Handled = !AlphaInputRegex.IsMatch(e.Text);
 
     private void OutfitNameTextBox_OnPasting(object sender, DataObjectPastingEventArgs e)
     {
@@ -208,15 +196,9 @@ public partial class OutfitCreatorView
         e.CancelCommand();
     }
 
-    private void NewOutfitDropZone_OnDragEnter(object sender, DragEventArgs e)
-    {
-        HandleDropTargetDrag(sender as Border, e);
-    }
+    private void NewOutfitDropZone_OnDragEnter(object sender, DragEventArgs e) => HandleDropTargetDrag(sender as Border, e);
 
-    private void NewOutfitDropZone_OnDragOver(object sender, DragEventArgs e)
-    {
-        HandleDropTargetDrag(sender as Border, e);
-    }
+    private void NewOutfitDropZone_OnDragOver(object sender, DragEventArgs e) => HandleDropTargetDrag(sender as Border, e);
 
     private void NewOutfitDropZone_OnDragLeave(object sender, DragEventArgs e)
     {
@@ -247,15 +229,9 @@ public partial class OutfitCreatorView
         e.Handled = true;
     }
 
-    private void OutfitDraftBorder_OnDragEnter(object sender, DragEventArgs e)
-    {
-        HandleDropTargetDrag(sender as Border, e);
-    }
+    private void OutfitDraftBorder_OnDragEnter(object sender, DragEventArgs e) => HandleDropTargetDrag(sender as Border, e);
 
-    private void OutfitDraftBorder_OnDragOver(object sender, DragEventArgs e)
-    {
-        HandleDropTargetDrag(sender as Border, e);
-    }
+    private void OutfitDraftBorder_OnDragOver(object sender, DragEventArgs e) => HandleDropTargetDrag(sender as Border, e);
 
     private void OutfitDraftBorder_OnDragLeave(object sender, DragEventArgs e)
     {
@@ -311,10 +287,7 @@ public partial class OutfitCreatorView
         e.Handled = true;
     }
 
-    private static bool HasArmorRecords(IDataObject data)
-    {
-        return data.GetDataPresent(ArmorDragDataFormat);
-    }
+    private static bool HasArmorRecords(IDataObject data) => data.GetDataPresent(ArmorDragDataFormat);
 
     private static bool TryExtractArmorRecords(IDataObject data, out List<ArmorRecordViewModel> pieces)
     {

@@ -276,10 +276,7 @@ public class GameAssetLocator
         return normalized;
     }
 
-    private static string ToSystemPath(string normalized)
-    {
-        return normalized.Replace('/', Path.DirectorySeparatorChar);
-    }
+    private static string ToSystemPath(string normalized) => normalized.Replace('/', Path.DirectorySeparatorChar);
 
     private static string ComputePathHash(string dataPath)
     {

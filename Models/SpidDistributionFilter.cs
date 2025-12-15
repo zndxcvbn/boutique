@@ -121,10 +121,7 @@ public sealed class SpidFilterSection
     /// </summary>
     public bool HasFactions => Expressions.Any(e => e.Parts.Any(p => p.LooksLikeFaction));
 
-    public override string ToString()
-    {
-        return string.Join(", ", Expressions.Select(e => e.ToString()));
-    }
+    public override string ToString() => string.Join(", ", Expressions.Select(e => e.ToString()));
 }
 
 /// <summary>
@@ -138,10 +135,7 @@ public sealed class SpidFilterExpression
     /// </summary>
     public List<SpidFilterPart> Parts { get; init; } = [];
 
-    public override string ToString()
-    {
-        return string.Join(" AND ", Parts.Select(p => p.ToString()));
-    }
+    public override string ToString() => string.Join(" AND ", Parts.Select(p => p.ToString()));
 }
 
 /// <summary>

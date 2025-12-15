@@ -359,18 +359,12 @@ public class GameDataCacheService
     /// Invalidates (clears) the cross-session cache.
     /// The next load will rebuild the cache from scratch.
     /// </summary>
-    public void InvalidateCrossSessionCache()
-    {
-        _crossSessionCache.InvalidateCache();
-    }
+    public void InvalidateCrossSessionCache() => _crossSessionCache.InvalidateCache();
 
     /// <summary>
     /// Gets information about the cross-session cache.
     /// </summary>
-    public CacheInfo? GetCrossSessionCacheInfo()
-    {
-        return _crossSessionCache.GetCacheInfo();
-    }
+    public CacheInfo? GetCrossSessionCacheInfo() => _crossSessionCache.GetCacheInfo();
 
     /// <summary>
     /// Loads distribution files and resolves NPC outfit assignments.
@@ -623,8 +617,5 @@ public class GameDataCacheService
             .ToList();
     }
 
-    private List<IOutfitGetter> LoadOutfits(ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
-    {
-        return linkCache.WinningOverrides<IOutfitGetter>().ToList();
-    }
+    private List<IOutfitGetter> LoadOutfits(ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache) => linkCache.WinningOverrides<IOutfitGetter>().ToList();
 }

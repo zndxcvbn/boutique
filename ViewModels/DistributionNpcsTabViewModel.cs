@@ -72,10 +72,7 @@ public class DistributionNpcsTabViewModel : ReactiveObject
         }
     }
 
-    private void OnCacheLoaded(object? sender, EventArgs e)
-    {
-        PopulateFromCache();
-    }
+    private void OnCacheLoaded(object? sender, EventArgs e) => PopulateFromCache();
 
     private void PopulateFromCache()
     {

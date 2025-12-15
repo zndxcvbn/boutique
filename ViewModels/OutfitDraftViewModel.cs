@@ -78,10 +78,7 @@ public class OutfitDraftViewModel : ReactiveObject
 
     public ReactiveCommand<Unit, Unit> PreviewCommand { get; }
 
-    public IReadOnlyList<ArmorRecordViewModel> GetPieces()
-    {
-        return _pieces.ToList();
-    }
+    public IReadOnlyList<ArmorRecordViewModel> GetPieces() => _pieces.ToList();
 
     public void RemovePiece(ArmorRecordViewModel piece)
     {
@@ -112,15 +109,9 @@ public class OutfitDraftViewModel : ReactiveObject
         return (added, []);
     }
 
-    private void PiecesOnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
-    {
-        this.RaisePropertyChanged(nameof(HasPieces));
-    }
+    private void PiecesOnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) => this.RaisePropertyChanged(nameof(HasPieces));
 
-    public void RevertName()
-    {
-        SetNameInternal(_previousValidName, false);
-    }
+    public void RevertName() => SetNameInternal(_previousValidName, false);
 
     private void SetNameInternal(string? value, bool updateHistory)
     {

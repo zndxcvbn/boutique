@@ -314,16 +314,11 @@ public class DistributionFileWriterService
         }
     }
 
-    private static string FormatFormKey(FormKey formKey)
-    {
-        return $"{formKey.ModKey.FileName}|{formKey.ID:X8}";
-    }
+    private static string FormatFormKey(FormKey formKey) => $"{formKey.ModKey.FileName}|{formKey.ID:X8}";
 
-    private static string FormatOutfitIdentifier(IOutfitGetter outfit)
-    {
+    private static string FormatOutfitIdentifier(IOutfitGetter outfit) =>
         // Format as FormKey: 0x800~Plugin.esp
-        return $"0x{outfit.FormKey.ID:X}~{outfit.FormKey.ModKey.FileName}";
-    }
+        $"0x{outfit.FormKey.ID:X}~{outfit.FormKey.ModKey.FileName}";
 
     private static FormKey? TryParseFormKey(string text)
     {

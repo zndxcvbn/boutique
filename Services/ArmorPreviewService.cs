@@ -685,10 +685,7 @@ public class ArmorPreviewService(MutagenService mutagenService, GameAssetLocator
         return !string.IsNullOrWhiteSpace(file.GivenPath) ? NormalizeAssetPath(file.GivenPath) : null;
     }
 
-    private static string GetBodyRelativePath(GenderedModelVariant gender)
-    {
-        return gender == GenderedModelVariant.Female ? FemaleBodyRelativePath : MaleBodyRelativePath;
-    }
+    private static string GetBodyRelativePath(GenderedModelVariant gender) => gender == GenderedModelVariant.Female ? FemaleBodyRelativePath : MaleBodyRelativePath;
 
     private static string NormalizeAssetPath(string path)
     {

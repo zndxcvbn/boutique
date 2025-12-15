@@ -40,10 +40,7 @@ public sealed class LoggingService : ILoggingService
     public string LogDirectory { get; }
     public string LogFilePattern { get; }
 
-    public ILogger ForContext<T>()
-    {
-        return _logger.ForContext<T>();
-    }
+    public ILogger ForContext<T>() => _logger.ForContext<T>();
 
     public void Flush()
     {
@@ -54,8 +51,5 @@ public sealed class LoggingService : ILoggingService
         _disposed = true;
     }
 
-    public void Dispose()
-    {
-        Flush();
-    }
+    public void Dispose() => Flush();
 }

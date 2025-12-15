@@ -216,10 +216,7 @@ public static class NpcDataExtractor
     /// <summary>
     /// Extracts the NPC's level. Returns 1 if using PC level mult.
     /// </summary>
-    public static short ExtractLevel(INpcGetter npc)
-    {
-        return npc.Configuration.Level is NpcLevel npcLevel ? npcLevel.Level : (short)1;
-    }
+    public static short ExtractLevel(INpcGetter npc) => npc.Configuration.Level is NpcLevel npcLevel ? npcLevel.Level : (short)1;
 
     /// <summary>
     /// Extracts NPC trait flags.

@@ -53,10 +53,7 @@ public class DistributionFilesTabViewModel : ReactiveObject
         }
     }
 
-    private void OnCacheLoaded(object? sender, EventArgs e)
-    {
-        PopulateFilesFromCache();
-    }
+    private void OnCacheLoaded(object? sender, EventArgs e) => PopulateFilesFromCache();
 
     private void PopulateFilesFromCache()
     {

@@ -308,10 +308,7 @@ public partial class OutfitPreviewWindow : IDisposable
         return MathF.Pow(srgbValue, 2.2f);
     }
 
-    private static float ApplyExposure(float linearValue, float exposureMultiplier)
-    {
-        return Math.Max(0f, linearValue * exposureMultiplier);
-    }
+    private static float ApplyExposure(float linearValue, float exposureMultiplier) => Math.Max(0f, linearValue * exposureMultiplier);
 
     private static void SetSceneLightColor(Light3D light, Color4 color)
     {
@@ -394,10 +391,7 @@ public partial class OutfitPreviewWindow : IDisposable
         }
     }
 
-    private void OnViewportCameraChanged(object? sender, RoutedEventArgs e)
-    {
-        UpdateFrontalLightDirection();
-    }
+    private void OnViewportCameraChanged(object? sender, RoutedEventArgs e) => UpdateFrontalLightDirection();
 
     private void UpdateFrontalLightDirection()
     {
@@ -430,21 +424,13 @@ public partial class OutfitPreviewWindow : IDisposable
         return Color.FromRgb(r, g, b);
     }
 
-    private static Color ToMediaColor(Color4 color)
-    {
-        return Color.FromScRgb(color.Alpha, color.Red, color.Green, color.Blue);
-    }
+    private static Color ToMediaColor(Color4 color) => Color.FromScRgb(color.Alpha, color.Red, color.Green, color.Blue);
 
-    private static Color4 ToColor4(Color color)
-    {
-        return new Color4(color.R / 255f, color.G / 255f, color.B / 255f, color.A / 255f);
-    }
+    private static Color4 ToColor4(Color color) => new Color4(color.R / 255f, color.G / 255f, color.B / 255f, color.A / 255f);
 
-    private static Color GetViewportBackgroundColor()
-    {
+    private static Color GetViewportBackgroundColor() =>
         // Match BodySlide's light preview background (RGB 210,210,210).
-        return Color.FromRgb(210, 210, 210);
-    }
+        Color.FromRgb(210, 210, 210);
 
     private void OnResetView(object sender, RoutedEventArgs e)
     {
@@ -466,10 +452,7 @@ public partial class OutfitPreviewWindow : IDisposable
         UpdateFrontalLightDirection();
     }
 
-    private void OnClose(object sender, RoutedEventArgs e)
-    {
-        Close();
-    }
+    private void OnClose(object sender, RoutedEventArgs e) => Close();
 
     protected override void OnClosed(EventArgs e)
     {

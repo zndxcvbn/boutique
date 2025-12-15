@@ -18,10 +18,7 @@ public partial class DistributionView
         Unloaded += OnUnloaded;
     }
 
-    private void OnUnloaded(object sender, RoutedEventArgs e)
-    {
-        DisposePreviewSubscription();
-    }
+    private void OnUnloaded(object sender, RoutedEventArgs e) => DisposePreviewSubscription();
 
     private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
     {

@@ -100,20 +100,15 @@ public class DistributionOutfitsTabViewModel : ReactiveObject
     /// Sets the distribution files from the Files tab. This allows the Outfits tab to work with
     /// the files discovered by the Files tab without duplicating the discovery logic.
     /// </summary>
-    public static void SetDistributionFiles(IReadOnlyList<DistributionFileViewModel> files)
-    {
+    public static void SetDistributionFiles(IReadOnlyList<DistributionFileViewModel> files) =>
         // This method allows the main ViewModel to pass files from Files tab
         _ = files; // Suppress unused parameter warning
-    }
 
     /// <summary>
     /// Internal method to set distribution files for scanning.
     /// Called by the main ViewModel when files are available.
     /// </summary>
-    internal void SetDistributionFilesInternal(IReadOnlyList<DistributionFileViewModel> files)
-    {
-        _distributionFiles = files;
-    }
+    internal void SetDistributionFilesInternal(IReadOnlyList<DistributionFileViewModel> files) => _distributionFiles = files;
 
     public async Task LoadOutfitsAsync()
     {
