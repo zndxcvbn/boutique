@@ -2,8 +2,11 @@ namespace Boutique.Models;
 
 public enum DistributionFileType
 {
+    [System.ComponentModel.Description("SPID")]
     Spid,
+    [System.ComponentModel.Description("SkyPatcher")]
     SkyPatcher,
+    [System.ComponentModel.Description("ESP")]
     Esp
 }
 
