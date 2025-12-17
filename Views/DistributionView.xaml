@@ -11,53 +11,14 @@
     <Grid Margin="4,0,0,6">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <views:SettingsPanelView Grid.Row="0" Margin="0,0,0,4" DataContext="{Binding}" />
 
-        <Grid Grid.Row="1" Margin="0,0,0,6">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-
-            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                <TextBlock Text="Scanning path:" FontWeight="Bold" />
-                <TextBlock Text="{Binding DataPath}"
-                           Margin="6,0,0,0"
-                           TextWrapping="Wrap"
-                           TextTrimming="CharacterEllipsis"
-                           VerticalAlignment="Center" />
-            </StackPanel>
-
-            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                <ProgressBar Width="120"
-                             Height="18"
-                             Margin="0,0,12,0"
-                             IsIndeterminate="True"
-                             Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisConverter}}" />
-                <Button Content="Refresh"
-                        Width="90"
-                        Command="{Binding RefreshCommand}">
-                    <Button.Style>
-                        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-                            <Setter Property="IsEnabled" Value="True" />
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsLoading}" Value="True">
-                                    <Setter Property="IsEnabled" Value="False" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Button.Style>
-                </Button>
-            </StackPanel>
-        </Grid>
-
         <!-- TabControl with Create, NPCs, and Outfits tabs -->
-        <TabControl Grid.Row="2" SelectedIndex="{Binding SelectedTabIndex}">
+        <TabControl Grid.Row="1" SelectedIndex="{Binding SelectedTabIndex}">
 
             <!-- CREATE TAB -->
             <TabItem Header="Create">
@@ -81,7 +42,7 @@
             </TabItem>
         </TabControl>
 
-        <TextBlock Grid.Row="3"
+        <TextBlock Grid.Row="2"
                    Margin="0,6,0,0"
                    Text="{Binding StatusMessage}"
                    FontStyle="Italic" />

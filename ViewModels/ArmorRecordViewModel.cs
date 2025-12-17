@@ -117,7 +117,7 @@ public class ArmorRecordViewModel : ReactiveObject
     [Reactive] public bool IsSlotCompatible { get; set; } = true;
 
     public string FormKeyString => Armor.FormKey.ToString();
-    public string SummaryLine => $"{DisplayName} ({SlotSummary}) ({FormIdDisplay}) ({ModDisplayName})";
+    public string SummaryLine => $"{DisplayName} ({SlotSummary})";
 
     [Reactive] public bool IsMapped { get; set; }
 

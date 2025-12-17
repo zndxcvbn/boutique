@@ -32,8 +32,13 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
-            <!-- Left: Progress/Status -->
+            <!-- Left: Refresh + Progress/Status -->
             <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button Command="{Binding Distribution.RefreshCommand}" ToolTip="Refresh game data"
+                        MinWidth="0" Width="24" Height="24" Padding="0" Margin="0,0,8,0"
+                        VerticalAlignment="Center">
+                    <TextBlock Text="↻" FontSize="14" />
+                </Button>
                 <ProgressBar Width="200"
                              Height="18"
                              Minimum="0"

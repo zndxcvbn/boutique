@@ -61,7 +61,10 @@
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="border" Property="Background"
                                     Value="{StaticResource Brush.BorderLight}" />
+                            <Setter TargetName="border" Property="BorderBrush"
+                                    Value="{StaticResource Brush.BorderLight}" />
                             <Setter Property="Foreground" Value="{StaticResource Brush.TextDisabled}" />
+                            <Setter TargetName="border" Property="Opacity" Value="0.6" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -102,6 +105,7 @@
                             <Setter Property="Foreground" Value="{StaticResource Brush.TextDisabled}" />
                             <Setter TargetName="border" Property="BorderBrush"
                                     Value="{StaticResource Brush.BorderLight}" />
+                            <Setter TargetName="border" Property="Opacity" Value="0.6" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -539,8 +543,8 @@
 
     <Style TargetType="TabItem">
         <Setter Property="Foreground" Value="{StaticResource Brush.TextSecondary}" />
-        <Setter Property="Padding" Value="10,6" />
-        <Setter Property="Margin" Value="0,0,4,0" />
+        <Setter Property="Padding" Value="12,6" />
+        <Setter Property="Margin" Value="0" />
         <Setter Property="FontFamily" Value="{StaticResource Font.Primary}" />
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="Template">
@@ -550,8 +554,9 @@
                             Background="Transparent"
                             BorderBrush="Transparent"
                             BorderThickness="0"
-                            CornerRadius="6,6,0,0"
-                            Padding="{TemplateBinding Padding}">
+                            CornerRadius="3,3,0,0"
+                            Padding="{TemplateBinding Padding}"
+                            Margin="0,0,1,0">
                         <ContentPresenter x:Name="ContentSite"
                                           VerticalAlignment="Center"
                                           HorizontalAlignment="Center"
@@ -566,9 +571,7 @@
                         <Trigger Property="IsSelected" Value="True">
                             <Setter TargetName="Border" Property="Background"
                                     Value="{StaticResource Brush.AccentMuted}" />
-                            <Setter TargetName="Border" Property="BorderBrush" Value="{StaticResource Brush.Accent}" />
-                            <Setter TargetName="Border" Property="BorderThickness" Value="1,1,1,0" />
-                            <Setter Property="Foreground" Value="{StaticResource Brush.PrimaryBackground}" />
+                            <Setter Property="Foreground" Value="White" />
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Foreground" Value="{StaticResource Brush.TextDisabled}" />
