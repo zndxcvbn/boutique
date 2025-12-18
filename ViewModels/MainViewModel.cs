@@ -1271,6 +1271,22 @@ public class MainViewModel : ReactiveObject
         }
     }
 
+    public async Task PreviewArmorAsync(ArmorRecordViewModel armor)
+    {
+        try
+        {
+            StatusMessage = $"Building preview for '{armor.DisplayName}'...";
+            var scene = await _previewService.BuildPreviewAsync([armor], GenderedModelVariant.Female);
+            await ShowPreview.Handle(scene);
+            StatusMessage = $"Preview ready for '{armor.DisplayName}'.";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Preview error: {ex.Message}";
+            _logger.Error(ex, "Failed to build armor preview for {Armor}.", armor.DisplayName);
+        }
+    }
+
     public bool TryAddPiecesToDraft(OutfitDraftViewModel draft, IReadOnlyList<ArmorRecordViewModel> pieces)
     {
         var distinctPieces = DistinctArmorPieces(pieces);

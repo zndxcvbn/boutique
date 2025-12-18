@@ -162,6 +162,17 @@ public partial class OutfitCreatorView
         e.Handled = true;
     }
 
+    private async void PreviewArmorButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { DataContext: ArmorRecordViewModel armor })
+            return;
+
+        if (ViewModel is not { } viewModel)
+            return;
+
+        await viewModel.PreviewArmorAsync(armor);
+    }
+
     private void OutfitNameTextBox_OnPreviewTextInput(object sender, TextCompositionEventArgs e) => e.Handled = !InputPatterns.Identifier.IsValid(e.Text);
 
     private void OutfitNameTextBox_OnPasting(object sender, DataObjectPastingEventArgs e)

@@ -10,15 +10,12 @@
              d:DesignWidth="1200">
     <Grid Margin="4,0,0,6">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <views:SettingsPanelView Grid.Row="0" Margin="0,0,0,4" DataContext="{Binding}" />
-
         <!-- TabControl with Create, NPCs, and Outfits tabs -->
-        <TabControl Grid.Row="1" SelectedIndex="{Binding SelectedTabIndex}">
+        <TabControl Grid.Row="0" SelectedIndex="{Binding SelectedTabIndex}">
 
             <!-- CREATE TAB -->
             <TabItem Header="Create">
@@ -42,7 +39,7 @@
             </TabItem>
         </TabControl>
 
-        <TextBlock Grid.Row="2"
+        <TextBlock Grid.Row="1"
                    Margin="0,6,0,0"
                    Text="{Binding StatusMessage}"
                    FontStyle="Italic" />

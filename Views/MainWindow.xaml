@@ -24,6 +24,9 @@
             <TabItem Header="Armor Patch">
                 <views:ArmorPatchView DataContext="{Binding}" />
             </TabItem>
+            <TabItem Header="Settings">
+                <views:SettingsPanelView DataContext="{Binding}" />
+            </TabItem>
         </TabControl>
 
         <Grid Grid.Row="1" Margin="8,0,8,8">
