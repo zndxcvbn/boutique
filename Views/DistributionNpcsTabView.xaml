@@ -33,6 +33,11 @@
             </StackPanel>
 
             <StackPanel Grid.Column="2" Orientation="Horizontal">
+                <CheckBox Content="Hide vanilla distributions"
+                          IsChecked="{Binding HideVanillaDistributions}"
+                          VerticalAlignment="Center"
+                          Margin="0,0,16,0"
+                          ToolTip="Hides NPCs with their default outfit as the winning assignment" />
                 <TextBlock Text="Search:" VerticalAlignment="Center" Margin="0,0,6,0" />
                 <TextBox Text="{Binding NpcOutfitSearchText, UpdateSourceTrigger=PropertyChanged}"
                          MinWidth="250"

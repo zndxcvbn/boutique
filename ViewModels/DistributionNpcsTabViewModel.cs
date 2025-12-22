@@ -44,6 +44,10 @@ public class DistributionNpcsTabViewModel : ReactiveObject
         this.WhenAnyValue(vm => vm.NpcOutfitSearchText)
             .Subscribe(_ => UpdateFilteredNpcOutfitAssignments());
 
+        // Vanilla distribution filtering
+        this.WhenAnyValue(vm => vm.HideVanillaDistributions)
+            .Subscribe(_ => UpdateFilteredNpcOutfitAssignments());
+
         // Update outfit contents when selection changes
         this.WhenAnyValue(vm => vm.SelectedNpcAssignment)
             .Subscribe(_ => UpdateSelectedNpcOutfitContents());
@@ -112,6 +116,8 @@ public class DistributionNpcsTabViewModel : ReactiveObject
     }
 
     [Reactive] public string NpcOutfitSearchText { get; set; } = string.Empty;
+
+    [Reactive] public bool HideVanillaDistributions { get; set; }
 
     [Reactive] public ObservableCollection<NpcOutfitAssignmentViewModel> FilteredNpcOutfitAssignments { get; private set; } = [];
 
@@ -397,6 +403,12 @@ public class DistributionNpcsTabViewModel : ReactiveObject
                 a.ModDisplayName.Contains(term, StringComparison.OrdinalIgnoreCase));
         }
 
+        // Filter out NPCs whose final outfit is their default outfit (vanilla distribution)
+        if (HideVanillaDistributions)
+        {
+            filtered = filtered.Where(a => !IsVanillaDistribution(a.NpcFormKey, a.FinalOutfitFormKey));
+        }
+
         // Apply SPID-style filters
         if (!Filter.IsEmpty)
         {
@@ -415,6 +427,22 @@ public class DistributionNpcsTabViewModel : ReactiveObject
         }
 
         FilteredCount = FilteredNpcOutfitAssignments.Count;
+    }
+
+    /// <summary>
+    /// Returns true if the NPC's final outfit is their default outfit (no distribution changed it).
+    /// </summary>
+    private bool IsVanillaDistribution(FormKey npcFormKey, FormKey? finalOutfitFormKey)
+    {
+        if (!_cache.NpcsByFormKey.TryGetValue(npcFormKey, out var npcData))
+            return false;
+
+        // If no final outfit or no default outfit, not a vanilla distribution
+        if (!finalOutfitFormKey.HasValue || !npcData.DefaultOutfitFormKey.HasValue)
+            return false;
+
+        // If final outfit matches default outfit, it's a vanilla distribution
+        return finalOutfitFormKey.Value == npcData.DefaultOutfitFormKey.Value;
     }
 
     private bool MatchesSpidFilter(FormKey npcFormKey)

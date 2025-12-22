@@ -62,6 +62,7 @@ public class DistributionViewModel : ReactiveObject
             npcOutfitResolutionService,
             armorPreviewService,
             mutagenService,
+            gameDataCache,
             settings,
             logger);
 

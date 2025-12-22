@@ -11,7 +11,6 @@ using Mutagen.Bethesda.Skyrim;
 using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
 using Serilog;
-using static Boutique.Utilities.SkyrimConstants;
 
 namespace Boutique.ViewModels;
 
@@ -21,6 +20,7 @@ public class DistributionOutfitsTabViewModel : ReactiveObject
     private readonly NpcOutfitResolutionService _npcOutfitResolutionService;
     private readonly ArmorPreviewService _armorPreviewService;
     private readonly MutagenService _mutagenService;
+    private readonly GameDataCacheService _cache;
     private readonly SettingsViewModel _settings;
     private readonly ILogger _logger;
 
@@ -29,6 +29,7 @@ public class DistributionOutfitsTabViewModel : ReactiveObject
         NpcOutfitResolutionService npcOutfitResolutionService,
         ArmorPreviewService armorPreviewService,
         MutagenService mutagenService,
+        GameDataCacheService cache,
         SettingsViewModel settings,
         ILogger logger)
     {
@@ -36,6 +37,7 @@ public class DistributionOutfitsTabViewModel : ReactiveObject
         _npcOutfitResolutionService = npcOutfitResolutionService;
         _armorPreviewService = armorPreviewService;
         _mutagenService = mutagenService;
+        _cache = cache;
         _settings = settings;
         _logger = logger.ForContext<DistributionOutfitsTabViewModel>();
 
@@ -263,10 +265,10 @@ public class DistributionOutfitsTabViewModel : ReactiveObject
             filtered = filtered.Where(o => o.MatchesSearch(term));
         }
 
-        // Filter out vanilla outfits if checkbox is checked
+        // Filter out outfits where all NPCs have it as their default (no distribution changed anything)
         if (HideVanillaOutfits)
         {
-            filtered = filtered.Where(o => !IsVanillaPlugin(o.ModDisplayName));
+            filtered = filtered.Where(o => !IsVanillaDistribution(o.FormKey));
         }
 
         FilteredOutfits.Clear();
@@ -274,6 +276,38 @@ public class DistributionOutfitsTabViewModel : ReactiveObject
         {
             FilteredOutfits.Add(outfit);
         }
+    }
+
+    /// <summary>
+    /// Returns true if this outfit is only used as default outfits (no distribution changed any NPC to use it).
+    /// An outfit is a "vanilla distribution" if all NPCs whose final outfit is this one also have it as their default.
+    /// </summary>
+    private bool IsVanillaDistribution(FormKey outfitFormKey)
+    {
+        if (_npcAssignments == null || _npcAssignments.Count == 0)
+            return false; // If no assignments loaded, don't filter anything
+
+        // Find all NPCs whose final outfit is this one
+        var npcsWithThisOutfit = _npcAssignments
+            .Where(a => a.FinalOutfitFormKey == outfitFormKey)
+            .ToList();
+
+        if (npcsWithThisOutfit.Count == 0)
+            return true; // No NPCs use this outfit, consider it vanilla
+
+        // Check if ALL of these NPCs have this outfit as their default
+        foreach (var assignment in npcsWithThisOutfit)
+        {
+            if (!_cache.NpcsByFormKey.TryGetValue(assignment.NpcFormKey, out var npcData))
+                continue; // Can't determine, assume not vanilla
+
+            // If this NPC's default outfit is different from their final outfit, this is NOT a vanilla distribution
+            if (!npcData.DefaultOutfitFormKey.HasValue || npcData.DefaultOutfitFormKey.Value != outfitFormKey)
+                return false;
+        }
+
+        // All NPCs with this outfit have it as their default - it's a vanilla distribution
+        return true;
     }
 
     private void UpdateSelectedOutfitNpcAssignments()

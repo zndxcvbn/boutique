@@ -32,6 +32,11 @@
             </StackPanel>
 
             <StackPanel Grid.Column="2" Orientation="Horizontal">
+                <CheckBox Content="Hide vanilla distributions"
+                          IsChecked="{Binding HideVanillaOutfits}"
+                          VerticalAlignment="Center"
+                          Margin="0,0,16,0"
+                          ToolTip="Hides Outfits with their default outfit as the winning assignment" />
                 <TextBlock Text="Search:" VerticalAlignment="Center" Margin="0,0,6,0" />
                 <TextBox Text="{Binding OutfitSearchText, UpdateSourceTrigger=PropertyChanged}"
                          MinWidth="250"

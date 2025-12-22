@@ -1,6 +1,5 @@
 using Boutique.Models;
 using Boutique.ViewModels;
-using Mutagen.Bethesda;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
@@ -29,17 +28,12 @@ public static class DistributionLineParser
         Dictionary<string, INpcGetter>? npcByEditorId = null,
         Dictionary<string, INpcGetter>? npcByName = null)
     {
-        if (file.TypeDisplay == "SkyPatcher")
+        return file.TypeDisplay switch
         {
-            return ExtractNpcFormKeysFromSkyPatcherLine(line.RawText);
-        }
-
-        if (file.TypeDisplay == "SPID")
-        {
-            return ExtractNpcFormKeysFromSpidLine(line.RawText, linkCache, npcByEditorId, npcByName);
-        }
-
-        return [];
+            "SkyPatcher" => ExtractNpcFormKeysFromSkyPatcherLine(line.RawText),
+            "SPID" => ExtractNpcFormKeysFromSpidLine(line.RawText, linkCache, npcByEditorId, npcByName),
+            _ => []
+        };
     }
 
     /// <summary>
@@ -162,7 +156,7 @@ public static class DistributionLineParser
     /// </summary>
     /// <param name="text">The text to parse</param>
     /// <returns>The parsed FormKey, or null if parsing failed</returns>
-    public static FormKey? TryParseFormKey(string text)
+    private static FormKey? TryParseFormKey(string text)
     {
         if (string.IsNullOrWhiteSpace(text))
             return null;
