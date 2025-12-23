@@ -46,6 +46,7 @@ public class DistributionEditTabViewModel : ReactiveObject
 
         _mutagenService.PluginsChanged += OnPluginsChanged;
         _cache.CacheLoaded += OnCacheLoaded;
+        _cache.AllDistributionFiles.CollectionChanged += OnDistributionFilesChanged;
 
         if (_cache.IsLoaded)
         {
@@ -53,6 +54,7 @@ public class DistributionEditTabViewModel : ReactiveObject
             UpdateFilteredFactions();
             UpdateFilteredKeywords();
             UpdateFilteredRaces();
+            UpdateAvailableDistributionFiles(_cache.AllDistributionFiles.ToList());
         }
 
         _distributionEntries.CollectionChanged += OnDistributionEntriesChanged;
@@ -346,17 +348,9 @@ public class DistributionEditTabViewModel : ReactiveObject
     public bool IsInitialized => _mutagenService.IsInitialized;
 
     /// <summary>
-    /// Sets the distribution files from the Files tab. This is used for conflict detection
-    /// and for populating the AvailableDistributionFiles dropdown.
+    /// Gets distribution files from the cache. Used for conflict detection.
     /// </summary>
-    public void SetDistributionFiles(IReadOnlyList<DistributionFileViewModel> files) => UpdateAvailableDistributionFiles(files);
-
-    private IReadOnlyList<DistributionFileViewModel>? _distributionFiles;
-
-    /// <summary>
-    /// Internal method to store distribution files for conflict detection.
-    /// </summary>
-    internal void SetDistributionFilesInternal(IReadOnlyList<DistributionFileViewModel> files) => _distributionFiles = files;
+    private IReadOnlyList<DistributionFileViewModel> DistributionFiles => _cache.AllDistributionFiles;
 
     private void OnDistributionEntriesChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
     {
@@ -1261,7 +1255,7 @@ public class DistributionEditTabViewModel : ReactiveObject
 
     private void OnCacheLoaded(object? sender, EventArgs e)
     {
-        _logger.Debug("CacheLoaded event received, populating filtered lists...");
+        _logger.Debug("CacheLoaded event received, populating filtered lists and distribution files...");
 
         // Update all filtered lists when cache is loaded
         UpdateFilteredNpcs();
@@ -1269,9 +1263,18 @@ public class DistributionEditTabViewModel : ReactiveObject
         UpdateFilteredKeywords();
         UpdateFilteredRaces();
 
+        // Update available distribution files dropdown
+        UpdateAvailableDistributionFiles(_cache.AllDistributionFiles.ToList());
+
         this.RaisePropertyChanged(nameof(IsInitialized));
-        _logger.Information("Filtered lists populated: {NpcCount} NPCs, {FactionCount} factions, {KeywordCount} keywords, {RaceCount} races.",
-            FilteredNpcs.Count, FilteredFactions.Count, FilteredKeywords.Count, FilteredRaces.Count);
+        _logger.Information("Filtered lists populated: {NpcCount} NPCs, {FactionCount} factions, {KeywordCount} keywords, {RaceCount} races, {FileCount} distribution files.",
+            FilteredNpcs.Count, FilteredFactions.Count, FilteredKeywords.Count, FilteredRaces.Count, _cache.AllDistributionFiles.Count);
+    }
+
+    private void OnDistributionFilesChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        _logger.Debug("Distribution files collection changed, updating dropdown...");
+        UpdateAvailableDistributionFiles(_cache.AllDistributionFiles.ToList());
     }
 
     private async Task PreviewEntryAsync(DistributionEntryViewModel? entry)
@@ -1351,7 +1354,7 @@ public class DistributionEditTabViewModel : ReactiveObject
         }
 
         // Need distribution files for conflict detection
-        if (_distributionFiles == null || _distributionFiles.Count == 0)
+        if (DistributionFiles.Count == 0)
         {
             HasConflicts = false;
             ConflictsResolvedByFilename = false;
@@ -1373,7 +1376,7 @@ public class DistributionEditTabViewModel : ReactiveObject
                 // Use the conflict detection service
                 var result = DistributionConflictDetectionService.DetectConflicts(
                     entriesSnapshot,
-                    _distributionFiles.ToList(),
+                    DistributionFiles.ToList(),
                     NewFileName,
                     linkCache);
 

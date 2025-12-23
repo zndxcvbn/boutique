@@ -95,22 +95,12 @@ public class DistributionOutfitsTabViewModel : ReactiveObject
 
     public bool IsInitialized => _mutagenService.IsInitialized;
 
-    private IReadOnlyList<DistributionFileViewModel>? _distributionFiles;
     private IReadOnlyList<NpcOutfitAssignment>? _npcAssignments;
 
     /// <summary>
-    /// Sets the distribution files from the Files tab. This allows the Outfits tab to work with
-    /// the files discovered by the Files tab without duplicating the discovery logic.
+    /// Gets distribution files from the cache for NPC outfit resolution.
     /// </summary>
-    public static void SetDistributionFiles(IReadOnlyList<DistributionFileViewModel> files) =>
-        // This method allows the main ViewModel to pass files from Files tab
-        _ = files; // Suppress unused parameter warning
-
-    /// <summary>
-    /// Internal method to set distribution files for scanning.
-    /// Called by the main ViewModel when files are available.
-    /// </summary>
-    internal void SetDistributionFilesInternal(IReadOnlyList<DistributionFileViewModel> files) => _distributionFiles = files;
+    private IReadOnlyList<DistributionFileViewModel> DistributionFiles => _cache.AllDistributionFiles;
 
     public async Task LoadOutfitsAsync()
     {
@@ -162,12 +152,12 @@ public class DistributionOutfitsTabViewModel : ReactiveObject
             _logger.Debug("Loaded {Count} outfits from load order", outfits.Count);
 
             // Load NPC assignments if distribution files are available
-            if (_distributionFiles != null && _distributionFiles.Count > 0)
+            if (DistributionFiles.Count > 0)
             {
                 StatusMessage = "Resolving NPC outfit assignments...";
-                _logger.Debug("Resolving NPC outfit assignments from {Count} files", _distributionFiles.Count);
+                _logger.Debug("Resolving NPC outfit assignments from {Count} files", DistributionFiles.Count);
 
-                var distributionFiles = _distributionFiles
+                var distributionFiles = DistributionFiles
                     .Select(fvm => new DistributionFile(
                         fvm.FileName,
                         fvm.FullPath,

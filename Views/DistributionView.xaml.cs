@@ -67,19 +67,10 @@ public partial class DistributionView
         // First, ensure distribution files are loaded (uses cache, doesn't force refresh)
         if (viewModel.Files.Count == 0 && !viewModel.IsLoading)
         {
-            // Use EnsureLoadedCommand which doesn't invalidate the cross-session cache
-            _ = viewModel.FilesTab.EnsureLoadedCommand.Execute();
-
-            // Subscribe to wait for loading to complete, then trigger NPC scan
-            viewModel.WhenAnyValue(vm => vm.IsLoading)
-                .Where(isLoading => !isLoading) // Wait for loading to complete
-                .Take(1) // Only take the first completion
+            // Subscribe to command completion to trigger NPC scan after cache loads
+            viewModel.EnsureLoadedCommand.Execute()
                 .ObserveOn(RxApp.MainThreadScheduler)
-                .Subscribe(_ =>
-                {
-                    // Now trigger NPC scan after load completes
-                    TriggerNpcScanIfNeeded(viewModel);
-                });
+                .Subscribe(_ => TriggerNpcScanIfNeeded(viewModel));
         }
         else
         {

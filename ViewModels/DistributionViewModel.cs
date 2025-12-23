@@ -21,6 +21,7 @@ public class DistributionViewModel : ReactiveObject
 {
     private readonly ILogger _logger;
     private readonly SettingsViewModel _settings;
+    private readonly GameDataCacheService _cache;
 
     public DistributionViewModel(
         DistributionFileWriterService fileWriterService,
@@ -33,11 +34,12 @@ public class DistributionViewModel : ReactiveObject
         ILogger logger)
     {
         _settings = settings;
+        _cache = gameDataCache;
         _logger = logger.ForContext<DistributionViewModel>();
 
-        FilesTab = new DistributionFilesTabViewModel(
-            gameDataCache,
-            logger);
+        // Commands for loading/refreshing distribution files (calls cache methods)
+        RefreshCommand = ReactiveCommand.CreateFromTask(gameDataCache.ReloadAsync);
+        EnsureLoadedCommand = ReactiveCommand.CreateFromTask(gameDataCache.EnsureLoadedAsync);
 
         EditTab = new DistributionEditTabViewModel(
             fileWriterService,
@@ -77,25 +79,6 @@ public class DistributionViewModel : ReactiveObject
             await ShowPreview.Handle(interaction.Input);
             interaction.SetOutput(Unit.Default);
         });
-
-        FilesTab.WhenAnyValue(vm => vm.Files)
-            .Subscribe(files =>
-            {
-                var fileList = files.ToList();
-                EditTab.SetDistributionFiles(fileList);
-                EditTab.SetDistributionFilesInternal(fileList);
-                OutfitsTab.SetDistributionFilesInternal(fileList);
-                this.RaisePropertyChanged(nameof(Files));
-            });
-
-        FilesTab.Files.CollectionChanged += (sender, e) =>
-        {
-            var fileList = FilesTab.Files.ToList();
-            EditTab.SetDistributionFiles(fileList);
-            EditTab.SetDistributionFilesInternal(fileList);
-            OutfitsTab.SetDistributionFilesInternal(fileList);
-                this.RaisePropertyChanged(nameof(Files));
-        };
 
         EditTab.WhenAnyValue(vm => vm.DistributionFilePath)
             .Subscribe(_ => this.RaisePropertyChanged(nameof(DistributionFilePath)));
@@ -166,9 +149,8 @@ public class DistributionViewModel : ReactiveObject
 
         EditTab.FileSaved += async _ =>
         {
-            await FilesTab.RefreshCommand.Execute();
-            EditTab.SetDistributionFiles(FilesTab.Files.ToList());
-            EditTab.SetDistributionFilesInternal(FilesTab.Files.ToList());
+            // Refresh cache to pick up new/updated files
+            await _cache.ReloadAsync();
         };
 
         NpcsTab.FilterCopied += (_, copiedFilter) =>
@@ -231,19 +213,17 @@ public class DistributionViewModel : ReactiveObject
             this.RaisePropertyChanged(nameof(SelectedOutfitNpcAssignments));
 
         this.WhenAnyValue(
-            vm => vm.FilesTab.IsLoading,
             vm => vm.EditTab.IsLoading,
             vm => vm.NpcsTab.IsLoading,
             vm => vm.OutfitsTab.IsLoading,
-            (files, edit, npcs, outfits) => files || edit || npcs || outfits)
+            (edit, npcs, outfits) => edit || npcs || outfits)
             .Subscribe(loading => IsLoading = loading);
 
         this.WhenAnyValue(
-            vm => vm.FilesTab.StatusMessage,
             vm => vm.EditTab.StatusMessage,
             vm => vm.NpcsTab.StatusMessage,
             vm => vm.OutfitsTab.StatusMessage,
-            (files, edit, npcs, outfits) => GetFirstNonEmptyStatus(edit, npcs, outfits, files))
+            (edit, npcs, outfits) => GetFirstNonEmptyStatus(edit, npcs, outfits))
             .Subscribe(msg => StatusMessage = msg);
 
         this.WhenAnyValue(vm => vm.SelectedTabIndex)
@@ -255,10 +235,6 @@ public class DistributionViewModel : ReactiveObject
                 {
                     case (int)DistributionTab.Create:
                     {
-                        var fileList = FilesTab.Files.ToList();
-                        EditTab.SetDistributionFiles(fileList);
-                        EditTab.SetDistributionFilesInternal(fileList);
-
                         if (EditTab.SelectedDistributionFile == null)
                         {
                             var newFileItem = EditTab.AvailableDistributionFiles.FirstOrDefault(f => f.IsNewFile);
@@ -274,8 +250,6 @@ public class DistributionViewModel : ReactiveObject
                         break;
                     case (int)DistributionTab.Outfits:
                     {
-                        OutfitsTab.SetDistributionFilesInternal(FilesTab.Files.ToList());
-
                         if (OutfitsTab.Outfits.Count == 0 && !OutfitsTab.IsLoading)
                         {
                             _logger.Debug("Outfits tab selected, triggering auto-load");
@@ -312,9 +286,6 @@ public class DistributionViewModel : ReactiveObject
     /// <summary>UI: TextBlock at bottom showing status messages from all tabs (prioritizes Edit > NPCs > Files).</summary>
     [Reactive] public string StatusMessage { get; private set; } = "Ready";
 
-    /// <summary>Internal ViewModel for Files tab - not directly bound to UI.</summary>
-    public DistributionFilesTabViewModel FilesTab { get; }
-
     /// <summary>Internal ViewModel for Edit tab - not directly bound to UI.</summary>
     public DistributionEditTabViewModel EditTab { get; }
 
@@ -327,13 +298,16 @@ public class DistributionViewModel : ReactiveObject
     /// <summary>Interaction for showing outfit preview windows (used by all tabs).</summary>
     public Interaction<ArmorPreviewScene, Unit> ShowPreview { get; } = new();
 
-    #region Files Tab Properties
+    #region Distribution Files
 
-    /// <summary>All discovered distribution files.</summary>
-    public ObservableCollection<DistributionFileViewModel> Files => FilesTab.Files;
+    /// <summary>All discovered distribution files (from cache).</summary>
+    public ObservableCollection<DistributionFileViewModel> Files => _cache.AllDistributionFiles;
 
-    /// <summary>UI: "Refresh" button to reload distribution files.</summary>
-    public ReactiveCommand<Unit, Unit> RefreshCommand => FilesTab.RefreshCommand;
+    /// <summary>UI: "Refresh" button to reload distribution files and game data.</summary>
+    public ReactiveCommand<Unit, Unit> RefreshCommand { get; }
+
+    /// <summary>Command to ensure files are loaded (uses cache if available, doesn't force refresh).</summary>
+    public ReactiveCommand<Unit, Unit> EnsureLoadedCommand { get; }
 
     #endregion
 
