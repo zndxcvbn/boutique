@@ -5,7 +5,7 @@ public class DistributionFileSelectionItem(bool isNewFile, DistributionFileViewM
     public bool IsNewFile { get; } = isNewFile;
     public DistributionFileViewModel? File { get; } = file;
 
-    private string DisplayName
+    public string DisplayName
     {
         get
         {

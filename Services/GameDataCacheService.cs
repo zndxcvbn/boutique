@@ -322,6 +322,7 @@ public class GameDataCacheService
     /// Ensures the cache is loaded. If already loaded, returns immediately.
     /// If currently loading, waits for completion. Does NOT invalidate the cache.
     /// Use this for initial startup when you want to use cached data if available.
+    /// Will initialize MutagenService if not already initialized.
     /// </summary>
     public async Task EnsureLoadedAsync()
     {
@@ -334,6 +335,20 @@ public class GameDataCacheService
             while (_isLoading)
                 await Task.Delay(50);
             return;
+        }
+
+        // Initialize MutagenService if not already initialized
+        if (!_mutagenService.IsInitialized)
+        {
+            var dataPath = _settings.SkyrimDataPath;
+            if (string.IsNullOrWhiteSpace(dataPath) || !System.IO.Directory.Exists(dataPath))
+            {
+                _logger.Warning("Cannot ensure cache loaded - Skyrim data path not set or doesn't exist: {DataPath}", dataPath);
+                return;
+            }
+
+            _logger.Information("Initializing MutagenService for cache load...");
+            await _mutagenService.InitializeAsync(dataPath);
         }
 
         // Not loaded and not loading - start a load

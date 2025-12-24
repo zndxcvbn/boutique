@@ -104,7 +104,7 @@ public static class FormKeyHelper
 
         var trimmed = identifier.Trim();
         string? modCandidate = null;
-        string? editorCandidate = null;
+        string? editorCandidate;
 
         var pipeIndex = trimmed.IndexOf('|');
         var tildeIndex = trimmed.IndexOf('~');
