@@ -100,3 +100,4 @@ UpgradeLog*.htm
 .vscode/
 CLAUDE.md
 .nuget/
+.cursor/
