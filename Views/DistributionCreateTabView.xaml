@@ -259,11 +259,14 @@
                     </ListBox.ItemTemplate>
                 </ListBox>
 
-                <!-- Preview -->
-                <GroupBox Grid.Row="3" Header="File Preview" Margin="0,6,0,0" Padding="6">
-                    <TextBox Text="{Binding DistributionPreviewText, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True"
-                             VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="11" MinHeight="120" MaxHeight="200" />
-                </GroupBox>
+                <!-- Preview (Collapsible) -->
+                <Expander Grid.Row="3" Header="File Preview" IsExpanded="{Binding IsFilePreviewExpanded, Mode=TwoWay}" Margin="0,6,0,0">
+                    <Border Padding="6" Background="{StaticResource Brush.CardBackground}"
+                            BorderBrush="{StaticResource Brush.Border}" BorderThickness="1" CornerRadius="0,0,4,4">
+                        <TextBox Text="{Binding DistributionPreviewText, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True"
+                                 VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="11" MinHeight="120" MaxHeight="200" />
+                    </Border>
+                </Expander>
             </Grid>
         </GroupBox>
 

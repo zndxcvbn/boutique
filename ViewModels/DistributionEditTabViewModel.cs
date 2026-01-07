@@ -23,6 +23,7 @@ public class DistributionEditTabViewModel : ReactiveObject
     private readonly MutagenService _mutagenService;
     private readonly GameDataCacheService _cache;
     private readonly SettingsViewModel _settings;
+    private readonly GuiSettingsService _guiSettings;
     private readonly ILogger _logger;
 
     private ObservableCollection<DistributionEntryViewModel> _distributionEntries = [];
@@ -35,6 +36,7 @@ public class DistributionEditTabViewModel : ReactiveObject
         MutagenService mutagenService,
         GameDataCacheService cache,
         SettingsViewModel settings,
+        GuiSettingsService guiSettings,
         ILogger logger)
     {
         _fileWriterService = fileWriterService;
@@ -42,6 +44,7 @@ public class DistributionEditTabViewModel : ReactiveObject
         _mutagenService = mutagenService;
         _cache = cache;
         _settings = settings;
+        _guiSettings = guiSettings;
         _logger = logger.ForContext<DistributionEditTabViewModel>();
 
         _mutagenService.PluginsChanged += OnPluginsChanged;
@@ -110,6 +113,17 @@ public class DistributionEditTabViewModel : ReactiveObject
     [Reactive] public bool IsLoading { get; private set; }
 
     [Reactive] public string StatusMessage { get; private set; } = string.Empty;
+
+    public bool IsFilePreviewExpanded
+    {
+        get => _guiSettings.IsFilePreviewExpanded;
+        set
+        {
+            if (_guiSettings.IsFilePreviewExpanded == value) return;
+            _guiSettings.IsFilePreviewExpanded = value;
+            this.RaisePropertyChanged();
+        }
+    }
 
     public ObservableCollection<DistributionEntryViewModel> DistributionEntries
     {
@@ -512,21 +526,23 @@ public class DistributionEditTabViewModel : ReactiveObject
             }
         }
 
-        if (filter.HasTraitFilters && DistributionFormat == DistributionFileType.Spid)
+        if (filter.HasTraitFilters)
         {
-            entry.Entry.TraitFilters = new SpidTraitFilters
-            {
-                IsFemale = filter.IsFemale,
-                IsUnique = filter.IsUnique,
-                IsChild = filter.IsChild
-            };
-
             if (filter.IsFemale.HasValue)
+            {
+                entry.Gender = filter.IsFemale.Value ? GenderFilter.Female : GenderFilter.Male;
                 addedItems.Add(filter.IsFemale.Value ? "trait:Female" : "trait:Male");
+            }
             if (filter.IsUnique.HasValue)
+            {
+                entry.Unique = filter.IsUnique.Value ? UniqueFilter.UniqueOnly : UniqueFilter.NonUniqueOnly;
                 addedItems.Add(filter.IsUnique.Value ? "trait:Unique" : "trait:Non-Unique");
+            }
             if (filter.IsChild.HasValue)
+            {
+                entry.IsChild = filter.IsChild.Value;
                 addedItems.Add(filter.IsChild.Value ? "trait:Child" : "trait:Adult");
+            }
         }
 
         if (addedItems.Count > 0)

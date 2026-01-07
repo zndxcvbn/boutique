@@ -31,6 +31,7 @@ public class DistributionViewModel : ReactiveObject
         SettingsViewModel settings,
         ArmorPreviewService armorPreviewService,
         MutagenService mutagenService,
+        GuiSettingsService guiSettings,
         ILogger logger)
     {
         _settings = settings;
@@ -47,6 +48,7 @@ public class DistributionViewModel : ReactiveObject
             mutagenService,
             gameDataCache,
             settings,
+            guiSettings,
             logger);
 
         NpcsTab = new DistributionNpcsTabViewModel(

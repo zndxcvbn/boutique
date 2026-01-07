@@ -48,6 +48,7 @@ public partial class App
         builder.RegisterType<GameDataCacheService>().SingleInstance();
         builder.RegisterType<ThemeService>().SingleInstance();
         builder.RegisterType<TutorialService>().SingleInstance();
+        builder.RegisterType<GuiSettingsService>().SingleInstance();
 
         builder.RegisterType<MainViewModel>().AsSelf().SingleInstance();
         builder.RegisterType<SettingsViewModel>().AsSelf().SingleInstance();
