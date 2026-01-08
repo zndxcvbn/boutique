@@ -66,6 +66,7 @@ public class DistributionEditTabViewModel : ReactiveObject
         AddSelectedFactionsToEntryCommand = ReactiveCommand.Create(AddSelectedFactionsToEntry, hasEntries);
         AddSelectedKeywordsToEntryCommand = ReactiveCommand.Create(AddSelectedKeywordsToEntry, hasEntries);
         AddSelectedRacesToEntryCommand = ReactiveCommand.Create(AddSelectedRacesToEntry, hasEntries);
+        AddSelectedClassesToEntryCommand = ReactiveCommand.Create(AddSelectedClassesToEntry, hasEntries);
 
         var notLoading = this.WhenAnyValue(vm => vm.IsLoading, loading => !loading);
         var canSave = this.WhenAnyValue(
@@ -100,6 +101,8 @@ public class DistributionEditTabViewModel : ReactiveObject
             .Subscribe(_ => UpdateFilteredKeywords());
         this.WhenAnyValue(vm => vm.RaceSearchText)
             .Subscribe(_ => UpdateFilteredRaces());
+        this.WhenAnyValue(vm => vm.ClassSearchText)
+            .Subscribe(_ => UpdateFilteredClasses());
 
         this.WhenAnyValue(vm => vm.DistributionFormat)
             .Skip(1)
@@ -168,6 +171,9 @@ public class DistributionEditTabViewModel : ReactiveObject
 
     /// <summary>Available races for distribution entry selection (from cache).</summary>
     public ObservableCollection<RaceRecordViewModel> AvailableRaces => _cache.AllRaces;
+
+    /// <summary>Available classes for distribution entry selection (from cache).</summary>
+    public ObservableCollection<ClassRecordViewModel> AvailableClasses => _cache.AllClasses;
 
     [Reactive] public ObservableCollection<IOutfitGetter> AvailableOutfits { get; private set; } = [];
 
@@ -259,6 +265,8 @@ public class DistributionEditTabViewModel : ReactiveObject
 
     [Reactive] public string RaceSearchText { get; set; } = string.Empty;
 
+    [Reactive] public string ClassSearchText { get; set; } = string.Empty;
+
     [Reactive] public string DistributionPreviewText { get; private set; } = string.Empty;
 
     /// <summary>
@@ -291,6 +299,8 @@ public class DistributionEditTabViewModel : ReactiveObject
     [Reactive] public ObservableCollection<KeywordRecordViewModel> FilteredKeywords { get; private set; } = [];
 
     [Reactive] public ObservableCollection<RaceRecordViewModel> FilteredRaces { get; private set; } = [];
+
+    [Reactive] public ObservableCollection<ClassRecordViewModel> FilteredClasses { get; private set; } = [];
     [Reactive] public bool HasConflicts { get; private set; }
     [Reactive] public bool ConflictsResolvedByFilename { get; private set; }
     [Reactive] public string ConflictSummary { get; private set; } = string.Empty;
@@ -305,6 +315,7 @@ public class DistributionEditTabViewModel : ReactiveObject
     public ReactiveCommand<Unit, Unit> AddSelectedFactionsToEntryCommand { get; }
     public ReactiveCommand<Unit, Unit> AddSelectedKeywordsToEntryCommand { get; }
     public ReactiveCommand<Unit, Unit> AddSelectedRacesToEntryCommand { get; }
+    public ReactiveCommand<Unit, Unit> AddSelectedClassesToEntryCommand { get; }
     public ReactiveCommand<Unit, Unit> SaveDistributionFileCommand { get; }
     public ReactiveCommand<Unit, Unit> LoadDistributionFileCommand { get; }
     public ReactiveCommand<Unit, Unit> ScanNpcsCommand { get; }
@@ -464,6 +475,13 @@ public class DistributionEditTabViewModel : ReactiveObject
             (entry, race) => entry.AddRace(race),
             "race");
 
+    private void AddSelectedClassesToEntry() =>
+        AddSelectedCriteriaToEntry(
+            FilteredClasses,
+            entry => entry.SelectedClasses,
+            (entry, classVm) => entry.AddClass(classVm),
+            "class");
+
     private void PasteFilterToEntry()
     {
         if (CopiedFilter == null)
@@ -523,6 +541,16 @@ public class DistributionEditTabViewModel : ReactiveObject
             {
                 entry.AddKeyword(keywordVm);
                 addedItems.Add($"keyword:{keywordVm.DisplayName}");
+            }
+        }
+
+        foreach (var classFormKey in filter.Classes)
+        {
+            var classVm = ResolveClassFormKey(classFormKey);
+            if (classVm != null && !entry.SelectedClasses.Any(c => c.FormKey == classFormKey))
+            {
+                entry.AddClass(classVm);
+                addedItems.Add($"class:{classVm.DisplayName}");
             }
         }
 
@@ -786,8 +814,9 @@ public class DistributionEditTabViewModel : ReactiveObject
             UpdateFilteredFactions();
             UpdateFilteredKeywords();
             UpdateFilteredRaces();
+            UpdateFilteredClasses();
 
-            StatusMessage = $"Data loaded: {AvailableNpcs.Count} NPCs, {AvailableFactions.Count} factions, {AvailableRaces.Count} races, {AvailableKeywords.Count} keywords.";
+            StatusMessage = $"Data loaded: {AvailableNpcs.Count} NPCs, {AvailableFactions.Count} factions, {AvailableRaces.Count} races, {AvailableClasses.Count} classes, {AvailableKeywords.Count} keywords.";
             _logger.Information("Using cached data: {NpcCount} NPCs, {FactionCount} factions.",
                 AvailableNpcs.Count, AvailableFactions.Count);
             await LoadAvailableOutfitsAsync();
@@ -958,6 +987,14 @@ public class DistributionEditTabViewModel : ReactiveObject
                     foreach (var race in entryVm.SelectedRaces)
                     {
                         var editorId = race.EditorID;
+                        if (!string.IsNullOrWhiteSpace(editorId) && editorId != "(No EditorID)")
+                        {
+                            formFilters.Add(editorId);
+                        }
+                    }
+                    foreach (var classVm in entryVm.SelectedClasses)
+                    {
+                        var editorId = classVm.EditorID;
                         if (!string.IsNullOrWhiteSpace(editorId) && editorId != "(No EditorID)")
                         {
                             formFilters.Add(editorId);
@@ -1149,6 +1186,7 @@ public class DistributionEditTabViewModel : ReactiveObject
         UpdateFilteredFactions();
         UpdateFilteredKeywords();
         UpdateFilteredRaces();
+        UpdateFilteredClasses();
         var files = _cache.AllDistributionFiles.ToList();
         AvailableDistributionFiles.Clear();
         AvailableDistributionFiles.Add(new DistributionFileSelectionItem(isNewFile: true, file: null));
@@ -1386,6 +1424,12 @@ public class DistributionEditTabViewModel : ReactiveObject
             entryVm.SelectedRaces = new ObservableCollection<RaceRecordViewModel>(raceVms);
             entryVm.UpdateEntryRaces();
         }
+        var classVms = ResolveClassFormKeys(entry.ClassFormKeys);
+        if (classVms.Count > 0)
+        {
+            entryVm.SelectedClasses = new ObservableCollection<ClassRecordViewModel>(classVms);
+            entryVm.UpdateEntryClasses();
+        }
 
         return entryVm;
     }
@@ -1566,6 +1610,44 @@ public class DistributionEditTabViewModel : ReactiveObject
         return null;
     }
 
+    private List<ClassRecordViewModel> ResolveClassFormKeys(IEnumerable<FormKey> formKeys)
+    {
+        var classVms = new List<ClassRecordViewModel>();
+
+        foreach (var formKey in formKeys)
+        {
+            var classVm = ResolveClassFormKey(formKey);
+            if (classVm != null)
+            {
+                classVms.Add(classVm);
+            }
+        }
+
+        return classVms;
+    }
+
+    private ClassRecordViewModel? ResolveClassFormKey(FormKey formKey)
+    {
+        var existingClass = AvailableClasses.FirstOrDefault(c => c.FormKey == formKey);
+        if (existingClass != null)
+        {
+            return existingClass;
+        }
+
+        if (_mutagenService.LinkCache is ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache &&
+            linkCache.TryResolve<IClassGetter>(formKey, out var classRecord))
+        {
+            var record = new ClassRecord(
+                classRecord.FormKey,
+                classRecord.EditorID,
+                classRecord.Name?.String,
+                classRecord.FormKey.ModKey);
+            return new ClassRecordViewModel(record);
+        }
+
+        return null;
+    }
+
     /// <summary>
     /// Updates the FilteredNpcs collection based on the current search text.
     /// This uses a stable collection to avoid DataGrid binding issues with checkboxes.
@@ -1652,6 +1734,28 @@ public class DistributionEditTabViewModel : ReactiveObject
             FilteredRaces.Add(race);
         }
     }
+
+    private void UpdateFilteredClasses()
+    {
+        IEnumerable<ClassRecordViewModel> filtered;
+
+        if (string.IsNullOrWhiteSpace(ClassSearchText))
+        {
+            filtered = AvailableClasses;
+        }
+        else
+        {
+            var term = ClassSearchText.Trim().ToLowerInvariant();
+            filtered = AvailableClasses.Where(c => c.MatchesSearch(term));
+        }
+
+        FilteredClasses.Clear();
+        foreach (var classVm in filtered)
+        {
+            FilteredClasses.Add(classVm);
+        }
+    }
+
     private static string? FormatTraitFilters(Models.SpidTraitFilters traits)
     {
         if (traits.IsEmpty)

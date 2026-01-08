@@ -241,6 +241,29 @@
                                         </ItemsControl>
                                     </StackPanel>
 
+                                    <!-- Classes (hidden when empty) -->
+                                    <StackPanel Orientation="Horizontal" Margin="0,2,0,0"
+                                                Visibility="{Binding SelectedClasses.Count, Converter={StaticResource CollectionCountToVisConverter}}">
+                                        <TextBlock Text="Classes:" Style="{StaticResource SecondaryTextStyle}" Margin="0,0,4,0" FontSize="11" />
+                                        <ItemsControl ItemsSource="{Binding SelectedClasses}" VerticalAlignment="Center">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate><StackPanel /></ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Style="{StaticResource FilterChipStyle}">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Text="{Binding DisplayName}" FontSize="11" VerticalAlignment="Center" />
+                                                            <TextBlock Text="{Binding FormKeyString}" Style="{StaticResource FormKeyTextStyle}" Margin="4,0,0,0" FontSize="9" />
+                                                            <Button Click="RemoveClass_Click" Tag="{Binding}"
+                                                                    Style="{StaticResource InlineRemoveButtonStyle}" Margin="3,0,0,0" />
+                                                        </StackPanel>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+
                                     <!-- Traits: Gender, Unique -->
                                     <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
                                         <TextBlock Text="Traits:" Style="{StaticResource SecondaryTextStyle}" Margin="0,0,6,0" FontSize="11" />
@@ -379,6 +402,32 @@
                             </DataGrid.Columns>
                         </DataGrid>
                         <Button Grid.Row="2" Content="Add Selected Races to Entry" Command="{Binding AddSelectedRacesToEntryCommand}" Padding="8,2" Margin="0,6,0,0" />
+                    </Grid>
+                </TabItem>
+
+                <!-- Classes Tab -->
+                <TabItem Header="Classes">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,6">
+                            <TextBlock Text="Search:" Style="{StaticResource LabelTextStyle}" />
+                            <TextBox Text="{Binding ClassSearchText, UpdateSourceTrigger=PropertyChanged}" MinWidth="200" />
+                        </StackPanel>
+                        <DataGrid Grid.Row="1" ItemsSource="{Binding FilteredClasses}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
+                                  EnableRowVirtualization="True" EnableColumnVirtualization="True">
+                            <DataGrid.Columns>
+                                <DataGridCheckBoxColumn Header="" Binding="{Binding IsSelected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="Auto" />
+                                <DataGridTextColumn Header="Name" Binding="{Binding DisplayName}" Width="*" IsReadOnly="True" />
+                                <DataGridTextColumn Header="EditorID" Binding="{Binding EditorID}" Width="200" IsReadOnly="True" />
+                                <DataGridTextColumn Header="FormKey" Binding="{Binding FormKeyString}" Width="150" IsReadOnly="True"
+                                                    ElementStyle="{StaticResource DataGridFormKeyColumnStyle}" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <Button Grid.Row="2" Content="Add Selected Classes to Entry" Command="{Binding AddSelectedClassesToEntryCommand}" Padding="8,2" Margin="0,6,0,0" />
                     </Grid>
                 </TabItem>
             </TabControl>

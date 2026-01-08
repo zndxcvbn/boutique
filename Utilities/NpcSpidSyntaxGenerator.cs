@@ -65,7 +65,7 @@ public static class NpcSpidSyntaxGenerator
         }
         var stringFiltersPart = stringFilters.Count > 0 ? string.Join("+", stringFilters) : null;
 
-        // Position 3: FormFilters - Factions and Races (AND with +)
+        // Position 3: FormFilters - Factions, Races, and Classes (AND with +)
         var formFilters = new List<string>();
         if (linkCache != null)
         {
@@ -83,6 +83,14 @@ public static class NpcSpidSyntaxGenerator
                     !string.IsNullOrWhiteSpace(race.EditorID))
                 {
                     formFilters.Add(race.EditorID);
+                }
+            }
+            foreach (var classFormKey in filter.Classes)
+            {
+                if (linkCache.TryResolve<IClassGetter>(classFormKey, out var classRecord) &&
+                    !string.IsNullOrWhiteSpace(classRecord.EditorID))
+                {
+                    formFilters.Add(classRecord.EditorID);
                 }
             }
         }
@@ -184,10 +192,8 @@ public static class NpcSpidSyntaxGenerator
             filterParts.Add($"filterByGender={( filter.IsFemale.Value ? "female" : "male" )}");
         }
 
-        // Note: SkyPatcher doesn't have direct filters for unique, templated, child, summonable, leveled
+        // Note: SkyPatcher doesn't have direct filters for unique, templated, child, summonable, leveled, or class
         // These are SPID-specific traits. We'll add a comment about this.
-        // linkCache parameter reserved for future use when resolving EditorIDs
-        _ = linkCache;
 
         var unsupportedFilters = new List<string>();
         if (filter.IsUnique.HasValue)
@@ -200,6 +206,13 @@ public static class NpcSpidSyntaxGenerator
             unsupportedFilters.Add($"Summonable={(filter.IsSummonable.Value ? "Yes" : "No")}");
         if (filter.IsLeveled.HasValue)
             unsupportedFilters.Add($"Leveled={(filter.IsLeveled.Value ? "Yes" : "No")}");
+        if (filter.Classes.Count > 0 && linkCache != null)
+        {
+            var classNames = filter.Classes
+                .Select(fk => linkCache.TryResolve<IClassGetter>(fk, out var c) ? c.EditorID : fk.ToString())
+                .Where(s => !string.IsNullOrEmpty(s));
+            unsupportedFilters.Add($"Class={string.Join(",", classNames)}");
+        }
 
         // Add outfit
         filterParts.Add($"outfitDefault={outfitPlaceholder}");
@@ -307,6 +320,9 @@ public static class NpcSpidSyntaxGenerator
 
         if (filter.Keywords.Count > 0)
             parts.Add($"{filter.Keywords.Count} keyword(s)");
+
+        if (filter.Classes.Count > 0)
+            parts.Add($"{filter.Classes.Count} class(es)");
 
         if (filter.MinLevel.HasValue || filter.MaxLevel.HasValue)
         {

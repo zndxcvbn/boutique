@@ -378,6 +378,50 @@ public class SpidLineParserTests
         Assert.Contains("NordRace", races);
     }
 
+    [Fact]
+    public void GetClassIdentifiers_ReturnsOnlyClasses()
+    {
+        SpidLineParser.TryParse("Outfit = SoldierOutfit|NONE|CWSoldierClass,VampireFaction", out var filter);
+
+        var classes = SpidLineParser.GetClassIdentifiers(filter!);
+
+        Assert.Single(classes);
+        Assert.Contains("CWSoldierClass", classes);
+    }
+
+    [Fact]
+    public void TryParse_WithClassFilter_ParsesCorrectly()
+    {
+        // Real-world example from user report
+        var result = SpidLineParser.TryParse(
+            "Outfit = 0x80A~Stormcloak Bikini Armors Combined - SPID.esp|ActorTypeNPC|CWSoldierClass|NONE|F|NONE|100",
+            out var filter);
+
+        Assert.True(result);
+        Assert.NotNull(filter);
+        Assert.Equal("0x80A~Stormcloak Bikini Armors Combined - SPID.esp", filter.OutfitIdentifier);
+        Assert.True(filter.StringFilters.HasKeywords);
+        Assert.Single(filter.FormFilters.Expressions);
+        Assert.True(filter.FormFilters.Expressions[0].Parts[0].LooksLikeClass);
+        Assert.Equal("CWSoldierClass", filter.FormFilters.Expressions[0].Parts[0].Value);
+        Assert.True(filter.TraitFilters.IsFemale);
+        Assert.Equal(100, filter.Chance);
+    }
+
+    [Fact]
+    public void TryParse_WithClassAndFaction_ParsesBothFormFilters()
+    {
+        var result = SpidLineParser.TryParse(
+            "Outfit = TestOutfit|NONE|CWSoldierClass+SonsFaction",
+            out var filter);
+
+        Assert.True(result);
+        Assert.NotNull(filter);
+        Assert.Equal(2, filter.FormFilters.Expressions[0].Parts.Count);
+        Assert.True(filter.FormFilters.Expressions[0].Parts[0].LooksLikeClass);
+        Assert.True(filter.FormFilters.Expressions[0].Parts[1].LooksLikeFaction);
+    }
+
     #endregion
 
     #region Targeting Description
@@ -423,4 +467,3 @@ public class SpidLineParserTests
 
     #endregion
 }
-

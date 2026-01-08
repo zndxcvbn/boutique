@@ -28,6 +28,7 @@ public class DistributionEntryViewModel : ReactiveObject
     private ObservableCollection<FactionRecordViewModel> _selectedFactions = [];
     private ObservableCollection<KeywordRecordViewModel> _selectedKeywords = [];
     private ObservableCollection<RaceRecordViewModel> _selectedRaces = [];
+    private ObservableCollection<ClassRecordViewModel> _selectedClasses = [];
 
     public event EventHandler? EntryChanged;
 
@@ -102,6 +103,18 @@ public class DistributionEntryViewModel : ReactiveObject
             foreach (var raceVm in raceVms)
             {
                 _selectedRaces.Add(raceVm);
+            }
+        }
+
+        if (entry.ClassFormKeys.Count > 0)
+        {
+            var classVms = entry.ClassFormKeys
+                .Select(fk => new ClassRecordViewModel(new ClassRecord(fk, null, null, fk.ModKey)))
+                .ToList();
+
+            foreach (var classVm in classVms)
+            {
+                _selectedClasses.Add(classVm);
             }
         }
 
@@ -256,6 +269,16 @@ public class DistributionEntryViewModel : ReactiveObject
         }
     }
 
+    public ObservableCollection<ClassRecordViewModel> SelectedClasses
+    {
+        get => _selectedClasses;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _selectedClasses, value);
+            UpdateEntryClasses();
+        }
+    }
+
     public ReactiveCommand<Unit, Unit> RemoveCommand { get; }
 
     [Reactive] public bool IsSelected { get; set; }
@@ -285,6 +308,13 @@ public class DistributionEntryViewModel : ReactiveObject
     {
         Entry.RaceFormKeys.Clear();
         Entry.RaceFormKeys.AddRange(SelectedRaces.Select(race => race.FormKey));
+        RaiseEntryChanged();
+    }
+
+    public void UpdateEntryClasses()
+    {
+        Entry.ClassFormKeys.Clear();
+        Entry.ClassFormKeys.AddRange(SelectedClasses.Select(c => c.FormKey));
         RaiseEntryChanged();
     }
 
@@ -320,4 +350,7 @@ public class DistributionEntryViewModel : ReactiveObject
 
     public void AddRace(RaceRecordViewModel race) => AddCriterion(race, _selectedRaces, UpdateEntryRaces);
     public void RemoveRace(RaceRecordViewModel race) => RemoveCriterion(race, _selectedRaces, UpdateEntryRaces);
+
+    public void AddClass(ClassRecordViewModel classVm) => AddCriterion(classVm, _selectedClasses, UpdateEntryClasses);
+    public void RemoveClass(ClassRecordViewModel classVm) => RemoveCriterion(classVm, _selectedClasses, UpdateEntryClasses);
 }

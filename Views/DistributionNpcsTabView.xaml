@@ -96,6 +96,15 @@
                                   ToolTip="Filter by race (SPID FormFilter)" />
                     </StackPanel>
 
+                    <!-- Class Filter -->
+                    <StackPanel Orientation="Horizontal" Margin="0,2,16,2">
+                        <TextBlock Text="Class:" Style="{StaticResource LabelTextStyle}" />
+                        <ComboBox ItemsSource="{Binding AvailableClasses}" SelectedItem="{Binding SelectedClass}"
+                                  DisplayMemberPath="DisplayName" MinWidth="130"
+                                  IsEditable="True" IsTextSearchEnabled="True"
+                                  ToolTip="Filter by NPC class (SPID FormFilter)" />
+                    </StackPanel>
+
                     <!-- Keyword Filter -->
                     <StackPanel Orientation="Horizontal" Margin="0,2,16,2">
                         <TextBlock Text="Keyword:" Style="{StaticResource LabelTextStyle}" />

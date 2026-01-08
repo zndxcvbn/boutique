@@ -165,6 +165,12 @@ public sealed class SpidFilterPart
     public bool LooksLikeRace =>
         Value.EndsWith("Race", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// True if this looks like a class reference.
+    /// </summary>
+    public bool LooksLikeClass =>
+        Value.EndsWith("Class", StringComparison.OrdinalIgnoreCase);
+
     public override string ToString()
     {
         var prefix = IsNegated ? "NOT " : "";

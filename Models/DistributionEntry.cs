@@ -10,6 +10,7 @@ public sealed class DistributionEntry
     public List<FormKey> FactionFormKeys { get; set; } = [];
     public List<FormKey> KeywordFormKeys { get; set; } = [];
     public List<FormKey> RaceFormKeys { get; set; } = [];
+    public List<FormKey> ClassFormKeys { get; set; } = [];
 
     public SpidTraitFilters TraitFilters { get; set; } = new();
     public int? Chance { get; set; }

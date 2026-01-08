@@ -55,6 +55,11 @@ public class NpcSpidFilter
     public List<FormKey> Keywords { get; set; } = [];
 
     /// <summary>
+    /// Classes to filter by (OR logic - NPC must match ANY selected class).
+    /// </summary>
+    public List<FormKey> Classes { get; set; } = [];
+
+    /// <summary>
     /// Minimum level filter (inclusive). Null means no minimum.
     /// </summary>
     public int? MinLevel { get; set; }
@@ -77,6 +82,7 @@ public class NpcSpidFilter
         Factions.Count == 0 &&
         Races.Count == 0 &&
         Keywords.Count == 0 &&
+        Classes.Count == 0 &&
         MinLevel == null &&
         MaxLevel == null;
 
@@ -105,6 +111,7 @@ public class NpcSpidFilter
         Factions.Clear();
         Races.Clear();
         Keywords.Clear();
+        Classes.Clear();
         MinLevel = null;
         MaxLevel = null;
     }
@@ -146,6 +153,12 @@ public class NpcSpidFilter
         if (Races.Count > 0)
         {
             if (!npc.RaceFormKey.HasValue || !Races.Contains(npc.RaceFormKey.Value))
+                return false;
+        }
+
+        if (Classes.Count > 0)
+        {
+            if (!npc.ClassFormKey.HasValue || !Classes.Contains(npc.ClassFormKey.Value))
                 return false;
         }
 

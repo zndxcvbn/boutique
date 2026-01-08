@@ -398,4 +398,22 @@ public static class SpidLineParser
 
         return results;
     }
+
+    public static IReadOnlyList<string> GetClassIdentifiers(SpidDistributionFilter filter)
+    {
+        var results = new List<string>();
+
+        foreach (var expr in filter.FormFilters.Expressions)
+        {
+            foreach (var part in expr.Parts)
+            {
+                if (part.LooksLikeClass && !part.IsNegated)
+                {
+                    results.Add(part.Value);
+                }
+            }
+        }
+
+        return results;
+    }
 }

@@ -63,7 +63,8 @@ public class DistributionNpcsTabViewModel : ReactiveObject
         this.WhenAnyValue(
                 vm => vm.SelectedFaction,
                 vm => vm.SelectedRace,
-                vm => vm.SelectedKeyword)
+                vm => vm.SelectedKeyword,
+                vm => vm.SelectedClass)
             .Subscribe(_ => OnFiltersChanged());
 
         // Subscribe to cache loaded event to populate data
@@ -169,6 +170,11 @@ public class DistributionNpcsTabViewModel : ReactiveObject
     public ObservableCollection<KeywordRecordViewModel> AvailableKeywords => _cache.AllKeywords;
 
     [Reactive] public KeywordRecordViewModel? SelectedKeyword { get; set; }
+
+    /// <summary>Available classes for filtering (from centralized cache).</summary>
+    public ObservableCollection<ClassRecordViewModel> AvailableClasses => _cache.AllClasses;
+
+    [Reactive] public ClassRecordViewModel? SelectedClass { get; set; }
 
     /// <summary>
     /// Generated SPID syntax based on current filters.
@@ -382,6 +388,13 @@ public class DistributionNpcsTabViewModel : ReactiveObject
             Filter.Keywords.Add(SelectedKeyword.FormKey);
         }
 
+        // Class
+        Filter.Classes.Clear();
+        if (SelectedClass != null)
+        {
+            Filter.Classes.Add(SelectedClass.FormKey);
+        }
+
         // Update UI state
         HasActiveFilters = !Filter.IsEmpty;
         FilterDescription = NpcSpidSyntaxGenerator.GetFilterDescription(Filter);
@@ -471,6 +484,7 @@ public class DistributionNpcsTabViewModel : ReactiveObject
         SelectedFaction = null;
         SelectedRace = null;
         SelectedKeyword = null;
+        SelectedClass = null;
 
         Filter.Clear();
         HasActiveFilters = false;

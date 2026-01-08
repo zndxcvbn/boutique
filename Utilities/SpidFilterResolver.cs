@@ -29,16 +29,17 @@ public static class SpidFilterResolver
             var factionFormKeys = new List<FormKey>();
             var keywordFormKeys = new List<FormKey>();
             var raceFormKeys = new List<FormKey>();
+            var classFormKeys = new List<FormKey>();
 
             // Process StringFilters - can contain NPC names, keywords, etc.
             ProcessStringFilters(filter.StringFilters, linkCache, cachedNpcs, npcFormKeys, keywordFormKeys, logger);
 
-            // Process FormFilters - can contain factions, races, etc.
-            ProcessFormFilters(filter.FormFilters, linkCache, factionFormKeys, raceFormKeys, logger);
+            // Process FormFilters - can contain factions, races, classes, etc.
+            ProcessFormFilters(filter.FormFilters, linkCache, factionFormKeys, raceFormKeys, classFormKeys, logger);
 
             // Must have at least one filter
             if (npcFormKeys.Count == 0 && factionFormKeys.Count == 0 &&
-                keywordFormKeys.Count == 0 && raceFormKeys.Count == 0)
+                keywordFormKeys.Count == 0 && raceFormKeys.Count == 0 && classFormKeys.Count == 0)
             {
                 logger?.Debug("No filters could be resolved for SPID line: {Line}", filter.RawLine);
                 return null;
@@ -51,6 +52,7 @@ public static class SpidFilterResolver
                 FactionFormKeys = factionFormKeys,
                 KeywordFormKeys = keywordFormKeys,
                 RaceFormKeys = raceFormKeys,
+                ClassFormKeys = classFormKeys,
                 TraitFilters = filter.TraitFilters
             };
 
@@ -183,6 +185,7 @@ public static class SpidFilterResolver
         ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache,
         List<FormKey> factionFormKeys,
         List<FormKey> raceFormKeys,
+        List<FormKey> classFormKeys,
         ILogger? logger)
     {
         foreach (var expr in formFilters.Expressions)
@@ -213,11 +216,29 @@ public static class SpidFilterResolver
                     if (race != null)
                     {
                         raceFormKeys.Add(race.FormKey);
+                        continue;
                     }
-                    else
+                    logger?.Debug("Could not resolve race: {Value}", part.Value);
+                }
+
+                // Try to resolve as class
+                if (part.LooksLikeClass)
+                {
+                    logger?.Debug("Attempting to resolve class: {Value}", part.Value);
+                    var classRecord = linkCache.WinningOverrides<IClassGetter>()
+                        .FirstOrDefault(c => string.Equals(c.EditorID, part.Value, StringComparison.OrdinalIgnoreCase));
+                    if (classRecord != null)
                     {
-                        logger?.Debug("Could not resolve race: {Value}", part.Value);
+                        logger?.Debug("Resolved class {Value} to FormKey {FormKey}", part.Value, classRecord.FormKey);
+                        classFormKeys.Add(classRecord.FormKey);
+                        continue;
                     }
+                    logger?.Warning("Could not resolve class: {Value} - class not found in load order", part.Value);
+                }
+                else if (part.Value.EndsWith("Class", StringComparison.OrdinalIgnoreCase))
+                {
+                    // This shouldn't happen, but log if it does
+                    logger?.Warning("Part {Value} ends with 'Class' but LooksLikeClass is false", part.Value);
                 }
             }
         }

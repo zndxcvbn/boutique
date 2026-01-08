@@ -67,6 +67,18 @@ public partial class DistributionCreateTabView
         }
     }
 
+    private void RemoveClass_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button button && button.Tag is ClassRecordViewModel classVm)
+        {
+            var itemsControl = FindVisualParent<ItemsControl>(button);
+            if (itemsControl?.DataContext is DistributionEntryViewModel entryVm)
+            {
+                entryVm.RemoveClass(classVm);
+            }
+        }
+    }
+
     private static T? FindVisualParent<T>(DependencyObject child) where T : DependencyObject
     {
         var parent = System.Windows.Media.VisualTreeHelper.GetParent(child);

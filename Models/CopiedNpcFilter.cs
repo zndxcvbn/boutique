@@ -44,6 +44,11 @@ public class CopiedNpcFilter
     public IReadOnlyList<FormKey> Keywords { get; init; } = [];
 
     /// <summary>
+    /// Classes to filter by.
+    /// </summary>
+    public IReadOnlyList<FormKey> Classes { get; init; } = [];
+
+    /// <summary>
     /// Human-readable description of the filter for display purposes.
     /// </summary>
     public string Description { get; init; } = string.Empty;
@@ -55,7 +60,8 @@ public class CopiedNpcFilter
     public bool HasDistributableFilters =>
         Factions.Count > 0 ||
         Races.Count > 0 ||
-        Keywords.Count > 0;
+        Keywords.Count > 0 ||
+        Classes.Count > 0;
 
     /// <summary>
     /// Returns true if this filter has trait filters (gender, unique, child, etc.)
@@ -80,6 +86,7 @@ public class CopiedNpcFilter
             Factions = filter.Factions.ToList(),
             Races = filter.Races.ToList(),
             Keywords = filter.Keywords.ToList(),
+            Classes = filter.Classes.ToList(),
             Description = description
         };
     }

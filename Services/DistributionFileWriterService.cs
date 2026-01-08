@@ -330,7 +330,7 @@ public class DistributionFileWriterService
         }
         var stringFiltersPart = stringFilters.Count > 0 ? string.Join("+", stringFilters) : null;
 
-        // Position 3: FormFilters - Factions and Races (AND with +)
+        // Position 3: FormFilters - Factions, Races, and Classes (AND with +)
         var formFilters = new List<string>();
         foreach (var factionFormKey in entry.FactionFormKeys)
         {
@@ -346,6 +346,14 @@ public class DistributionFileWriterService
                 !string.IsNullOrWhiteSpace(race.EditorID))
             {
                 formFilters.Add(race.EditorID);
+            }
+        }
+        foreach (var classFormKey in entry.ClassFormKeys)
+        {
+            if (linkCache.TryResolve<IClassGetter>(classFormKey, out var classRecord) &&
+                !string.IsNullOrWhiteSpace(classRecord.EditorID))
+            {
+                formFilters.Add(classRecord.EditorID);
             }
         }
         var formFiltersPart = formFilters.Count > 0 ? string.Join("+", formFilters) : null;

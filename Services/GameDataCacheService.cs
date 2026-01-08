@@ -44,6 +44,7 @@ public class GameDataCacheService
     public ObservableCollection<FactionRecordViewModel> AllFactions { get; } = [];
     public ObservableCollection<RaceRecordViewModel> AllRaces { get; } = [];
     public ObservableCollection<KeywordRecordViewModel> AllKeywords { get; } = [];
+    public ObservableCollection<ClassRecordViewModel> AllClasses { get; } = [];
     public ObservableCollection<IOutfitGetter> AllOutfits { get; } = [];
     public ObservableCollection<NpcRecordViewModel> AllNpcRecords { get; } = [];
     public ObservableCollection<DistributionFileViewModel> AllDistributionFiles { get; } = [];
@@ -53,6 +54,7 @@ public class GameDataCacheService
     public Dictionary<FormKey, FactionRecordViewModel> FactionsByFormKey { get; } = [];
     public Dictionary<FormKey, RaceRecordViewModel> RacesByFormKey { get; } = [];
     public Dictionary<FormKey, KeywordRecordViewModel> KeywordsByFormKey { get; } = [];
+    public Dictionary<FormKey, ClassRecordViewModel> ClassesByFormKey { get; } = [];
 
     private async void OnMutagenInitialized(object? sender, EventArgs e)
     {
@@ -153,6 +155,13 @@ public class GameDataCacheService
                 _logger.Information("[PERF] LoadKeywords: {ElapsedMs}ms ({Count} keywords)", sw.ElapsedMilliseconds, result.Count);
                 return result;
             });
+            var classesTask = Task.Run(() =>
+            {
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                var result = LoadClasses(linkCache);
+                _logger.Information("[PERF] LoadClasses: {ElapsedMs}ms ({Count} classes)", sw.ElapsedMilliseconds, result.Count);
+                return result;
+            });
             var outfitsTask = Task.Run(() =>
             {
                 var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -161,11 +170,12 @@ public class GameDataCacheService
                 return result;
             });
 
-            await Task.WhenAll(factionsTask, racesTask, keywordsTask, outfitsTask);
+            await Task.WhenAll(factionsTask, racesTask, keywordsTask, classesTask, outfitsTask);
 
             var factionsList = await factionsTask;
             var racesList = await racesTask;
             var keywordsList = await keywordsTask;
+            var classesList = await classesTask;
             var outfitsList = await outfitsTask;
 
             await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
@@ -207,6 +217,14 @@ public class GameDataCacheService
                     KeywordsByFormKey[keyword.FormKey] = keyword;
                 }
 
+                AllClasses.Clear();
+                ClassesByFormKey.Clear();
+                foreach (var classVm in classesList)
+                {
+                    AllClasses.Add(classVm);
+                    ClassesByFormKey[classVm.FormKey] = classVm;
+                }
+
                 AllOutfits.Clear();
                 foreach (var outfit in outfitsList)
                 {
@@ -236,12 +254,13 @@ public class GameDataCacheService
             stopwatch.Stop();
             _isLoaded = true;
             _logger.Information(
-                "Game data cache loaded in {ElapsedMs}ms{CacheNote}: {NpcCount} NPCs, {FactionCount} factions, {RaceCount} races, {KeywordCount} keywords, {OutfitCount} outfits, {FileCount} distribution files, {AssignmentCount} NPC outfit assignments.",
+                "Game data cache loaded in {ElapsedMs}ms{CacheNote}: {NpcCount} NPCs, {FactionCount} factions, {RaceCount} races, {ClassCount} classes, {KeywordCount} keywords, {OutfitCount} outfits, {FileCount} distribution files, {AssignmentCount} NPC outfit assignments.",
                 stopwatch.ElapsedMilliseconds,
                 usedCrossSessionCache ? " (from cross-session cache)" : "",
                 npcFilterDataList.Count,
                 factionsList.Count,
                 racesList.Count,
+                classesList.Count,
                 keywordsList.Count,
                 outfitsList.Count,
                 AllDistributionFiles.Count,
@@ -525,6 +544,19 @@ public class GameDataCacheService
                 k.EditorID,
                 k.FormKey.ModKey)))
             .OrderBy(k => k.DisplayName)
+            .ToList();
+    }
+
+    private static List<ClassRecordViewModel> LoadClasses(ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
+    {
+        return linkCache.WinningOverrides<IClassGetter>()
+            .Where(c => !string.IsNullOrWhiteSpace(c.EditorID))
+            .Select(c => new ClassRecordViewModel(new ClassRecord(
+                c.FormKey,
+                c.EditorID,
+                c.Name?.String,
+                c.FormKey.ModKey)))
+            .OrderBy(c => c.DisplayName)
             .ToList();
     }
 
