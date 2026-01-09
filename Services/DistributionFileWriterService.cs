@@ -329,17 +329,48 @@ public class DistributionFileWriterService
         // Position 1: Outfit identifier
         var outfitIdentifier = FormatOutfitIdentifier(entry.Outfit!);
 
-        // Position 2: StringFilters - Keywords (AND with +)
+        // Position 2: StringFilters - NPC names (comma-separated for OR) and Keywords (+ for AND)
         var stringFilters = new List<string>();
+
+        // Add NPC names first (comma-separated)
+        var npcNames = new List<string>();
+        foreach (var npcFormKey in entry.NpcFormKeys)
+        {
+            if (linkCache.TryResolve<INpcGetter>(npcFormKey, out var npc))
+            {
+                // Prefer Name, fall back to EditorID
+                var name = npc.Name?.String;
+                if (!string.IsNullOrWhiteSpace(name))
+                {
+                    npcNames.Add(name);
+                }
+                else if (!string.IsNullOrWhiteSpace(npc.EditorID))
+                {
+                    npcNames.Add(npc.EditorID);
+                }
+            }
+        }
+        if (npcNames.Count > 0)
+        {
+            stringFilters.Add(string.Join(",", npcNames));
+        }
+
+        // Add keywords (+ separated for AND logic)
+        var keywordEditorIds = new List<string>();
         foreach (var keywordFormKey in entry.KeywordFormKeys)
         {
             if (linkCache.TryResolve<IKeywordGetter>(keywordFormKey, out var keyword) &&
                 !string.IsNullOrWhiteSpace(keyword.EditorID))
             {
-                stringFilters.Add(keyword.EditorID);
+                keywordEditorIds.Add(keyword.EditorID);
             }
         }
-        var stringFiltersPart = stringFilters.Count > 0 ? string.Join("+", stringFilters) : null;
+        if (keywordEditorIds.Count > 0)
+        {
+            stringFilters.Add(string.Join("+", keywordEditorIds));
+        }
+
+        var stringFiltersPart = stringFilters.Count > 0 ? string.Join(",", stringFilters) : null;
 
         // Position 3: FormFilters - Factions, Races, and Classes (AND with +)
         var formFilters = new List<string>();

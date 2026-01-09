@@ -690,17 +690,19 @@ public class DistributionEditTabViewModel : ReactiveObject
             IsLoading = true;
             StatusMessage = "Saving distribution file...";
 
-            var entries = DistributionEntries
-                .Select(evm => evm.Entry)
-                .ToList();
+            // Write the preview text directly - it's already correctly formatted
+            // This ensures the saved file matches exactly what the user sees in the preview
+            var directory = Path.GetDirectoryName(finalFilePath);
+            if (!string.IsNullOrWhiteSpace(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
 
-            var anyEntryUsesChance = entries.Any(e => e.Chance.HasValue);
-            var effectiveFormat = anyEntryUsesChance ? DistributionFileType.Spid : DistributionFormat;
-
-            await _fileWriterService.WriteDistributionFileAsync(finalFilePath, entries, effectiveFormat);
+            await File.WriteAllTextAsync(finalFilePath, DistributionPreviewText, System.Text.Encoding.UTF8);
 
             StatusMessage = $"Successfully saved distribution file: {Path.GetFileName(finalFilePath)}";
-            _logger.Information("Saved distribution file: {FilePath}", finalFilePath);
+            _logger.Information("Saved distribution file: {FilePath} ({LineCount} lines)",
+                finalFilePath, DistributionPreviewText.Split('\n').Length);
 
             FileSaved?.Invoke(finalFilePath);
         }
