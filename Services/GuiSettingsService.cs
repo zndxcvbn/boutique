@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text.Json;
+using Mutagen.Bethesda.Skyrim;
 using Serilog;
 
 namespace Boutique.Services;
@@ -10,6 +11,7 @@ public class GuiSettings
     public string? SkyrimDataPath { get; set; }
     public string? OutputPatchPath { get; set; }
     public string? PatchFileName { get; set; }
+    public SkyrimRelease SelectedSkyrimRelease { get; set; }
 }
 
 public class GuiSettingsService
@@ -74,6 +76,18 @@ public class GuiSettingsService
             if (_settings.PatchFileName == value)
                 return;
             _settings.PatchFileName = value;
+            SaveSettings();
+        }
+    }
+
+    public SkyrimRelease SelectedSkyrimRelease
+    {
+        get => _settings.SelectedSkyrimRelease;
+        set
+        {
+            if (_settings.SelectedSkyrimRelease == value)
+                return;
+            _settings.SelectedSkyrimRelease = value;
             SaveSettings();
         }
     }

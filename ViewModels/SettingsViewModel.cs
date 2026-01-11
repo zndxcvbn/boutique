@@ -56,7 +56,9 @@ public class SettingsViewModel : ReactiveObject
         SkyrimDataPath = NormalizeDataPath(savedDataPath);
         OutputPatchPath = !string.IsNullOrEmpty(guiSettings.OutputPatchPath) ? guiSettings.OutputPatchPath : settings.OutputPatchPath;
         PatchFileName = !string.IsNullOrEmpty(guiSettings.PatchFileName) ? guiSettings.PatchFileName : settings.PatchFileName;
-        SelectedSkyrimRelease = settings.SelectedSkyrimRelease;
+        SelectedSkyrimRelease = guiSettings.SelectedSkyrimRelease != default ? guiSettings.SelectedSkyrimRelease : settings.SelectedSkyrimRelease;
+        _settings.SelectedSkyrimRelease = SelectedSkyrimRelease;
+
         SelectedTheme = (ThemeOption)_themeService.CurrentThemeSetting;
 
         this.WhenAnyValue(x => x.SkyrimDataPath)
@@ -97,6 +99,7 @@ public class SettingsViewModel : ReactiveObject
             .Subscribe(release =>
             {
                 _settings.SelectedSkyrimRelease = release;
+                _guiSettings.SelectedSkyrimRelease = release;
             });
 
         this.WhenAnyValue(x => x.SelectedTheme)
