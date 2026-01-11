@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.IO;
+using Boutique.Models;
 using Boutique.Utilities;
 using Mutagen.Bethesda;
 using Mutagen.Bethesda.Environments;
@@ -10,9 +11,10 @@ using Serilog;
 
 namespace Boutique.Services;
 
-public class MutagenService(ILoggingService loggingService)
+public class MutagenService(ILoggingService loggingService, PatcherSettings settings)
 {
     private readonly ILogger _logger = loggingService.ForContext<MutagenService>();
+    private readonly PatcherSettings _settings = settings;
     private IGameEnvironment<ISkyrimMod, ISkyrimModGetter>? _environment;
 
     public event EventHandler? PluginsChanged;
@@ -25,23 +27,24 @@ public class MutagenService(ILoggingService loggingService)
 
     public bool IsInitialized => _environment != null;
 
-    private bool IsSkyrimVR(string dataFolderPath)
+    private GameRelease GetGameRelease()
     {
-        if (string.IsNullOrWhiteSpace(dataFolderPath) || !Directory.Exists(dataFolderPath))
-            return false;
-
-        var skyrimVrEsm = Path.Combine(dataFolderPath, "SkyrimVR.esm");
-        return File.Exists(skyrimVrEsm);
+        // Convert SkyrimRelease to GameRelease
+        var skyrimRelease = GetSkyrimRelease();
+        return skyrimRelease switch
+        {
+            SkyrimRelease.SkyrimSE => GameRelease.SkyrimSE,
+            SkyrimRelease.SkyrimVR => GameRelease.SkyrimVR,
+            SkyrimRelease.SkyrimSEGog => GameRelease.SkyrimSEGog,
+            _ => GameRelease.SkyrimSE
+        };
     }
 
-    private GameRelease GetGameRelease(string dataFolderPath)
+    private SkyrimRelease GetSkyrimRelease()
     {
-        return IsSkyrimVR(dataFolderPath) ? GameRelease.SkyrimVR : GameRelease.SkyrimSE;
-    }
-
-    private SkyrimRelease GetSkyrimRelease(string dataFolderPath)
-    {
-        return IsSkyrimVR(dataFolderPath) ? SkyrimRelease.SkyrimVR : SkyrimRelease.SkyrimSE;
+        // Use the user-selected release from settings
+        _logger.Information("Using user-selected Skyrim release: {Release}", _settings.SelectedSkyrimRelease);
+        return _settings.SelectedSkyrimRelease != default ? _settings.SelectedSkyrimRelease : SkyrimRelease.SkyrimSE;
     }
 
     public async Task InitializeAsync(string dataFolderPath)
@@ -77,7 +80,7 @@ public class MutagenService(ILoggingService loggingService)
     {
         try
         {
-            var gameRelease = GetGameRelease(dataFolderPath);
+            var gameRelease = GetGameRelease();
             _logger.Information("Detected game release: {GameRelease}", gameRelease);
 
             var envSw = System.Diagnostics.Stopwatch.StartNew();
@@ -101,7 +104,7 @@ public class MutagenService(ILoggingService loggingService)
     {
         try
         {
-            var skyrimRelease = GetSkyrimRelease(dataFolderPath);
+            var skyrimRelease = GetSkyrimRelease();
             _logger.Information("Detected Skyrim release: {SkyrimRelease}", skyrimRelease);
 
             var envSw = System.Diagnostics.Stopwatch.StartNew();
@@ -141,7 +144,7 @@ public class MutagenService(ILoggingService loggingService)
             var armorPlugins = new List<string>();
             var scannedCount = 0;
 
-            var skyrimRelease = GetSkyrimRelease(DataFolderPath);
+            var skyrimRelease = GetSkyrimRelease();
 
             foreach (var pluginPath in pluginFiles)
             {
@@ -188,7 +191,7 @@ public class MutagenService(ILoggingService loggingService)
 
             try
             {
-                var skyrimRelease = GetSkyrimRelease(DataFolderPath);
+                var skyrimRelease = GetSkyrimRelease();
                 using var mod = SkyrimMod.CreateFromBinaryOverlay(pluginPath, skyrimRelease);
                 return mod.Armors.ToList();
             }
@@ -213,7 +216,7 @@ public class MutagenService(ILoggingService loggingService)
 
             try
             {
-                var skyrimRelease = GetSkyrimRelease(DataFolderPath);
+                var skyrimRelease = GetSkyrimRelease();
                 using var mod = SkyrimMod.CreateFromBinaryOverlay(pluginPath, skyrimRelease);
                 return mod.Outfits.ToList();
             }
@@ -243,20 +246,20 @@ public class MutagenService(ILoggingService loggingService)
             {
                 try
                 {
-                    var gameRelease = GetGameRelease(DataFolderPath);
+                    var gameRelease = GetGameRelease();
                     _environment = GameEnvironment.Typical.Builder<ISkyrimMod, ISkyrimModGetter>(gameRelease)
                         .WithTargetDataFolder(new DirectoryPath(DataFolderPath!))
                         .Build();
                 }
                 catch
                 {
-                    var skyrimRelease = GetSkyrimRelease(DataFolderPath);
+                    var skyrimRelease = GetSkyrimRelease();
                     _environment = GameEnvironment.Typical.Skyrim(skyrimRelease);
                 }
             }
             else
             {
-                var skyrimRelease = GetSkyrimRelease(DataFolderPath);
+                var skyrimRelease = GetSkyrimRelease();
                 _environment = GameEnvironment.Typical.Skyrim(skyrimRelease);
             }
 
