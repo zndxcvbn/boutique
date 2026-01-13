@@ -35,6 +35,7 @@ public class MainViewModel : ReactiveObject
     private bool _suppressAutoSave;
     private readonly PatchingService _patchingService;
     private readonly ArmorPreviewService _previewService;
+    private readonly GameDataCacheService _gameDataCache;
     private int _activeLoadingOperations;
 
     private string? _lastLoadedOutfitPlugin;
@@ -55,11 +56,13 @@ public class MainViewModel : ReactiveObject
         ArmorPreviewService previewService,
         SettingsViewModel settingsViewModel,
         DistributionViewModel distributionViewModel,
+        GameDataCacheService gameDataCache,
         ILoggingService loggingService)
     {
         _mutagenService = mutagenService;
         _patchingService = patchingService;
         _previewService = previewService;
+        _gameDataCache = gameDataCache;
         Settings = settingsViewModel;
         Distribution = distributionViewModel;
         _logger = loggingService.ForContext<MainViewModel>();
@@ -1543,6 +1546,10 @@ public class MainViewModel : ReactiveObject
                     if (draft != null)
                         draft.FormKey = result.FormKey;
                 }
+
+                StatusMessage = "Refreshing game data cache...";
+                await _gameDataCache.ReloadAsync();
+                StatusMessage = message;
             }
         }
         catch (Exception ex)
