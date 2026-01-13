@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Reactive;
 using System.Reactive.Linq;
 using Boutique.Models;
+using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Skyrim;
 using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
@@ -40,9 +41,12 @@ public class DistributionEntryViewModel : ReactiveObject
         Func<bool>? isFormatChangingToSpid = null)
     {
         Entry = entry;
+        Type = entry.Type;
         SelectedOutfit = entry.Outfit;
+        KeywordToDistribute = entry.KeywordToDistribute ?? string.Empty;
         UseChance = entry.Chance.HasValue;
         Chance = entry.Chance ?? 100;
+        LevelFilters = entry.LevelFilters ?? string.Empty;
 
         Gender = entry.TraitFilters.IsFemale switch
         {
@@ -82,10 +86,10 @@ public class DistributionEntryViewModel : ReactiveObject
             }
         }
 
-        if (entry.KeywordFormKeys.Count > 0)
+        if (entry.KeywordEditorIds.Count > 0)
         {
-            var keywordVms = entry.KeywordFormKeys
-                .Select(fk => new KeywordRecordViewModel(new KeywordRecord(fk, null, fk.ModKey)))
+            var keywordVms = entry.KeywordEditorIds
+                .Select(editorId => new KeywordRecordViewModel(new KeywordRecord(FormKey.Null, editorId, ModKey.Null)))
                 .ToList();
 
             foreach (var keywordVm in keywordVms)
@@ -118,11 +122,29 @@ public class DistributionEntryViewModel : ReactiveObject
             }
         }
 
+        this.WhenAnyValue(x => x.Type)
+            .Skip(1)
+            .Subscribe(type =>
+            {
+                Entry.Type = type;
+                this.RaisePropertyChanged(nameof(IsOutfitDistribution));
+                this.RaisePropertyChanged(nameof(IsKeywordDistribution));
+                RaiseEntryChanged();
+            });
+
         this.WhenAnyValue(x => x.SelectedOutfit)
             .Skip(1)
             .Subscribe(outfit =>
             {
                 Entry.Outfit = outfit;
+                RaiseEntryChanged();
+            });
+
+        this.WhenAnyValue(x => x.KeywordToDistribute)
+            .Skip(1)
+            .Subscribe(keyword =>
+            {
+                Entry.KeywordToDistribute = keyword;
                 RaiseEntryChanged();
             });
 
@@ -211,19 +233,36 @@ public class DistributionEntryViewModel : ReactiveObject
                 }
             });
 
+        this.WhenAnyValue(x => x.LevelFilters)
+            .Skip(1)
+            .Subscribe(levelFilters =>
+            {
+                Entry.LevelFilters = string.IsNullOrWhiteSpace(levelFilters) ? null : levelFilters;
+                RaiseEntryChanged();
+            });
+
         RemoveCommand = ReactiveCommand.Create(() => removeAction?.Invoke(this));
     }
 
     public DistributionEntry Entry { get; }
 
+    [Reactive] public DistributionType Type { get; set; } = DistributionType.Outfit;
+
     [Reactive] public IOutfitGetter? SelectedOutfit { get; set; }
+
+    [Reactive] public string KeywordToDistribute { get; set; } = string.Empty;
+
+    public bool IsOutfitDistribution => Type == DistributionType.Outfit;
+    public bool IsKeywordDistribution => Type == DistributionType.Keyword;
 
     [Reactive] public bool UseChance { get; set; }
     [Reactive] public int Chance { get; set; } = 100;
+    [Reactive] public string LevelFilters { get; set; } = string.Empty;
     [Reactive] public GenderFilter Gender { get; set; } = GenderFilter.Any;
     [Reactive] public UniqueFilter Unique { get; set; } = UniqueFilter.Any;
     [Reactive] public bool? IsChild { get; set; }
 
+    public static DistributionType[] TypeOptions { get; } = [DistributionType.Outfit, DistributionType.Keyword];
     public static GenderFilter[] GenderOptions { get; } = [GenderFilter.Any, GenderFilter.Female, GenderFilter.Male];
     public static UniqueFilter[] UniqueOptions { get; } = [UniqueFilter.Any, UniqueFilter.UniqueOnly, UniqueFilter.NonUniqueOnly];
 
@@ -299,8 +338,10 @@ public class DistributionEntryViewModel : ReactiveObject
 
     public void UpdateEntryKeywords()
     {
-        Entry.KeywordFormKeys.Clear();
-        Entry.KeywordFormKeys.AddRange(SelectedKeywords.Select(keyword => keyword.FormKey));
+        Entry.KeywordEditorIds.Clear();
+        Entry.KeywordEditorIds.AddRange(SelectedKeywords
+            .Select(keyword => keyword.KeywordRecord.EditorID)
+            .Where(editorId => !string.IsNullOrWhiteSpace(editorId))!);
         RaiseEntryChanged();
     }
 

@@ -1547,8 +1547,8 @@ public class MainViewModel : ReactiveObject
                         draft.FormKey = result.FormKey;
                 }
 
-                StatusMessage = "Refreshing game data cache...";
-                await _gameDataCache.ReloadAsync();
+                StatusMessage = "Refreshing outfits...";
+                await _gameDataCache.RefreshOutfitsFromPatchAsync();
                 StatusMessage = message;
             }
         }
