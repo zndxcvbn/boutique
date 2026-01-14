@@ -365,7 +365,7 @@ public class NpcOutfitResolutionService
     {
         var trimmed = lineText.Trim();
 
-        // Extract NPC FormKeys
+        // Extract NPC FormKeys - supports both FormKey format and EditorID
         var npcFormKeys = new List<FormKey>();
         var filterByNpcsIndex = trimmed.IndexOf("filterByNpcs=", StringComparison.OrdinalIgnoreCase);
 
@@ -380,9 +380,17 @@ public class NpcOutfitResolutionService
 
                 foreach (var npcPart in npcString.Split(','))
                 {
-                    if (FormKeyHelper.TryParse(npcPart.Trim(), out var formKey))
+                    var npcIdentifier = npcPart.Trim();
+
+                    // Try FormKey format first (ModKey|FormID or 0x12345~ModKey)
+                    if (FormKeyHelper.TryParse(npcIdentifier, out var formKey))
                     {
                         npcFormKeys.Add(formKey);
+                    }
+                    // Try EditorID resolution via LinkCache
+                    else if (linkCache.TryResolve<INpcGetter>(npcIdentifier, out var npc))
+                    {
+                        npcFormKeys.Add(npc.FormKey);
                     }
                 }
             }
@@ -622,12 +630,10 @@ public class NpcOutfitResolutionService
         IReadOnlyDictionary<string, FormKey> outfitByEditorId,
         List<(FormKey, FormKey, string?)> results)
     {
-        // SkyPatcher format: filterByNpcs=ModKey|FormID,ModKey|FormID:outfitDefault=ModKey|FormID or EditorID
         var trimmed = lineText.Trim();
 
         _logger.Debug("ParseSkyPatcherLine: {Line}", trimmed.Length > 150 ? trimmed[..150] + "..." : trimmed);
 
-        // Extract NPC FormKeys
         var npcFormKeys = new List<FormKey>();
         var filterByNpcsIndex = trimmed.IndexOf("filterByNpcs=", StringComparison.OrdinalIgnoreCase);
 
@@ -646,14 +652,20 @@ public class NpcOutfitResolutionService
 
                 foreach (var npcPart in npcString.Split(','))
                 {
-                    if (FormKeyHelper.TryParse(npcPart.Trim(), out var formKey))
+                    var npcIdentifier = npcPart.Trim();
+                    if (FormKeyHelper.TryParse(npcIdentifier, out var formKey))
                     {
                         npcFormKeys.Add(formKey);
                         _logger.Debug("Parsed NPC FormKey: {FormKey}", formKey);
                     }
+                    else if (linkCache.TryResolve<INpcGetter>(npcIdentifier, out var npc))
+                    {
+                        npcFormKeys.Add(npc.FormKey);
+                        _logger.Debug("Resolved NPC EditorID {EditorId} to FormKey: {FormKey}", npcIdentifier, npc.FormKey);
+                    }
                     else
                     {
-                        _logger.Debug("Failed to parse NPC FormKey from: {Part}", npcPart.Trim());
+                        _logger.Debug("Failed to resolve NPC: {Identifier}", npcIdentifier);
                     }
                 }
             }
