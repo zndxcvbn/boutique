@@ -87,8 +87,9 @@ public class PatchingService(MutagenService mutagenService, ILoggingService logg
                 else
                 {
                     patchMod = new SkyrimMod(modKey, mutagenService.SkyrimRelease);
-                    EnsureMinimumFormId(patchMod);
                 }
+
+                EnsureMinimumFormId(patchMod);
 
                 var existingMasters = patchMod.ModHeader.MasterReferences?
                     .Select(m => m.Master) ?? [];
@@ -202,8 +203,9 @@ public class PatchingService(MutagenService mutagenService, ILoggingService logg
                 else
                 {
                     patchMod = new SkyrimMod(modKey, mutagenService.SkyrimRelease);
-                    EnsureMinimumFormId(patchMod);
                 }
+
+                EnsureMinimumFormId(patchMod);
 
                 var existingOutfitMasters = patchMod.ModHeader.MasterReferences.Select(m => m.Master);
                 requiredMasters.UnionWith(existingOutfitMasters);
@@ -301,10 +303,16 @@ public class PatchingService(MutagenService mutagenService, ILoggingService logg
         return result;
     }
 
-    private static void EnsureMinimumFormId(SkyrimMod patchMod)
+    private void EnsureMinimumFormId(SkyrimMod patchMod)
     {
-        if (patchMod.ModHeader.Stats.NextFormID < MinimumFormId)
+        var current = patchMod.ModHeader.Stats.NextFormID;
+        if (current < MinimumFormId)
+        {
             patchMod.ModHeader.Stats.NextFormID = MinimumFormId;
+            _logger.Warning(
+                "NextFormID was {Current:X}, bumped to {Minimum:X} for ESL compatibility.",
+                current, MinimumFormId);
+        }
     }
 
     private static void ApplyGlamOnlyAdjustments(Armor target) => target.ArmorRating = 0;
