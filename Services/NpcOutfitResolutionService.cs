@@ -283,7 +283,7 @@ public class NpcOutfitResolutionService
         // Find all matching NPCs using the filter matching service with virtual keywords
         var matchingNpcs = SpidFilterMatchingService.GetMatchingNpcsWithVirtualKeywords(allNpcs, filter, simulatedKeywords);
 
-        _logger.Debug("SPID line matched {Count} NPCs: {Line}", matchingNpcs.Count,
+        _logger.Information("SPID line matched {Count} NPCs: {Line}", matchingNpcs.Count,
             line.RawText.Length > 80 ? line.RawText[..80] + "..." : line.RawText);
 
         // Determine targeting type

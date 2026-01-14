@@ -189,18 +189,60 @@ public static class SpidLineParser
         // Split by comma for OR expressions
         var expressions = sectionText!.Split(',', StringSplitOptions.RemoveEmptyEntries);
 
+        // SPID syntax: comma is OR for positive terms, but negated terms (e.g., ",-X")
+        // are global exclusions that apply to ALL expressions as AND NOT.
+        // e.g., "A+B,-C,-D" means "(A AND B) AND NOT C AND NOT D"
+        // e.g., "A,B,-C" means "(A OR B) AND NOT C"
+        var globalExclusions = new List<SpidFilterPart>();
+
         foreach (var expr in expressions)
         {
             var trimmedExpr = expr.Trim();
             if (string.IsNullOrEmpty(trimmedExpr))
                 continue;
 
-            // SPID syntax: comma is OR, plus is AND
-            // e.g., "A+B,-C,-D" means "(A AND B) OR (NOT C) OR (NOT D)"
+            // Check if this entire comma-segment is just a negated term (starts with -)
+            // If so, it's a global exclusion, not an OR expression
+            if (trimmedExpr.StartsWith('-') && !trimmedExpr.Contains('+'))
+            {
+                var exclusionValue = trimmedExpr[1..].Trim();
+                if (!string.IsNullOrWhiteSpace(exclusionValue))
+                {
+                    globalExclusions.Add(new SpidFilterPart
+                    {
+                        Value = exclusionValue,
+                        IsNegated = true
+                    });
+                }
+
+                continue;
+            }
+
             var expression = ParseFilterExpression(trimmedExpr);
             if (expression.Parts.Count > 0)
             {
                 section.Expressions.Add(expression);
+            }
+        }
+
+        // Add global exclusions to every expression (they act as AND NOT)
+        if (globalExclusions.Count > 0)
+        {
+            if (section.Expressions.Count == 0)
+            {
+                // If there are only exclusions and no positive expressions,
+                // create a single expression with just the exclusions
+                var exclusionExpr = new SpidFilterExpression();
+                exclusionExpr.Parts.AddRange(globalExclusions);
+                section.Expressions.Add(exclusionExpr);
+            }
+            else
+            {
+                // Add exclusions to each expression
+                foreach (var expression in section.Expressions)
+                {
+                    expression.Parts.AddRange(globalExclusions);
+                }
             }
         }
 

@@ -53,9 +53,9 @@ public class DistributionOutfitsTabViewModel : ReactiveObject
         this.WhenAnyValue(vm => vm.HideVanillaOutfits)
             .Subscribe(_ => UpdateFilteredOutfits());
 
-        // Update NPC assignments when selection changes
+        // Update NPC assignments when selection changes (async to avoid UI freeze)
         this.WhenAnyValue(vm => vm.SelectedOutfit)
-            .Subscribe(_ => UpdateSelectedOutfitNpcAssignments());
+            .Subscribe(async _ => await UpdateSelectedOutfitNpcAssignmentsAsync());
     }
 
     [Reactive]
@@ -158,25 +158,13 @@ public class DistributionOutfitsTabViewModel : ReactiveObject
                 linkCache.WinningOverrides<IOutfitGetter>().ToList());
             _logger.Debug("Loaded {Count} outfits from load order", outfits.Count);
 
-            // Load NPC assignments if distribution files are available
-            if (DistributionFiles.Count > 0)
+            // Use cached NPC assignments from startup (already calculated correctly)
+            if (_cache.AllNpcOutfitAssignments.Count > 0)
             {
-                StatusMessage = "Resolving NPC outfit assignments...";
-                _logger.Debug("Resolving NPC outfit assignments from {Count} files", DistributionFiles.Count);
-
-                var distributionFiles = DistributionFiles
-                    .Select(fvm => new DistributionFile(
-                        fvm.FileName,
-                        fvm.FullPath,
-                        fvm.RelativePath,
-                        fvm.TypeDisplay == "SPID" ? DistributionFileType.Spid : DistributionFileType.SkyPatcher,
-                        fvm.Lines,
-                        fvm.OutfitCount))
+                _npcAssignments = _cache.AllNpcOutfitAssignments
+                    .Select(vm => vm.Assignment)
                     .ToList();
-
-                var npcFilterData = await _npcScanningService.ScanNpcsWithFilterDataAsync();
-                _npcAssignments = await _npcOutfitResolutionService.ResolveNpcOutfitsWithFiltersAsync(distributionFiles, npcFilterData);
-                _logger.Debug("Resolved {Count} NPC outfit assignments", _npcAssignments.Count);
+                _logger.Debug("Using {Count} cached NPC outfit assignments", _npcAssignments.Count);
 
                 // Update counts now that we have both outfits and assignments
                 UpdateOutfitNpcCounts();
@@ -307,55 +295,40 @@ public class DistributionOutfitsTabViewModel : ReactiveObject
         return true;
     }
 
-    private void UpdateSelectedOutfitNpcAssignments()
+    private async Task UpdateSelectedOutfitNpcAssignmentsAsync()
     {
         SelectedOutfitNpcAssignments.Clear();
 
         if (SelectedOutfit == null || _npcAssignments == null)
         {
-            _logger.Debug(
-                "UpdateSelectedOutfitNpcAssignments: SelectedOutfit={SelectedOutfit}, _npcAssignments={NpcAssignmentsCount}",
-                SelectedOutfit?.EditorID ?? "null",
-                _npcAssignments?.Count ?? 0);
             return;
         }
 
         var outfitFormKey = SelectedOutfit.FormKey;
-        _logger.Debug(
-            "UpdateSelectedOutfitNpcAssignments: Looking for outfit {OutfitFormKey} ({EditorID})",
-            outfitFormKey, SelectedOutfit.EditorID);
+        var selectedOutfitRef = SelectedOutfit;
 
-        // Find all NPCs that have this outfit assigned
-        // Check if the outfit is the final outfit OR if it appears in any distribution targeting this NPC
-        var matchingAssignments = _npcAssignments
-            .Where(assignment =>
-            {
-                // Check if this outfit is the final resolved outfit for this NPC
-                if (assignment.FinalOutfitFormKey == outfitFormKey)
-                {
-                    _logger.Debug("  Match: NPC {NpcFormKey} has this outfit as final outfit", assignment.NpcFormKey);
-                    return true;
-                }
-
-                // Check if this outfit appears in any distribution targeting this NPC
-                // This includes distributions that might not be the winner but still target this NPC
-                var hasDistribution = assignment.Distributions.Any(d => d.OutfitFormKey == outfitFormKey);
-                if (hasDistribution)
-                {
-                    _logger.Debug("  Match: NPC {NpcFormKey} has this outfit in distributions", assignment.NpcFormKey);
-                }
-
-                return hasDistribution;
-            })
-            .ToList();
-
-        _logger.Debug("UpdateSelectedOutfitNpcAssignments: Found {Count} matching NPCs", matchingAssignments.Count);
-
-        foreach (var assignment in matchingAssignments)
+        // Run filtering on background thread to avoid UI freeze
+        var matchingAssignments = await Task.Run(() =>
         {
-            var vm = new NpcOutfitAssignmentViewModel(assignment);
+            // Find all NPCs that have this outfit as their final resolved outfit
+            return _npcAssignments
+                .Where(assignment => assignment.FinalOutfitFormKey == outfitFormKey)
+                .Select(assignment => new NpcOutfitAssignmentViewModel(assignment))
+                .ToList();
+        });
+
+        // Check if selection changed while we were processing
+        if (SelectedOutfit != selectedOutfitRef)
+            return;
+
+        foreach (var vm in matchingAssignments)
+        {
             SelectedOutfitNpcAssignments.Add(vm);
         }
+
+        _logger.Debug(
+            "UpdateSelectedOutfitNpcAssignmentsAsync: Found {Count} NPCs with outfit {EditorID}",
+            matchingAssignments.Count, selectedOutfitRef.EditorID);
     }
 
     private void UpdateOutfitNpcCounts()
@@ -370,29 +343,19 @@ public class DistributionOutfitsTabViewModel : ReactiveObject
             return;
         }
 
-        // Count unique NPCs for each outfit
-        // Use HashSet to track which NPCs we've already counted for each outfit
+        // Count unique NPCs for each outfit based on their FINAL resolved outfit only
+        // We don't count distributions because that would include ESP defaults for every NPC
         var outfitNpcSets = new Dictionary<FormKey, HashSet<FormKey>>();
 
         foreach (var assignment in _npcAssignments)
         {
-            // Count NPCs where this outfit is the final resolved outfit
+            // Only count NPCs where this outfit is the FINAL resolved outfit
             var finalOutfitFormKey = assignment.FinalOutfitFormKey;
             if (finalOutfitFormKey.HasValue)
             {
                 if (!outfitNpcSets.ContainsKey(finalOutfitFormKey.Value))
                     outfitNpcSets[finalOutfitFormKey.Value] = [];
                 outfitNpcSets[finalOutfitFormKey.Value].Add(assignment.NpcFormKey);
-            }
-
-            // Also count NPCs where this outfit appears in distributions (even if not final)
-            foreach (var dist in assignment.Distributions)
-            {
-                if (!outfitNpcSets.ContainsKey(dist.OutfitFormKey))
-                    outfitNpcSets[dist.OutfitFormKey] = [];
-
-                // Add this NPC to the set for this outfit (HashSet automatically handles duplicates)
-                outfitNpcSets[dist.OutfitFormKey].Add(assignment.NpcFormKey);
             }
         }
 
