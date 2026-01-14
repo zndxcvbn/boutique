@@ -1,5 +1,8 @@
 # Boutique
 
+![Build](https://github.com/aglowinthefield/Boutique/actions/workflows/build.yml/badge.svg)
+![Release](https://github.com/aglowinthefield/Boutique/actions/workflows/release.yml/badge.svg)
+
 Boutique helps you create and manage outfit distribution files for SPID and SkyPatcher, browse NPCs and their outfit assignments, create custom outfit records, and sync armor stats between mods.
 
 ## Features
