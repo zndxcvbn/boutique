@@ -211,7 +211,14 @@ public class PatchingService(MutagenService mutagenService, ILoggingService logg
                         }
 
                         var overrideOutfit = patchMod.Outfits.GetOrAddAsOverride(sourceOutfit);
+
                         requiredMasters.Add(sourceOutfit.FormKey.ModKey);
+
+                        var contexts = mutagenService.LinkCache.ResolveAllContexts<IOutfit, IOutfitGetter>(existingFormKey.Value);
+                        foreach (var context in contexts)
+                        {
+                            requiredMasters.Add(context.ModKey);
+                        }
 
                         var overrideItems = overrideOutfit.Items ??= [];
                         overrideItems.Clear();

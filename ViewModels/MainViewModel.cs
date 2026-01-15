@@ -673,35 +673,11 @@ public class MainViewModel : ReactiveObject
                     continue;
                 }
 
-                var itemLinks = outfit.Items ?? [];
-                var armorPieces = new List<IArmorGetter>();
-
-                foreach (var entry in itemLinks)
-                {
-                    if (entry is null)
-                        continue;
-
-                    var formKeyNullable = entry.FormKeyNullable;
-                    if (!formKeyNullable.HasValue || formKeyNullable.Value == FormKey.Null)
-                        continue;
-
-                    if (!linkCache.TryResolve<IItemGetter>(formKeyNullable.Value, out var item))
-                        continue;
-
-                    if (item is IArmorGetter armor)
-                        armorPieces.Add(armor);
-                }
-
-                var distinctPieces = armorPieces
-                    .GroupBy(p => p.FormKey)
-                    .Select(g => g.First())
-                    .ToList();
-
-                if (distinctPieces.Count == 0)
+                var pieces = OutfitResolver.GatherArmorPieces(outfit, linkCache);
+                if (pieces.Count == 0)
                     continue;
 
                 var editorId = outfit.EditorID ?? SanitizeOutfitName(outfit.FormKey.ToString());
-                var pieces = distinctPieces.Select(a => new ArmorRecordViewModel(a, linkCache)).ToList();
 
                 if (!ValidateOutfitPieces(pieces, out var validationMessage))
                 {
