@@ -23,32 +23,8 @@ public static class DistributionLineParser
         };
     }
 
-    private static List<FormKey> ExtractNpcFormKeysFromSkyPatcherLine(string rawText)
-    {
-        var results = new List<FormKey>();
-
-        // SkyPatcher format: filterByNpcs=ModKey|FormID,ModKey|FormID:outfitDefault=ModKey|FormID
-        var trimmed = rawText.Trim();
-        var filterByNpcsIndex = trimmed.IndexOf("filterByNpcs=", StringComparison.OrdinalIgnoreCase);
-
-        if (filterByNpcsIndex < 0) return results;
-        var npcStart = filterByNpcsIndex + "filterByNpcs=".Length;
-        var npcEnd = trimmed.IndexOf(':', npcStart);
-
-        if (npcEnd <= npcStart) return results;
-        var npcString = trimmed[npcStart..npcEnd];
-
-        foreach (var npcPart in npcString.Split(','))
-        {
-            var formKey = TryParseFormKey(npcPart.Trim());
-            if (formKey.HasValue)
-            {
-                results.Add(formKey.Value);
-            }
-        }
-
-        return results;
-    }
+    private static List<FormKey> ExtractNpcFormKeysFromSkyPatcherLine(string rawText) =>
+        SkyPatcherSyntax.ParseFormKeys(rawText, "filterByNpcs");
 
     private static List<FormKey> ExtractNpcFormKeysFromSpidLine(
         string rawText,
@@ -127,28 +103,23 @@ public static class DistributionLineParser
 
     private static bool SkyPatcherLineTargetsAllNpcs(string rawText)
     {
-        var trimmed = rawText.Trim();
-
-        // Must have an outfit assignment
-        var hasOutfitDefault = trimmed.Contains("outfitDefault=", StringComparison.OrdinalIgnoreCase) ||
-                               trimmed.Contains("outfitSleep=", StringComparison.OrdinalIgnoreCase);
-        if (!hasOutfitDefault)
+        var hasOutfitAssignment = SkyPatcherSyntax.HasFilter(rawText, "outfitDefault") ||
+                                  SkyPatcherSyntax.HasFilter(rawText, "outfitSleep");
+        if (!hasOutfitAssignment)
             return false;
 
-        // Check for any NPC-specific filters - if none present, it targets all NPCs
-        var hasNpcFilter = trimmed.Contains("filterByNpcs=", StringComparison.OrdinalIgnoreCase) ||
-                           trimmed.Contains("filterByNpcsExcluded=", StringComparison.OrdinalIgnoreCase);
-        var hasFactionFilter = trimmed.Contains("filterByFactions", StringComparison.OrdinalIgnoreCase);
-        var hasRaceFilter = trimmed.Contains("filterByRaces", StringComparison.OrdinalIgnoreCase);
-        var hasKeywordFilter = trimmed.Contains("filterByKeywords", StringComparison.OrdinalIgnoreCase);
-        var hasEditorIdFilter = trimmed.Contains("filterByEditorIdContains", StringComparison.OrdinalIgnoreCase);
-        var hasGenderFilter = trimmed.Contains("filterByGender=", StringComparison.OrdinalIgnoreCase);
-        var hasDefaultOutfitFilter = trimmed.Contains("filterByDefaultOutfits=", StringComparison.OrdinalIgnoreCase);
-        var hasModNameFilter = trimmed.Contains("filterByModNames=", StringComparison.OrdinalIgnoreCase);
+        var hasAnyNpcFilter =
+            SkyPatcherSyntax.HasFilter(rawText, "filterByNpcs") ||
+            SkyPatcherSyntax.HasFilter(rawText, "filterByNpcsExcluded") ||
+            SkyPatcherSyntax.HasFilter(rawText, "filterByFactions") ||
+            SkyPatcherSyntax.HasFilter(rawText, "filterByRaces") ||
+            SkyPatcherSyntax.HasFilter(rawText, "filterByKeywords") ||
+            SkyPatcherSyntax.HasFilter(rawText, "filterByEditorIdContains") ||
+            SkyPatcherSyntax.HasFilter(rawText, "filterByGender") ||
+            SkyPatcherSyntax.HasFilter(rawText, "filterByDefaultOutfits") ||
+            SkyPatcherSyntax.HasFilter(rawText, "filterByModNames");
 
-        // If no NPC-related filters are present, it targets all NPCs
-        return !hasNpcFilter && !hasFactionFilter && !hasRaceFilter && !hasKeywordFilter &&
-               !hasEditorIdFilter && !hasGenderFilter && !hasDefaultOutfitFilter && !hasModNameFilter;
+        return !hasAnyNpcFilter;
     }
 
     public static string? ExtractOutfitNameFromLine(

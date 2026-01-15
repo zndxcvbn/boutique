@@ -306,14 +306,10 @@ public class DistributionFileWriterService
             var raceFormKeys = ResolveRaceIdentifiers(raceStrings, linkCache);
             var classFormKeys = ResolveClassIdentifiers(classStrings, linkCache);
 
-            // Extract outfit - handle potential trailing colon or other content
-            var outfitStart = outfitPartIndex + "outfitDefault=".Length;
-            var outfitEnd = line.IndexOf(':', outfitStart);
-            var outfitString = outfitEnd >= 0
-                ? line.Substring(outfitStart, outfitEnd - outfitStart).Trim()
-                : line.Substring(outfitStart).Trim();
+            var outfitString = SkyPatcherSyntax.ExtractFilterValue(line, "outfitDefault");
+            if (string.IsNullOrWhiteSpace(outfitString))
+                return null;
 
-            // Resolve outfit - supports both FormKey format and EditorID
             var outfitFormKey = FormKeyHelper.ResolveOutfit(outfitString, linkCache, outfitByEditorId);
 
             if (!outfitFormKey.HasValue)

@@ -363,91 +363,13 @@ public class NpcOutfitResolutionService
         IReadOnlyDictionary<string, FormKey> outfitByEditorId,
         List<(FormKey, FormKey, string?)> results)
     {
-        var trimmed = lineText.Trim();
-
-        // Extract NPC FormKeys - supports both FormKey format and EditorID
-        var npcFormKeys = new List<FormKey>();
-        var filterByNpcsIndex = trimmed.IndexOf("filterByNpcs=", StringComparison.OrdinalIgnoreCase);
-
-        if (filterByNpcsIndex >= 0)
-        {
-            var npcStart = filterByNpcsIndex + "filterByNpcs=".Length;
-            var npcEnd = trimmed.IndexOf(':', npcStart);
-
-            if (npcEnd > npcStart)
-            {
-                var npcString = trimmed.Substring(npcStart, npcEnd - npcStart);
-
-                foreach (var npcPart in npcString.Split(','))
-                {
-                    var npcIdentifier = npcPart.Trim();
-
-                    // Try FormKey format first (ModKey|FormID or 0x12345~ModKey)
-                    if (FormKeyHelper.TryParse(npcIdentifier, out var formKey))
-                    {
-                        npcFormKeys.Add(formKey);
-                    }
-                    // Try EditorID resolution via LinkCache
-                    else if (linkCache.TryResolve<INpcGetter>(npcIdentifier, out var npc))
-                    {
-                        npcFormKeys.Add(npc.FormKey);
-                    }
-                }
-            }
-        }
-
-        // Extract outfit - supports both FormKey format (ModKey|FormID) and EditorID
-        FormKey? outfitFormKey = null;
-        string? outfitEditorId = null;
-        var outfitDefaultIndex = trimmed.IndexOf("outfitDefault=", StringComparison.OrdinalIgnoreCase);
-
-        if (outfitDefaultIndex >= 0)
-        {
-            var outfitStart = outfitDefaultIndex + "outfitDefault=".Length;
-            var outfitEnd = trimmed.IndexOf(':', outfitStart);
-            var outfitString = (outfitEnd > outfitStart
-                ? trimmed.Substring(outfitStart, outfitEnd - outfitStart)
-                : trimmed.Substring(outfitStart)).Trim();
-
-            var resolvedFormKey = FormKeyHelper.ResolveOutfit(outfitString, linkCache, outfitByEditorId);
-            if (resolvedFormKey.HasValue)
-            {
-                outfitFormKey = resolvedFormKey;
-                if (linkCache.TryResolve<IOutfitGetter>(resolvedFormKey.Value, out var outfit))
-                {
-                    outfitEditorId = outfit.EditorID;
-                }
-            }
-        }
-
-        // Also check filterByOutfits= syntax
-        if (!outfitFormKey.HasValue)
-        {
-            var filterByOutfitsIndex = trimmed.IndexOf("filterByOutfits=", StringComparison.OrdinalIgnoreCase);
-            if (filterByOutfitsIndex >= 0)
-            {
-                var outfitStart = filterByOutfitsIndex + "filterByOutfits=".Length;
-                var outfitEnd = trimmed.IndexOf(':', outfitStart);
-                var outfitString = (outfitEnd > outfitStart
-                    ? trimmed.Substring(outfitStart, outfitEnd - outfitStart)
-                    : trimmed.Substring(outfitStart)).Trim();
-
-                var resolvedFormKey = FormKeyHelper.ResolveOutfit(outfitString, linkCache, outfitByEditorId);
-                if (resolvedFormKey.HasValue)
-                {
-                    outfitFormKey = resolvedFormKey;
-                    if (linkCache.TryResolve<IOutfitGetter>(resolvedFormKey.Value, out var outfit))
-                    {
-                        outfitEditorId = outfit.EditorID;
-                    }
-                }
-            }
-        }
+        var npcFormKeys = ParseNpcFormKeysWithEditorIdFallback(lineText, linkCache);
+        var (outfitFormKey, outfitEditorId) = ResolveOutfitFromLine(lineText, linkCache, outfitByEditorId);
 
         if (!outfitFormKey.HasValue || npcFormKeys.Count == 0)
             return;
 
-        var genderFilter = ParseSkyPatcherGenderFilter(trimmed);
+        var genderFilter = SkyPatcherSyntax.ParseGenderFilter(lineText);
 
         foreach (var npcFormKey in npcFormKeys)
         {
@@ -462,18 +384,48 @@ public class NpcOutfitResolutionService
         }
     }
 
-    private static bool? ParseSkyPatcherGenderFilter(string line)
+    private static List<FormKey> ParseNpcFormKeysWithEditorIdFallback(
+        string lineText,
+        ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
     {
-        var index = line.IndexOf("filterByGender=", StringComparison.OrdinalIgnoreCase);
-        if (index < 0)
-            return null;
+        var npcFormKeys = new List<FormKey>();
+        var npcIdentifiers = SkyPatcherSyntax.ExtractFilterValues(lineText, "filterByNpcs");
 
-        var start = index + "filterByGender=".Length;
-        var end = line.IndexOf(':', start);
-        var value = (end > start ? line.Substring(start, end - start) : line[start..]).Trim();
+        foreach (var npcIdentifier in npcIdentifiers)
+        {
+            if (FormKeyHelper.TryParse(npcIdentifier, out var formKey))
+            {
+                npcFormKeys.Add(formKey);
+            }
+            else if (linkCache.TryResolve<INpcGetter>(npcIdentifier, out var npc))
+            {
+                npcFormKeys.Add(npc.FormKey);
+            }
+        }
 
-        return value.Equals("female", StringComparison.OrdinalIgnoreCase) ? true :
-               value.Equals("male", StringComparison.OrdinalIgnoreCase) ? false : null;
+        return npcFormKeys;
+    }
+
+    private static (FormKey? OutfitFormKey, string? EditorId) ResolveOutfitFromLine(
+        string lineText,
+        ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache,
+        IReadOnlyDictionary<string, FormKey> outfitByEditorId)
+    {
+        var outfitString = SkyPatcherSyntax.ExtractFilterValue(lineText, "outfitDefault")
+                        ?? SkyPatcherSyntax.ExtractFilterValue(lineText, "filterByOutfits");
+
+        if (string.IsNullOrWhiteSpace(outfitString))
+            return (null, null);
+
+        var resolvedFormKey = FormKeyHelper.ResolveOutfit(outfitString, linkCache, outfitByEditorId);
+        if (!resolvedFormKey.HasValue)
+            return (null, null);
+
+        var editorId = linkCache.TryResolve<IOutfitGetter>(resolvedFormKey.Value, out var outfit)
+            ? outfit.EditorID
+            : null;
+
+        return (resolvedFormKey, editorId);
     }
 
     private static List<NpcOutfitAssignment> BuildNpcOutfitAssignmentsFromFilterData(
@@ -653,105 +605,10 @@ public class NpcOutfitResolutionService
         IReadOnlyDictionary<string, FormKey> outfitByEditorId,
         List<(FormKey, FormKey, string?)> results)
     {
-        var trimmed = lineText.Trim();
+        _logger.Debug("ParseSkyPatcherLine: {Line}", lineText.Length > 150 ? lineText[..150] + "..." : lineText);
 
-        _logger.Debug("ParseSkyPatcherLine: {Line}", trimmed.Length > 150 ? trimmed[..150] + "..." : trimmed);
-
-        var npcFormKeys = new List<FormKey>();
-        var filterByNpcsIndex = trimmed.IndexOf("filterByNpcs=", StringComparison.OrdinalIgnoreCase);
-
-        _logger.Debug("filterByNpcs index: {Index}", filterByNpcsIndex);
-
-        if (filterByNpcsIndex >= 0)
-        {
-            var npcStart = filterByNpcsIndex + "filterByNpcs=".Length;
-            var npcEnd = trimmed.IndexOf(':', npcStart);
-            _logger.Debug("NPC section: start={Start}, end={End}", npcStart, npcEnd);
-
-            if (npcEnd > npcStart)
-            {
-                var npcString = trimmed.Substring(npcStart, npcEnd - npcStart);
-                _logger.Debug("NPC string to parse: {NpcString}", npcString);
-
-                foreach (var npcPart in npcString.Split(','))
-                {
-                    var npcIdentifier = npcPart.Trim();
-                    if (FormKeyHelper.TryParse(npcIdentifier, out var formKey))
-                    {
-                        npcFormKeys.Add(formKey);
-                        _logger.Debug("Parsed NPC FormKey: {FormKey}", formKey);
-                    }
-                    else if (linkCache.TryResolve<INpcGetter>(npcIdentifier, out var npc))
-                    {
-                        npcFormKeys.Add(npc.FormKey);
-                        _logger.Debug("Resolved NPC EditorID {EditorId} to FormKey: {FormKey}", npcIdentifier, npc.FormKey);
-                    }
-                    else
-                    {
-                        _logger.Debug("Failed to resolve NPC: {Identifier}", npcIdentifier);
-                    }
-                }
-            }
-        }
-
-        // Extract outfit - supports both FormKey format (ModKey|FormID) and EditorID
-        FormKey? outfitFormKey = null;
-        string? outfitEditorId = null;
-        var outfitDefaultIndex = trimmed.IndexOf("outfitDefault=", StringComparison.OrdinalIgnoreCase);
-
-        _logger.Debug("outfitDefault index: {Index}", outfitDefaultIndex);
-
-        if (outfitDefaultIndex >= 0)
-        {
-            var outfitStart = outfitDefaultIndex + "outfitDefault=".Length;
-            var outfitEnd = trimmed.IndexOf(':', outfitStart);
-            var outfitString = (outfitEnd > outfitStart
-                ? trimmed.Substring(outfitStart, outfitEnd - outfitStart)
-                : trimmed.Substring(outfitStart)).Trim();
-
-            _logger.Debug("Outfit string to resolve: {OutfitString}", outfitString);
-
-            var resolvedFormKey = FormKeyHelper.ResolveOutfit(outfitString, linkCache, outfitByEditorId);
-            if (resolvedFormKey.HasValue)
-            {
-                outfitFormKey = resolvedFormKey;
-                outfitEditorId = outfitString; // Use the original string as EditorID hint
-                _logger.Debug("Resolved outfit FormKey: {FormKey}", resolvedFormKey.Value);
-                if (linkCache.TryResolve<IOutfitGetter>(resolvedFormKey.Value, out var outfit))
-                {
-                    outfitEditorId = outfit.EditorID;
-                    _logger.Debug("Outfit EditorID: {EditorId}", outfitEditorId);
-                }
-            }
-            else
-            {
-                _logger.Debug("Failed to resolve outfit: {OutfitString}", outfitString);
-            }
-        }
-
-        // Also check filterByOutfits= syntax (alternative SkyPatcher format)
-        if (!outfitFormKey.HasValue)
-        {
-            var filterByOutfitsIndex = trimmed.IndexOf("filterByOutfits=", StringComparison.OrdinalIgnoreCase);
-            if (filterByOutfitsIndex >= 0)
-            {
-                var outfitStart = filterByOutfitsIndex + "filterByOutfits=".Length;
-                var outfitEnd = trimmed.IndexOf(':', outfitStart);
-                var outfitString = (outfitEnd > outfitStart
-                    ? trimmed.Substring(outfitStart, outfitEnd - outfitStart)
-                    : trimmed.Substring(outfitStart)).Trim();
-
-                var resolvedFormKey = FormKeyHelper.ResolveOutfit(outfitString, linkCache, outfitByEditorId);
-                if (resolvedFormKey.HasValue)
-                {
-                    outfitFormKey = resolvedFormKey;
-                    if (linkCache.TryResolve<IOutfitGetter>(resolvedFormKey.Value, out var outfit))
-                    {
-                        outfitEditorId = outfit.EditorID;
-                    }
-                }
-            }
-        }
+        var npcFormKeys = ParseNpcFormKeysWithEditorIdFallback(lineText, linkCache);
+        var (outfitFormKey, outfitEditorId) = ResolveOutfitFromLine(lineText, linkCache, outfitByEditorId);
 
         _logger.Debug(
             "SkyPatcher parse result: {NpcCount} NPCs, outfit={OutfitFormKey}",
@@ -760,7 +617,7 @@ public class NpcOutfitResolutionService
         if (!outfitFormKey.HasValue || npcFormKeys.Count == 0)
             return;
 
-        var genderFilter = ParseSkyPatcherGenderFilter(trimmed);
+        var genderFilter = SkyPatcherSyntax.ParseGenderFilter(lineText);
 
         foreach (var npcFormKey in npcFormKeys)
         {
