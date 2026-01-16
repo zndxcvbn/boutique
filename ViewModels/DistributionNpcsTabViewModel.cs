@@ -229,7 +229,7 @@ public class DistributionNpcsTabViewModel : ReactiveObject
 
     public ReactiveCommand<Unit, Unit> CopyFilterCommand { get; }
 
-    public Interaction<ArmorPreviewScene, Unit> ShowPreview { get; } = new();
+    public Interaction<ArmorPreviewSceneCollection, Unit> ShowPreview { get; } = new();
 
     /// <summary>
     /// Event raised when a filter is copied, allowing parent to store it for pasting.
@@ -326,7 +326,13 @@ public class DistributionNpcsTabViewModel : ReactiveObject
         {
             StatusMessage = $"Building preview for {label}...";
             var scene = await _armorPreviewService.BuildPreviewAsync(armorPieces, GenderedModelVariant.Female);
-            await ShowPreview.Handle(scene);
+            var sceneWithMetadata = scene with
+            {
+                OutfitLabel = label,
+                SourceFile = outfit.FormKey.ModKey.FileName.String
+            };
+            var collection = new ArmorPreviewSceneCollection(sceneWithMetadata);
+            await ShowPreview.Handle(collection);
             StatusMessage = $"Preview ready for {label}.";
         }
         catch (Exception ex)
@@ -336,9 +342,9 @@ public class DistributionNpcsTabViewModel : ReactiveObject
         }
     }
 
-    private async Task PreviewDistributionOutfitAsync(OutfitDistribution? distribution)
+    private async Task PreviewDistributionOutfitAsync(OutfitDistribution? clickedDistribution)
     {
-        if (distribution == null)
+        if (clickedDistribution == null || SelectedNpcAssignment == null)
         {
             StatusMessage = "No distribution to preview.";
             return;
@@ -350,33 +356,62 @@ public class DistributionNpcsTabViewModel : ReactiveObject
             return;
         }
 
-        var outfitFormKey = distribution.OutfitFormKey;
-        if (!linkCache.TryResolve<IOutfitGetter>(outfitFormKey, out var outfit))
-        {
-            StatusMessage = $"Could not resolve outfit: {outfitFormKey}";
-            return;
-        }
-
-        var label = outfit.EditorID ?? outfit.FormKey.ToString();
-        var armorPieces = OutfitResolver.GatherArmorPieces(outfit, linkCache);
-
-        if (armorPieces.Count == 0)
-        {
-            StatusMessage = $"Outfit '{label}' has no armor pieces to preview.";
-            return;
-        }
-
         try
         {
-            StatusMessage = $"Building preview for {label}...";
-            var scene = await _armorPreviewService.BuildPreviewAsync(armorPieces, GenderedModelVariant.Female);
-            await ShowPreview.Handle(scene);
-            StatusMessage = $"Preview ready for {label}.";
+            StatusMessage = "Building outfit preview...";
+
+            var distributions = SelectedNpcAssignment.Distributions;
+            var clickedIndex = -1;
+            for (var i = 0; i < distributions.Count; i++)
+            {
+                if (distributions[i] == clickedDistribution)
+                {
+                    clickedIndex = i;
+                    break;
+                }
+            }
+
+            if (clickedIndex == -1)
+                clickedIndex = 0;
+
+            var metadata = distributions
+                .Select(d => new OutfitMetadata(
+                    d.OutfitEditorId ?? d.OutfitFormKey.ToString(),
+                    d.FileName,
+                    d.IsWinner))
+                .ToList();
+
+            var collection = new ArmorPreviewSceneCollection(
+                distributions.Count,
+                clickedIndex,
+                metadata,
+                async index =>
+                {
+                    var distribution = distributions[index];
+
+                    if (!linkCache.TryResolve<IOutfitGetter>(distribution.OutfitFormKey, out var outfit))
+                        throw new InvalidOperationException($"Could not resolve outfit: {distribution.OutfitFormKey}");
+
+                    var armorPieces = OutfitResolver.GatherArmorPieces(outfit, linkCache);
+                    if (armorPieces.Count == 0)
+                        throw new InvalidOperationException($"Outfit '{outfit.EditorID ?? outfit.FormKey.ToString()}' has no armor pieces");
+
+                    var scene = await _armorPreviewService.BuildPreviewAsync(armorPieces, GenderedModelVariant.Female);
+                    return scene with
+                    {
+                        OutfitLabel = distribution.OutfitEditorId ?? distribution.OutfitFormKey.ToString(),
+                        SourceFile = distribution.FileName,
+                        IsWinner = distribution.IsWinner
+                    };
+                });
+
+            await ShowPreview.Handle(collection);
+            StatusMessage = $"Preview ready with {distributions.Count} outfit(s).";
         }
         catch (Exception ex)
         {
-            _logger.Error(ex, "Failed to preview outfit {Identifier}", label);
-            StatusMessage = $"Failed to preview outfit: {ex.Message}";
+            _logger.Error(ex, "Failed to preview outfits");
+            StatusMessage = $"Failed to preview outfits: {ex.Message}";
         }
     }
 

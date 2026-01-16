@@ -107,7 +107,7 @@ public class DistributionOutfitsTabViewModel : ReactiveObject
 
     public ReactiveCommand<OutfitRecordViewModel, Unit> CopyOutfitAsOverrideCommand { get; }
 
-    public Interaction<ArmorPreviewScene, Unit> ShowPreview { get; } = new();
+    public Interaction<ArmorPreviewSceneCollection, Unit> ShowPreview { get; } = new();
 
     /// <summary>
     /// Event raised when an outfit is copied to create a distribution entry.
@@ -243,7 +243,13 @@ public class DistributionOutfitsTabViewModel : ReactiveObject
         {
             StatusMessage = $"Building preview for {label}...";
             var scene = await _armorPreviewService.BuildPreviewAsync(armorPieces, GenderedModelVariant.Female);
-            await ShowPreview.Handle(scene);
+            var sceneWithMetadata = scene with
+            {
+                OutfitLabel = label,
+                SourceFile = outfit.FormKey.ModKey.FileName.String
+            };
+            var collection = new ArmorPreviewSceneCollection(sceneWithMetadata);
+            await ShowPreview.Handle(collection);
             StatusMessage = $"Preview ready for {label}.";
         }
         catch (Exception ex)
@@ -253,9 +259,9 @@ public class DistributionOutfitsTabViewModel : ReactiveObject
         }
     }
 
-    private async Task PreviewDistributionOutfitAsync(OutfitDistribution? distribution)
+    private async Task PreviewDistributionOutfitAsync(OutfitDistribution? clickedDistribution)
     {
-        if (distribution == null)
+        if (clickedDistribution == null)
         {
             StatusMessage = "No distribution to preview.";
             return;
@@ -267,7 +273,7 @@ public class DistributionOutfitsTabViewModel : ReactiveObject
             return;
         }
 
-        var outfitFormKey = distribution.OutfitFormKey;
+        var outfitFormKey = clickedDistribution.OutfitFormKey;
         if (!linkCache.TryResolve<IOutfitGetter>(outfitFormKey, out var outfit))
         {
             StatusMessage = $"Could not resolve outfit: {outfitFormKey}";
@@ -287,7 +293,14 @@ public class DistributionOutfitsTabViewModel : ReactiveObject
         {
             StatusMessage = $"Building preview for {label}...";
             var scene = await _armorPreviewService.BuildPreviewAsync(armorPieces, GenderedModelVariant.Female);
-            await ShowPreview.Handle(scene);
+            var sceneWithMetadata = scene with
+            {
+                OutfitLabel = clickedDistribution.OutfitEditorId ?? clickedDistribution.OutfitFormKey.ToString(),
+                SourceFile = clickedDistribution.FileName,
+                IsWinner = clickedDistribution.IsWinner
+            };
+            var collection = new ArmorPreviewSceneCollection(sceneWithMetadata);
+            await ShowPreview.Handle(collection);
             StatusMessage = $"Preview ready for {label}.";
         }
         catch (Exception ex)

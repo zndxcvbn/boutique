@@ -289,7 +289,7 @@ public class DistributionViewModel : ReactiveObject
     /// Event raised when an outfit should be copied to the Outfit Creator tab.
     /// </summary>
     public event EventHandler<CopiedOutfit>? OutfitCopiedToCreator;
-    public Interaction<ArmorPreviewScene, Unit> ShowPreview { get; } = new();
+    public Interaction<ArmorPreviewSceneCollection, Unit> ShowPreview { get; } = new();
 
     #region Distribution Files
 

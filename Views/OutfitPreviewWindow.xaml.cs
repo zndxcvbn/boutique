@@ -39,7 +39,7 @@ public sealed partial class OutfitPreviewWindow : IDisposable
     private readonly DirectionalLight3D _frontLeftLight = new();
     private readonly DirectionalLight3D _frontRightLight = new();
     private readonly GroupModel3D _meshGroup = new();
-    private readonly ArmorPreviewScene _scene;
+    private readonly ArmorPreviewSceneCollection _sceneCollection;
     private readonly ThemeService _themeService;
 
     private float _ambientMultiplier;
@@ -47,12 +47,19 @@ public sealed partial class OutfitPreviewWindow : IDisposable
     private PerspectiveCamera? _initialCamera;
     private float _keyFillMultiplier = 1.6f;
     private float _rimMultiplier = 1f;
+    private int _currentSceneIndex;
 
     public OutfitPreviewWindow(ArmorPreviewScene scene, ThemeService themeService)
+        : this(new ArmorPreviewSceneCollection(scene), themeService)
+    {
+    }
+
+    public OutfitPreviewWindow(ArmorPreviewSceneCollection sceneCollection, ThemeService themeService)
     {
         InitializeComponent();
-        _scene = scene ?? throw new ArgumentNullException(nameof(scene));
+        _sceneCollection = sceneCollection ?? throw new ArgumentNullException(nameof(sceneCollection));
         _themeService = themeService;
+        _currentSceneIndex = sceneCollection.InitialIndex;
 
         // Apply title bar theme
         SourceInitialized += (_, _) => _themeService.ApplyTitleBarTheme(this);
@@ -116,22 +123,75 @@ public sealed partial class OutfitPreviewWindow : IDisposable
 
         PreviewViewport.Items.Add(_meshGroup);
         PreviewViewport.CameraChanged += OnViewportCameraChanged;
+
+        PreviewViewport.KeyDown += OnViewportKeyDown;
+
+        var hasMetadata = _sceneCollection.Metadata.Any(m =>
+            !string.IsNullOrWhiteSpace(m.OutfitLabel) || !string.IsNullOrWhiteSpace(m.SourceFile));
+        var isSingleScene = _sceneCollection.Count <= 1;
+
+        NavigationHeader.Visibility = hasMetadata ? Visibility.Visible : Visibility.Collapsed;
+
+        if (isSingleScene)
+        {
+            PreviousOutfitButton.Visibility = Visibility.Collapsed;
+            NextOutfitButton.Visibility = Visibility.Collapsed;
+            OutfitCounterText.Visibility = Visibility.Collapsed;
+        }
     }
 
-    private void BuildScene()
+    private async void BuildScene()
     {
-        if (_scene.MissingAssets.Any())
+        var scene = await _sceneCollection.GetSceneAsync(_currentSceneIndex);
+        UpdateMetadataDisplay(_currentSceneIndex);
+        UpdateMissingAssetsPanel(scene);
+        RenderScene(scene);
+    }
+
+    private void UpdateMetadataDisplay(int sceneIndex)
+    {
+        var metadata = _sceneCollection.Metadata[sceneIndex];
+
+        if (!string.IsNullOrWhiteSpace(metadata.OutfitLabel) || !string.IsNullOrWhiteSpace(metadata.SourceFile))
+        {
+            if (_sceneCollection.Count > 1)
+                OutfitCounterText.Text = $"Outfit {sceneIndex + 1} of {_sceneCollection.Count}";
+
+            OutfitLabelText.Text = metadata.OutfitLabel ?? "Unknown Outfit";
+
+            if (!string.IsNullOrWhiteSpace(metadata.SourceFile))
+            {
+                OutfitSourceText.Text = metadata.IsWinner
+                    ? $"from {metadata.SourceFile} (Winner)"
+                    : $"from {metadata.SourceFile}";
+                var brushKey = metadata.IsWinner ? "Brush.Accent" : "Brush.TextSecondary";
+                OutfitSourceText.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, brushKey);
+            }
+            else
+            {
+                OutfitSourceText.Text = string.Empty;
+            }
+        }
+    }
+
+    private void UpdateMissingAssetsPanel(ArmorPreviewScene scene)
+    {
+        if (scene.MissingAssets.Any())
         {
             MissingAssetsPanel.Visibility = Visibility.Visible;
-            MissingAssetsList.ItemsSource = _scene.MissingAssets;
+            MissingAssetsList.ItemsSource = scene.MissingAssets;
         }
         else
         {
             MissingAssetsPanel.Visibility = Visibility.Collapsed;
         }
+    }
 
-        var evaluatedMeshes = EvaluateMeshes(out var center, out var radius);
+    private void RenderScene(ArmorPreviewScene scene)
+    {
+        var evaluatedMeshes = EvaluateMeshes(scene, out var center, out var radius);
         _meshGroup.Children.Clear();
+
         if (evaluatedMeshes.Count == 0)
         {
             MissingAssetsPanel.Visibility = Visibility.Visible;
@@ -161,13 +221,13 @@ public sealed partial class OutfitPreviewWindow : IDisposable
         PreviewViewport.InvalidateRender();
     }
 
-    private List<EvaluatedMesh> EvaluateMeshes(out Vector3 center, out float radius)
+    private List<EvaluatedMesh> EvaluateMeshes(ArmorPreviewScene scene, out Vector3 center, out float radius)
     {
         var evaluatedMeshes = new List<EvaluatedMesh>();
         var min = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
         var max = new Vector3(float.MinValue, float.MinValue, float.MinValue);
 
-        foreach (var mesh in _scene.Meshes)
+        foreach (var mesh in scene.Meshes)
         {
             var transformedVertices = new List<Vector3>(mesh.Vertices.Count);
             var transformedNormals = new List<Vector3>(mesh.Normals.Count);
@@ -479,6 +539,38 @@ public sealed partial class OutfitPreviewWindow : IDisposable
     }
 
     private void OnClose(object sender, RoutedEventArgs e) => Close();
+
+    private void OnPreviousOutfit(object sender, RoutedEventArgs e) => NavigateOutfit(-1);
+
+    private void OnNextOutfit(object sender, RoutedEventArgs e) => NavigateOutfit(1);
+
+    private void NavigateOutfit(int direction)
+    {
+        if (_sceneCollection.Count <= 1)
+            return;
+
+        _currentSceneIndex = (_currentSceneIndex + direction + _sceneCollection.Count)
+            % _sceneCollection.Count;
+        BuildScene();
+    }
+
+    private void OnViewportKeyDown(object sender, KeyEventArgs e)
+    {
+        if (_sceneCollection.Count <= 1)
+            return;
+
+        switch (e.Key)
+        {
+            case Key.Left:
+                NavigateOutfit(-1);
+                e.Handled = true;
+                break;
+            case Key.Right:
+                NavigateOutfit(1);
+                e.Handled = true;
+                break;
+        }
+    }
 
     protected override void OnClosed(EventArgs e)
     {

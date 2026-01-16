@@ -411,7 +411,7 @@ public class DistributionEditTabViewModel : ReactiveObject
     public ReactiveCommand<DistributionEntryViewModel, Unit> PreviewEntryCommand { get; }
     public ReactiveCommand<Unit, Unit> PasteFilterToEntryCommand { get; }
 
-    public Interaction<ArmorPreviewScene, Unit> ShowPreview { get; } = new();
+    public Interaction<ArmorPreviewSceneCollection, Unit> ShowPreview { get; } = new();
 
     public bool IsInitialized => _mutagenService.IsInitialized;
     private IReadOnlyList<DistributionFileViewModel> DistributionFiles => _cache.AllDistributionFiles;
@@ -1444,7 +1444,13 @@ public class DistributionEditTabViewModel : ReactiveObject
         {
             StatusMessage = $"Building preview for {label}...";
             var scene = await _armorPreviewService.BuildPreviewAsync(armorPieces, GenderedModelVariant.Female);
-            await ShowPreview.Handle(scene);
+            var sceneWithMetadata = scene with
+            {
+                OutfitLabel = label,
+                SourceFile = outfit.FormKey.ModKey.FileName.String
+            };
+            var collection = new ArmorPreviewSceneCollection(sceneWithMetadata);
+            await ShowPreview.Handle(collection);
             StatusMessage = $"Preview ready for {label}.";
         }
         catch (Exception ex)

@@ -162,7 +162,7 @@ public class MainViewModel : ReactiveObject
     public Interaction<string, Unit> PatchCreatedNotification { get; } = new();
     public Interaction<string, bool> ConfirmOverwritePatch { get; } = new();
     public Interaction<(string Prompt, string DefaultValue), string?> RequestOutfitName { get; } = new();
-    public Interaction<ArmorPreviewScene, Unit> ShowPreview { get; } = new();
+    public Interaction<ArmorPreviewSceneCollection, Unit> ShowPreview { get; } = new();
     public Interaction<MissingMastersResult, bool> HandleMissingMasters { get; } = new();
 
     public SettingsViewModel Settings { get; }
@@ -1482,7 +1482,12 @@ public class MainViewModel : ReactiveObject
         {
             StatusMessage = $"Building preview for '{draft.EditorId}'...";
             var scene = await _previewService.BuildPreviewAsync(pieces, GenderedModelVariant.Female);
-            await ShowPreview.Handle(scene);
+            var sceneWithMetadata = scene with
+            {
+                OutfitLabel = draft.EditorId
+            };
+            var collection = new ArmorPreviewSceneCollection(sceneWithMetadata);
+            await ShowPreview.Handle(collection);
             StatusMessage = $"Preview ready for '{draft.EditorId}'.";
         }
         catch (Exception ex)
@@ -1498,7 +1503,13 @@ public class MainViewModel : ReactiveObject
         {
             StatusMessage = $"Building preview for '{armor.DisplayName}'...";
             var scene = await _previewService.BuildPreviewAsync([armor], GenderedModelVariant.Female);
-            await ShowPreview.Handle(scene);
+            var sceneWithMetadata = scene with
+            {
+                OutfitLabel = armor.DisplayName,
+                SourceFile = armor.Armor.FormKey.ModKey.FileName.String
+            };
+            var collection = new ArmorPreviewSceneCollection(sceneWithMetadata);
+            await ShowPreview.Handle(collection);
             StatusMessage = $"Preview ready for '{armor.DisplayName}'.";
         }
         catch (Exception ex)

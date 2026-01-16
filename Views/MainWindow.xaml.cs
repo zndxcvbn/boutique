@@ -68,10 +68,10 @@ public partial class MainWindow : Window
 
         var previewDisposable = viewModel.ShowPreview.RegisterHandler(async interaction =>
         {
-            var scene = interaction.Input;
+            var sceneCollection = interaction.Input;
             await Dispatcher.InvokeAsync(() =>
             {
-                var window = new OutfitPreviewWindow(scene, _themeService)
+                var window = new OutfitPreviewWindow(sceneCollection, _themeService)
                 {
                     Owner = this
                 };
