@@ -96,7 +96,7 @@ public static class DistributionFileFormatter
         var outfitIdentifier = FormKeyHelper.FormatForSpid(entry.SelectedOutfit.FormKey);
 
         // Position 2: StringFilters - NPC names (comma-separated) and Keywords (+ for AND)
-        var stringFilters = new List<string>();
+        var stringFilterParts = new List<string>();
 
         // NPC names (comma-separated for OR)
         var npcNames = entry.SelectedNpcs
@@ -105,30 +105,47 @@ public static class DistributionFileFormatter
             .ToList();
         if (npcNames.Count > 0)
         {
-            stringFilters.Add(string.Join(",", npcNames));
+            stringFilterParts.Add(string.Join(",", npcNames));
         }
 
-        // Keywords (+ separated for AND)
-        var keywordEditorIds = entry.SelectedKeywords
-            .Where(k => !string.IsNullOrWhiteSpace(k.EditorID) && k.EditorID != "(No EditorID)")
+        // Included keywords (+ separated for AND)
+        var includedKeywords = entry.SelectedKeywords
+            .Where(k => !k.IsExcluded && !string.IsNullOrWhiteSpace(k.EditorID) && k.EditorID != "(No EditorID)")
             .Select(k => k.EditorID)
             .ToList();
-        if (keywordEditorIds.Count > 0)
+        if (includedKeywords.Count > 0)
         {
-            stringFilters.Add(string.Join("+", keywordEditorIds));
+            stringFilterParts.Add(string.Join("+", includedKeywords));
         }
 
-        var stringFiltersPart = stringFilters.Count > 0 ? string.Join(",", stringFilters) : null;
+        // Excluded keywords (comma-separated as global exclusions)
+        var excludedKeywords = entry.SelectedKeywords
+            .Where(k => k.IsExcluded && !string.IsNullOrWhiteSpace(k.EditorID) && k.EditorID != "(No EditorID)")
+            .Select(k => $"-{k.EditorID}")
+            .ToList();
+        stringFilterParts.AddRange(excludedKeywords);
+
+        // Add raw string filters
+        if (!string.IsNullOrWhiteSpace(entry.RawStringFilters))
+        {
+            stringFilterParts.Add(entry.RawStringFilters.Trim());
+        }
+
+        var stringFiltersPart = stringFilterParts.Count > 0 ? string.Join(",", stringFilterParts) : null;
 
         // Position 3: FormFilters - Factions, Races, Classes (+ for AND)
-        var formFilters = new List<string>();
+        var formFilterParts = new List<string>();
+        var formExclusions = new List<string>();
 
         foreach (var faction in entry.SelectedFactions)
         {
             var editorId = faction.EditorID;
             if (!string.IsNullOrWhiteSpace(editorId) && editorId != "(No EditorID)")
             {
-                formFilters.Add(editorId);
+                if (faction.IsExcluded)
+                    formExclusions.Add($"-{editorId}");
+                else
+                    formFilterParts.Add(editorId);
             }
         }
 
@@ -137,7 +154,10 @@ public static class DistributionFileFormatter
             var editorId = race.EditorID;
             if (!string.IsNullOrWhiteSpace(editorId) && editorId != "(No EditorID)")
             {
-                formFilters.Add(editorId);
+                if (race.IsExcluded)
+                    formExclusions.Add($"-{editorId}");
+                else
+                    formFilterParts.Add(editorId);
             }
         }
 
@@ -146,11 +166,23 @@ public static class DistributionFileFormatter
             var editorId = classVm.EditorID;
             if (!string.IsNullOrWhiteSpace(editorId) && editorId != "(No EditorID)")
             {
-                formFilters.Add(editorId);
+                formFilterParts.Add(editorId);
             }
         }
 
-        var formFiltersPart = formFilters.Count > 0 ? string.Join("+", formFilters) : null;
+        // Combine included parts with + and append exclusions
+        var formFilterResult = new List<string>();
+        if (formFilterParts.Count > 0)
+            formFilterResult.Add(string.Join("+", formFilterParts));
+        formFilterResult.AddRange(formExclusions);
+
+        // Add raw form filters
+        if (!string.IsNullOrWhiteSpace(entry.RawFormFilters))
+        {
+            formFilterResult.Add(entry.RawFormFilters.Trim());
+        }
+
+        var formFiltersPart = formFilterResult.Count > 0 ? string.Join(",", formFilterResult) : null;
 
         // Position 4: LevelFilters (skill filters like "12(85/999)")
         var levelFiltersPart = !string.IsNullOrWhiteSpace(entry.LevelFilters) ? entry.LevelFilters : null;
@@ -207,7 +239,7 @@ public static class DistributionFileFormatter
         var keywordIdentifier = entry.KeywordToDistribute;
 
         // Position 2: StringFilters - NPC names (comma-separated) and Keywords (+ for AND)
-        var stringFilters = new List<string>();
+        var stringFilterParts = new List<string>();
 
         var npcNames = entry.SelectedNpcs
             .Where(npc => !string.IsNullOrWhiteSpace(npc.DisplayName))
@@ -215,29 +247,47 @@ public static class DistributionFileFormatter
             .ToList();
         if (npcNames.Count > 0)
         {
-            stringFilters.Add(string.Join(",", npcNames));
+            stringFilterParts.Add(string.Join(",", npcNames));
         }
 
-        var keywordEditorIds = entry.SelectedKeywords
-            .Where(k => !string.IsNullOrWhiteSpace(k.EditorID) && k.EditorID != "(No EditorID)")
+        // Included keywords (+ separated for AND)
+        var includedKeywords = entry.SelectedKeywords
+            .Where(k => !k.IsExcluded && !string.IsNullOrWhiteSpace(k.EditorID) && k.EditorID != "(No EditorID)")
             .Select(k => k.EditorID)
             .ToList();
-        if (keywordEditorIds.Count > 0)
+        if (includedKeywords.Count > 0)
         {
-            stringFilters.Add(string.Join("+", keywordEditorIds));
+            stringFilterParts.Add(string.Join("+", includedKeywords));
         }
 
-        var stringFiltersPart = stringFilters.Count > 0 ? string.Join(",", stringFilters) : null;
+        // Excluded keywords (comma-separated as global exclusions)
+        var excludedKeywords = entry.SelectedKeywords
+            .Where(k => k.IsExcluded && !string.IsNullOrWhiteSpace(k.EditorID) && k.EditorID != "(No EditorID)")
+            .Select(k => $"-{k.EditorID}")
+            .ToList();
+        stringFilterParts.AddRange(excludedKeywords);
+
+        // Add raw string filters
+        if (!string.IsNullOrWhiteSpace(entry.RawStringFilters))
+        {
+            stringFilterParts.Add(entry.RawStringFilters.Trim());
+        }
+
+        var stringFiltersPart = stringFilterParts.Count > 0 ? string.Join(",", stringFilterParts) : null;
 
         // Position 3: FormFilters - Factions, Races, Classes (+ for AND)
-        var formFilters = new List<string>();
+        var formFilterParts = new List<string>();
+        var formExclusions = new List<string>();
 
         foreach (var faction in entry.SelectedFactions)
         {
             var editorId = faction.EditorID;
             if (!string.IsNullOrWhiteSpace(editorId) && editorId != "(No EditorID)")
             {
-                formFilters.Add(editorId);
+                if (faction.IsExcluded)
+                    formExclusions.Add($"-{editorId}");
+                else
+                    formFilterParts.Add(editorId);
             }
         }
 
@@ -246,7 +296,10 @@ public static class DistributionFileFormatter
             var editorId = race.EditorID;
             if (!string.IsNullOrWhiteSpace(editorId) && editorId != "(No EditorID)")
             {
-                formFilters.Add(editorId);
+                if (race.IsExcluded)
+                    formExclusions.Add($"-{editorId}");
+                else
+                    formFilterParts.Add(editorId);
             }
         }
 
@@ -255,11 +308,23 @@ public static class DistributionFileFormatter
             var editorId = classVm.EditorID;
             if (!string.IsNullOrWhiteSpace(editorId) && editorId != "(No EditorID)")
             {
-                formFilters.Add(editorId);
+                formFilterParts.Add(editorId);
             }
         }
 
-        var formFiltersPart = formFilters.Count > 0 ? string.Join("+", formFilters) : null;
+        // Combine included parts with + and append exclusions
+        var formFilterResult = new List<string>();
+        if (formFilterParts.Count > 0)
+            formFilterResult.Add(string.Join("+", formFilterParts));
+        formFilterResult.AddRange(formExclusions);
+
+        // Add raw form filters
+        if (!string.IsNullOrWhiteSpace(entry.RawFormFilters))
+        {
+            formFilterResult.Add(entry.RawFormFilters.Trim());
+        }
+
+        var formFiltersPart = formFilterResult.Count > 0 ? string.Join(",", formFilterResult) : null;
 
         // Position 4: LevelFilters (skill filters like "12(85/999)")
         var levelFiltersPart = !string.IsNullOrWhiteSpace(entry.LevelFilters) ? entry.LevelFilters : null;

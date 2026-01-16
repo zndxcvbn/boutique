@@ -5,7 +5,7 @@ namespace Boutique.Models;
 public sealed record KeywordRecord(
     FormKey FormKey,
     string? EditorID,
-    ModKey ModKey)
+    ModKey ModKey) : IGameRecord
 {
     public string DisplayName => EditorID ?? "(No EditorID)";
     public string FormKeyString => FormKey.ToString();

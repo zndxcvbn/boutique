@@ -6,7 +6,7 @@ public sealed record RaceRecord(
     FormKey FormKey,
     string? EditorID,
     string? Name,
-    ModKey ModKey)
+    ModKey ModKey) : IGameRecord
 {
     /// <summary>
     /// Display name prefers EditorID over localized Name to avoid duplicates in dropdowns.

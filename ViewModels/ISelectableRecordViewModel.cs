@@ -8,13 +8,12 @@ namespace Boutique.ViewModels;
 /// </summary>
 public interface ISelectableRecordViewModel
 {
-    /// <summary>
-    /// The unique form key identifying this record.
-    /// </summary>
     FormKey FormKey { get; }
-
-    /// <summary>
-    /// Whether this record is currently selected in the UI.
-    /// </summary>
+    string EditorID { get; }
+    string DisplayName { get; }
+    string ModDisplayName { get; }
+    string FormKeyString { get; }
     bool IsSelected { get; set; }
+    bool IsExcluded { get; set; }
+    bool MatchesSearch(string searchTerm);
 }

@@ -47,6 +47,8 @@ public class DistributionEntryViewModel : ReactiveObject
         UseChance = entry.Chance.HasValue;
         Chance = entry.Chance ?? 100;
         LevelFilters = entry.LevelFilters ?? string.Empty;
+        RawStringFilters = entry.RawStringFilters ?? string.Empty;
+        RawFormFilters = entry.RawFormFilters ?? string.Empty;
 
         Gender = entry.TraitFilters.IsFemale switch
         {
@@ -241,6 +243,24 @@ public class DistributionEntryViewModel : ReactiveObject
                 RaiseEntryChanged();
             });
 
+        this.WhenAnyValue(x => x.RawStringFilters)
+            .Skip(1)
+            .Subscribe(rawFilters =>
+            {
+                Entry.RawStringFilters = string.IsNullOrWhiteSpace(rawFilters) ? null : rawFilters;
+                Entry.OriginalSpidFilter = null;
+                RaiseEntryChanged();
+            });
+
+        this.WhenAnyValue(x => x.RawFormFilters)
+            .Skip(1)
+            .Subscribe(rawFilters =>
+            {
+                Entry.RawFormFilters = string.IsNullOrWhiteSpace(rawFilters) ? null : rawFilters;
+                Entry.OriginalSpidFilter = null;
+                RaiseEntryChanged();
+            });
+
         RemoveCommand = ReactiveCommand.Create(() => removeAction?.Invoke(this));
     }
 
@@ -266,6 +286,12 @@ public class DistributionEntryViewModel : ReactiveObject
 
     [Reactive]
     public string LevelFilters { get; set; } = string.Empty;
+
+    [Reactive]
+    public string RawStringFilters { get; set; } = string.Empty;
+
+    [Reactive]
+    public string RawFormFilters { get; set; } = string.Empty;
 
     [Reactive]
     public GenderFilter Gender { get; set; } = GenderFilter.Any;
@@ -346,23 +372,55 @@ public class DistributionEntryViewModel : ReactiveObject
     public void UpdateEntryFactions()
     {
         Entry.FactionFormKeys.Clear();
-        Entry.FactionFormKeys.AddRange(SelectedFactions.Select(faction => faction.FormKey));
+        Entry.ExcludedFactionFormKeys.Clear();
+
+        foreach (var faction in SelectedFactions)
+        {
+            if (faction.IsExcluded)
+                Entry.ExcludedFactionFormKeys.Add(faction.FormKey);
+            else
+                Entry.FactionFormKeys.Add(faction.FormKey);
+        }
+
+        Entry.OriginalSpidFilter = null;
         RaiseEntryChanged();
     }
 
     public void UpdateEntryKeywords()
     {
         Entry.KeywordEditorIds.Clear();
-        Entry.KeywordEditorIds.AddRange(SelectedKeywords
-            .Select(keyword => keyword.KeywordRecord.EditorID)
-            .Where(editorId => !string.IsNullOrWhiteSpace(editorId))!);
+        Entry.ExcludedKeywordEditorIds.Clear();
+
+        foreach (var keyword in SelectedKeywords)
+        {
+            var editorId = keyword.KeywordRecord.EditorID;
+            if (string.IsNullOrWhiteSpace(editorId))
+                continue;
+
+            if (keyword.IsExcluded)
+                Entry.ExcludedKeywordEditorIds.Add(editorId);
+            else
+                Entry.KeywordEditorIds.Add(editorId);
+        }
+
+        Entry.OriginalSpidFilter = null;
         RaiseEntryChanged();
     }
 
     public void UpdateEntryRaces()
     {
         Entry.RaceFormKeys.Clear();
-        Entry.RaceFormKeys.AddRange(SelectedRaces.Select(race => race.FormKey));
+        Entry.ExcludedRaceFormKeys.Clear();
+
+        foreach (var race in SelectedRaces)
+        {
+            if (race.IsExcluded)
+                Entry.ExcludedRaceFormKeys.Add(race.FormKey);
+            else
+                Entry.RaceFormKeys.Add(race.FormKey);
+        }
+
+        Entry.OriginalSpidFilter = null;
         RaiseEntryChanged();
     }
 

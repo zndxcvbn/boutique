@@ -340,6 +340,7 @@
                                                  Width="100" Height="22" FontSize="11" VerticalContentAlignment="Center"
                                                  ToolTip="{lex:Loc Key={x:Static res:LocalizationKeys+Distribution.LevelSkillTooltip}}" />
                                     </StackPanel>
+
                                 </StackPanel>
                             </Border>
                         </DataTemplate>

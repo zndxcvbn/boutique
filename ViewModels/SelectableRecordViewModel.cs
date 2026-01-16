@@ -1,0 +1,33 @@
+using Boutique.Models;
+using Mutagen.Bethesda.Plugins;
+using ReactiveUI;
+using ReactiveUI.Fody.Helpers;
+
+namespace Boutique.ViewModels;
+
+public class SelectableRecordViewModel<TRecord> : ReactiveObject, ISelectableRecordViewModel
+    where TRecord : IGameRecord
+{
+    private readonly string _searchCache;
+
+    public SelectableRecordViewModel(TRecord record)
+    {
+        Record = record;
+        _searchCache = $"{DisplayName} {EditorID} {ModDisplayName} {FormKeyString}".ToLowerInvariant();
+    }
+
+    public TRecord Record { get; }
+
+    public string EditorID => Record.EditorID ?? "(No EditorID)";
+    public string DisplayName => Record.DisplayName;
+    public string ModDisplayName => Record.ModDisplayName;
+    public string FormKeyString => Record.FormKeyString;
+    public FormKey FormKey => Record.FormKey;
+
+    [Reactive] public bool IsSelected { get; set; }
+    [Reactive] public bool IsExcluded { get; set; }
+
+    public bool MatchesSearch(string searchTerm) =>
+        string.IsNullOrWhiteSpace(searchTerm) ||
+        _searchCache.Contains(searchTerm.Trim(), StringComparison.OrdinalIgnoreCase);
+}

@@ -47,6 +47,33 @@ public sealed class DistributionEntry
     public string? LevelFilters { get; set; }
 
     public int? Chance { get; set; }
+
+    /// <summary>
+    /// Raw/advanced string filters that can't be represented by dropdowns.
+    /// Supports wildcards (*Mage, *Guard), virtual keywords, and other SPID syntax.
+    /// </summary>
+    public string? RawStringFilters { get; set; }
+
+    /// <summary>
+    /// Raw/advanced form filters that can't be represented by dropdowns.
+    /// Supports SPID form filter syntax for advanced use cases.
+    /// </summary>
+    public string? RawFormFilters { get; set; }
+
+    /// <summary>
+    /// List of excluded/negated keyword EditorIDs (prefixed with - in SPID output).
+    /// </summary>
+    public List<string> ExcludedKeywordEditorIds { get; set; } = [];
+
+    /// <summary>
+    /// List of excluded/negated faction FormKeys (prefixed with - in SPID output).
+    /// </summary>
+    public List<FormKey> ExcludedFactionFormKeys { get; set; } = [];
+
+    /// <summary>
+    /// List of excluded/negated race FormKeys (prefixed with - in SPID output).
+    /// </summary>
+    public List<FormKey> ExcludedRaceFormKeys { get; set; } = [];
 }
 
 public sealed record DistributionParseError(int LineNumber, string LineContent, string Reason)

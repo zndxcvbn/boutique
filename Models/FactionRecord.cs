@@ -6,7 +6,7 @@ public sealed record FactionRecord(
     FormKey FormKey,
     string? EditorID,
     string? Name,
-    ModKey ModKey)
+    ModKey ModKey) : IGameRecord
 {
     /// <summary>
     /// Gets the display name which prefers EditorID over localized Name to avoid duplicates in dropdowns.
