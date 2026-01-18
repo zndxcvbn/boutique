@@ -120,7 +120,9 @@ public partial class DistributionEditTabViewModel : ReactiveObject
     [Reactive]
     private string _statusMessage = string.Empty;
 
-    public IReadOnlyList<DistributionParseError> ParseErrors { get; private set; } = [];
+    [Reactive]
+    private IReadOnlyList<DistributionParseError> _parseErrors = [];
+
 
     /// <summary>
     /// Actual parse errors (excludes preserved lines like keyword distributions).
@@ -198,7 +200,8 @@ public partial class DistributionEditTabViewModel : ReactiveObject
     /// <summary>
     /// Organized dropdown items with headers and files for tree-ish display.
     /// </summary>
-    public IReadOnlyList<DistributionDropdownItem> DropdownItems { get; private set; } = [];
+    [Reactive]
+    private IReadOnlyList<DistributionDropdownItem> _dropdownItems = [];
 
     /// <summary>
     /// The currently selected dropdown item. Headers are not selectable.
