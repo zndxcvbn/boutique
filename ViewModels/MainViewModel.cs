@@ -525,7 +525,7 @@ public class MainViewModel : ReactiveObject
                     d.FormKey.HasValue &&
                     d.FormKey.Value == existing.FormKey))
             {
-                _logger.Debug("Skipping existing outfit {EditorId} because it is already queued.", existing.EditorId);
+                _logger.Debug("Skipping existing outfit {EditorId} because it already exists.", existing.EditorId);
                 continue;
             }
 
@@ -571,16 +571,16 @@ public class MainViewModel : ReactiveObject
 
         if (copied > 0)
         {
-            StatusMessage = $"Copied {copied} existing outfit(s) into the queue.";
+            StatusMessage = $"Copied {copied} existing outfit(s).";
             _logger.Information(
-                "Copied {CopiedCount} existing outfit(s) into the queue from plugin {Plugin}.",
+                "Copied {CopiedCount} existing outfit(s) from plugin {Plugin}.",
                 copied,
                 SelectedOutfitPlugin ?? "<none>");
         }
         else
         {
-            StatusMessage = "Existing outfits are already queued or could not be copied.";
-            _logger.Information("No existing outfits were copied; they may already be queued or lacked valid pieces.");
+            StatusMessage = "Existing outfits already exist or could not be copied.";
+            _logger.Information("No existing outfits were copied; they may already exist or lacked valid pieces.");
         }
     }
 
@@ -1303,7 +1303,7 @@ public class MainViewModel : ReactiveObject
 
         if (existingDraft != null)
         {
-            StatusMessage = $"Override for {editorId} is already in the queue.";
+            StatusMessage = $"Override for {editorId} already exists.";
             return Task.CompletedTask;
         }
 
@@ -1326,8 +1326,8 @@ public class MainViewModel : ReactiveObject
         draft.PropertyChanged += OutfitDraftOnPropertyChanged;
         _outfitDrafts.Add(draft);
 
-        StatusMessage = $"Queued override for '{editorId}' with {armorPieces.Count} piece(s).";
-        _logger.Information("Queued override draft for {EditorId} ({FormKey}) with {PieceCount} pieces.",
+        StatusMessage = $"Added override for '{editorId}' with {armorPieces.Count} piece(s).";
+        _logger.Information("Added override for {EditorId} ({FormKey}) with {PieceCount} pieces.",
             editorId, outfit.FormKey, armorPieces.Count);
 
         return Task.CompletedTask;
@@ -1426,8 +1426,8 @@ public class MainViewModel : ReactiveObject
         draft.PropertyChanged += OutfitDraftOnPropertyChanged;
         _outfitDrafts.Add(draft);
 
-        StatusMessage = $"Queued outfit '{draft.Name}' with {distinctPieces.Count} piece(s).";
-        _logger.Information("Queued outfit draft {EditorId} with {PieceCount} pieces.", draft.EditorId,
+        StatusMessage = $"Added outfit '{draft.Name}' with {distinctPieces.Count} piece(s).";
+        _logger.Information("Added outfit {EditorId} with {PieceCount} pieces.", draft.EditorId,
             distinctPieces.Count);
     }
 
@@ -1660,7 +1660,7 @@ public class MainViewModel : ReactiveObject
             _pendingOutfitDeletions.Add(draft.EditorId);
             HasPendingOutfitDeletions = true;
             StatusMessage = $"Removed outfit '{draft.EditorId}'. Will be deleted from patch on save.";
-            _logger.Information("Queued outfit {EditorId} for deletion.", draft.EditorId);
+            _logger.Information("Marked outfit {EditorId} for deletion.", draft.EditorId);
         }
         else
         {

@@ -249,7 +249,7 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <TextBlock Grid.Column="0"
-                       Text="{Binding OutfitDrafts.Count, StringFormat='{}{0} outfit(s) queued'}"
+                       Text="{Binding OutfitDrafts.Count, StringFormat='{}{0} outfit(s)'}"
                        VerticalAlignment="Center" />
             <Button Grid.Column="1" Command="{Binding SaveOutfitsCommand}" Padding="16,8"
                     Style="{DynamicResource {x:Static themes:ResourceKeys.PrimaryButtonStyleKey}}"
