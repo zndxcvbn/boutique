@@ -85,52 +85,14 @@ public class GameDataCacheService
             _isLoading = true;
             _logger.Information("Loading game data cache...");
 
-            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-
-            var npcsResult = await Task.Run(() =>
-            {
-                var sw = System.Diagnostics.Stopwatch.StartNew();
-                var result = LoadNpcs(linkCache);
-                _logger.Information("[PERF] LoadNpcs: {ElapsedMs}ms ({Count} NPCs)", sw.ElapsedMilliseconds, result.Item1.Count);
-                return result;
-            });
+            var npcsResult = await Task.Run(() => LoadNpcs(linkCache));
             var (npcFilterDataList, npcRecordsList) = npcsResult;
 
-            var factionsTask = Task.Run(() =>
-            {
-                var sw = System.Diagnostics.Stopwatch.StartNew();
-                var result = LoadFactions(linkCache);
-                _logger.Information("[PERF] LoadFactions: {ElapsedMs}ms ({Count} factions)", sw.ElapsedMilliseconds, result.Count);
-                return result;
-            });
-            var racesTask = Task.Run(() =>
-            {
-                var sw = System.Diagnostics.Stopwatch.StartNew();
-                var result = LoadRaces(linkCache);
-                _logger.Information("[PERF] LoadRaces: {ElapsedMs}ms ({Count} races)", sw.ElapsedMilliseconds, result.Count);
-                return result;
-            });
-            var keywordsTask = Task.Run(() =>
-            {
-                var sw = System.Diagnostics.Stopwatch.StartNew();
-                var result = LoadKeywords(linkCache);
-                _logger.Information("[PERF] LoadKeywords: {ElapsedMs}ms ({Count} keywords)", sw.ElapsedMilliseconds, result.Count);
-                return result;
-            });
-            var classesTask = Task.Run(() =>
-            {
-                var sw = System.Diagnostics.Stopwatch.StartNew();
-                var result = LoadClasses(linkCache);
-                _logger.Information("[PERF] LoadClasses: {ElapsedMs}ms ({Count} classes)", sw.ElapsedMilliseconds, result.Count);
-                return result;
-            });
-            var outfitsTask = Task.Run(() =>
-            {
-                var sw = System.Diagnostics.Stopwatch.StartNew();
-                var result = LoadOutfits(linkCache);
-                _logger.Information("[PERF] LoadOutfits: {ElapsedMs}ms ({Count} outfits)", sw.ElapsedMilliseconds, result.Count);
-                return result;
-            });
+            var factionsTask = Task.Run(() => LoadFactions(linkCache));
+            var racesTask = Task.Run(() => LoadRaces(linkCache));
+            var keywordsTask = Task.Run(() => LoadKeywords(linkCache));
+            var classesTask = Task.Run(() => LoadClasses(linkCache));
+            var outfitsTask = Task.Run(() => LoadOutfits(linkCache));
 
             await Task.WhenAll(factionsTask, racesTask, keywordsTask, classesTask, outfitsTask);
 
@@ -197,11 +159,9 @@ public class GameDataCacheService
 
             await LoadDistributionDataAsync(npcFilterDataList);
 
-            stopwatch.Stop();
             _isLoaded = true;
             _logger.Information(
-                "Game data cache loaded in {ElapsedMs}ms: {NpcCount} NPCs, {FactionCount} factions, {RaceCount} races, {ClassCount} classes, {KeywordCount} keywords, {OutfitCount} outfits, {FileCount} distribution files, {AssignmentCount} NPC outfit assignments.",
-                stopwatch.ElapsedMilliseconds,
+                "Game data cache loaded: {NpcCount} NPCs, {FactionCount} factions, {RaceCount} races, {ClassCount} classes, {KeywordCount} keywords, {OutfitCount} outfits, {FileCount} distribution files, {AssignmentCount} NPC outfit assignments.",
                 npcFilterDataList.Count,
                 factionsList.Count,
                 racesList.Count,
@@ -301,10 +261,8 @@ public class GameDataCacheService
 
         try
         {
-            var discoverSw = System.Diagnostics.Stopwatch.StartNew();
             _logger.Debug("Discovering distribution files in {DataPath}...", dataPath);
             var discoveredFiles = await _discoveryService.DiscoverAsync(dataPath);
-            _logger.Information("[PERF] DiscoverAsync: {ElapsedMs}ms ({Count} files)", discoverSw.ElapsedMilliseconds, discoveredFiles.Count);
 
             var virtualKeywords = ExtractVirtualKeywords(discoveredFiles);
             _logger.Information("Extracted {Count} virtual keywords from SPID distribution files.", virtualKeywords.Count);
@@ -319,12 +277,10 @@ public class GameDataCacheService
                 .Select(f => new DistributionFileViewModel(f))
                 .ToList();
 
-            var resolveSw = System.Diagnostics.Stopwatch.StartNew();
             _logger.Debug("Resolving NPC outfit assignments...");
             var assignments = await _outfitResolutionService.ResolveNpcOutfitsWithFiltersAsync(
                 outfitFiles,
                 npcFilterDataList);
-            _logger.Information("[PERF] ResolveNpcOutfitsWithFiltersAsync: {ElapsedMs}ms ({Count} assignments)", resolveSw.ElapsedMilliseconds, assignments.Count);
 
             _logger.Debug("Resolved {Count} NPC outfit assignments.", assignments.Count);
 
@@ -432,11 +388,8 @@ public class GameDataCacheService
 
     private (List<NpcFilterData>, List<NpcRecordViewModel>) LoadNpcs(ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
     {
-        var enumSw = System.Diagnostics.Stopwatch.StartNew();
         var allNpcs = linkCache.WinningOverrides<INpcGetter>().ToList();
-        _logger.Information("[PERF] LoadNpcs enumeration: {ElapsedMs}ms ({Count} total NPCs)", enumSw.ElapsedMilliseconds, allNpcs.Count);
 
-        var processSw = System.Diagnostics.Stopwatch.StartNew();
         var validNpcs = allNpcs
             .Where(npc => npc.FormKey != FormKey.Null && !string.IsNullOrWhiteSpace(npc.EditorID))
             .ToList();
@@ -466,10 +419,6 @@ public class GameDataCacheService
             {
             }
         });
-
-        _logger.Information(
-            "[PERF] LoadNpcs processing: {ElapsedMs}ms ({ValidCount} valid NPCs)",
-            processSw.ElapsedMilliseconds, validNpcs.Count);
 
         return ([.. filterDataBag], [.. recordsBag]);
     }

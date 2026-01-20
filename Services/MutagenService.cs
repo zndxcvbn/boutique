@@ -64,8 +64,6 @@ public class MutagenService(ILoggingService loggingService, PatcherSettings sett
             if (IsInitialized)
                 return;
 
-            var sw = System.Diagnostics.Stopwatch.StartNew();
-
             await Task.Run(() =>
             {
                 DataFolderPath = dataFolderPath;
@@ -85,7 +83,6 @@ public class MutagenService(ILoggingService loggingService, PatcherSettings sett
                 }
             });
 
-            _logger.Information("[PERF] MutagenService.InitializeAsync total: {ElapsedMs}ms", sw.ElapsedMilliseconds);
             Initialized?.Invoke(this, EventArgs.Empty);
         }
         finally
@@ -101,15 +98,11 @@ public class MutagenService(ILoggingService loggingService, PatcherSettings sett
             var gameRelease = GetGameRelease();
             _logger.Information("Detected game release: {GameRelease}", gameRelease);
 
-            var envSw = System.Diagnostics.Stopwatch.StartNew();
             _environment = GameEnvironment.Typical.Builder<ISkyrimMod, ISkyrimModGetter>(gameRelease)
                 .WithTargetDataFolder(new DirectoryPath(dataFolderPath))
                 .Build();
-            _logger.Information("[PERF] GameEnvironment built with explicit path: {ElapsedMs}ms", envSw.ElapsedMilliseconds);
 
-            var cacheSw = System.Diagnostics.Stopwatch.StartNew();
             LinkCache = _environment.LoadOrder.ToImmutableLinkCache();
-            _logger.Information("[PERF] ToImmutableLinkCache: {ElapsedMs}ms", cacheSw.ElapsedMilliseconds);
         }
         catch (Exception explicitPathEx)
         {
@@ -125,13 +118,9 @@ public class MutagenService(ILoggingService loggingService, PatcherSettings sett
             var skyrimRelease = GetSkyrimRelease();
             _logger.Information("Detected Skyrim release: {SkyrimRelease}", skyrimRelease);
 
-            var envSw = System.Diagnostics.Stopwatch.StartNew();
             _environment = GameEnvironment.Typical.Skyrim(skyrimRelease);
-            _logger.Information("[PERF] GameEnvironment.Typical.Skyrim (auto-detect): {ElapsedMs}ms", envSw.ElapsedMilliseconds);
 
-            var cacheSw = System.Diagnostics.Stopwatch.StartNew();
             LinkCache = _environment.LoadOrder.ToImmutableLinkCache();
-            _logger.Information("[PERF] ToImmutableLinkCache: {ElapsedMs}ms", cacheSw.ElapsedMilliseconds);
         }
         catch (Exception autoDetectEx)
         {
@@ -148,8 +137,6 @@ public class MutagenService(ILoggingService loggingService, PatcherSettings sett
     {
         return await Task.Run(() =>
         {
-            var sw = System.Diagnostics.Stopwatch.StartNew();
-
             if (string.IsNullOrEmpty(DataFolderPath))
                 return Enumerable.Empty<string>();
 
@@ -157,10 +144,7 @@ public class MutagenService(ILoggingService loggingService, PatcherSettings sett
                 .OrderBy(Path.GetFileName)
                 .ToList();
 
-            _logger.Information("[PERF] GetAvailablePluginsAsync: Found {Count} plugin files to scan", pluginFiles.Count);
-
             var armorPlugins = new List<string>();
-            var scannedCount = 0;
 
             var skyrimRelease = GetSkyrimRelease();
 
@@ -178,19 +162,10 @@ public class MutagenService(ILoggingService loggingService, PatcherSettings sett
                 }
                 catch
                 {
-                    // Ignore plugins that cannot be read; they will be omitted from the picker.
                 }
-
-                scannedCount++;
-                if (scannedCount % 100 == 0)
-                    _logger.Debug("[PERF] Scanned {Count}/{Total} plugins...", scannedCount, pluginFiles.Count);
             }
 
             armorPlugins.Sort(StringComparer.OrdinalIgnoreCase);
-
-            _logger.Information(
-                "[PERF] GetAvailablePluginsAsync: Scanned {Total} plugins in {ElapsedMs}ms, found {ArmorCount} with armors/outfits",
-                pluginFiles.Count, sw.ElapsedMilliseconds, armorPlugins.Count);
 
             return armorPlugins;
         });
