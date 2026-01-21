@@ -42,11 +42,17 @@ public partial class SettingsViewModel : ReactiveObject
         _tutorialService = tutorialService;
         _localizationService = localizationService;
 
-        var savedDataPath = !string.IsNullOrEmpty(guiSettings.SkyrimDataPath) ? guiSettings.SkyrimDataPath : settings.SkyrimDataPath;
+        var savedDataPath = !string.IsNullOrEmpty(guiSettings.SkyrimDataPath)
+            ? guiSettings.SkyrimDataPath
+            : settings.SkyrimDataPath;
         SkyrimDataPath = NormalizeDataPath(savedDataPath);
-        PatchFileName = !string.IsNullOrEmpty(guiSettings.PatchFileName) ? guiSettings.PatchFileName : settings.PatchFileName;
+        PatchFileName = !string.IsNullOrEmpty(guiSettings.PatchFileName)
+            ? guiSettings.PatchFileName
+            : settings.PatchFileName;
         OutputPatchPath = guiSettings.OutputPatchPath ?? string.Empty;
-        SelectedSkyrimRelease = guiSettings.SelectedSkyrimRelease != default ? guiSettings.SelectedSkyrimRelease : settings.SelectedSkyrimRelease;
+        SelectedSkyrimRelease = guiSettings.SelectedSkyrimRelease != default
+            ? guiSettings.SelectedSkyrimRelease
+            : settings.SelectedSkyrimRelease;
         _settings.SelectedSkyrimRelease = SelectedSkyrimRelease;
 
         SelectedTheme = (ThemeOption)_themeService.CurrentThemeSetting;
@@ -118,16 +124,18 @@ public partial class SettingsViewModel : ReactiveObject
     [Reactive] private SkyrimRelease _selectedSkyrimRelease;
     [Reactive] private ThemeOption _selectedTheme;
     [Reactive] private LanguageOption? _selectedLanguage;
-    [Reactive] private double SelectedFontScale { get; set; }
 
-    public IReadOnlyList<SkyrimRelease> SkyrimReleaseOptions { get; } = new[]
-    {
-        SkyrimRelease.SkyrimSE,
-        SkyrimRelease.SkyrimVR,
-        SkyrimRelease.SkyrimSEGog
-    };
+    [Reactive] public partial double SelectedFontScale { get; set; }
+
+    public IReadOnlyList<SkyrimRelease> SkyrimReleaseOptions { get; } =
+    [
+        SkyrimRelease.SkyrimSE, SkyrimRelease.SkyrimVR, SkyrimRelease.SkyrimSEGog
+    ];
+
     public IReadOnlyList<ThemeOption> ThemeOptions { get; } = Enum.GetValues<ThemeOption>();
+
     public IReadOnlyList<LanguageOption> AvailableLanguages => _localizationService.AvailableLanguages;
+
     public IReadOnlyList<double> FontScaleOptions { get; } = [0.85, 1.0, 1.15, 1.3];
 
     public string FullOutputPath
@@ -212,7 +220,7 @@ public partial class SettingsViewModel : ReactiveObject
 
         Log.Warning(
             "Data path {Path} contains no .esp/.esm files and no Data subfolder was found. " +
-                    "Plugins may not load correctly. For Wabbajack modlists, select the 'Game Root\\Data' folder.", path);
+            "Plugins may not load correctly. For Wabbajack modlists, select the 'Game Root\\Data' folder.", path);
         return path;
     }
 
@@ -254,12 +262,14 @@ public partial class SettingsViewModel : ReactiveObject
         _tutorialService.StartTutorial();
     }
 
+    private static string GetDetectionMessage(string gameName, bool success) =>
+        success
+            ? $"Detected {gameName} using Mutagen"
+            : $"Auto-detection failed for {gameName} - please set manually";
+
     private static void ShowRestartDialog()
     {
-        var dialog = new Views.RestartDialog
-        {
-            Owner = System.Windows.Application.Current.MainWindow
-        };
+        var dialog = new Views.RestartDialog { Owner = System.Windows.Application.Current.MainWindow };
         dialog.ShowDialog();
 
         if (dialog.QuitNow)
