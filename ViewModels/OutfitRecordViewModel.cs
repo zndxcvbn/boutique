@@ -1,11 +1,11 @@
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Skyrim;
 using ReactiveUI;
-using ReactiveUI.Fody.Helpers;
+using ReactiveUI.SourceGenerators;
 
 namespace Boutique.ViewModels;
 
-public class OutfitRecordViewModel : ReactiveObject
+public partial class OutfitRecordViewModel : ReactiveObject
 {
     private readonly string _searchCache;
 
@@ -26,13 +26,15 @@ public class OutfitRecordViewModel : ReactiveObject
     public string FormKeyString { get; }
     public string ModDisplayName { get; }
 
-    [Reactive] public bool IsSelected { get; set; }
+    [Reactive]
+    private bool _isSelected;
 
     /// <summary>
     /// Number of NPCs that have this outfit distributed to them.
     /// Updated by the parent ViewModel.
     /// </summary>
-    [Reactive] public int NpcCount { get; set; }
+    [Reactive]
+    private int _npcCount;
 
     public bool MatchesSearch(string searchTerm)
     {

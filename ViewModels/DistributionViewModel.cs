@@ -5,7 +5,7 @@ using Boutique.Models;
 using Boutique.Services;
 using Mutagen.Bethesda.Skyrim;
 using ReactiveUI;
-using ReactiveUI.Fody.Helpers;
+using ReactiveUI.SourceGenerators;
 using Serilog;
 
 namespace Boutique.ViewModels;
@@ -17,7 +17,7 @@ public enum DistributionTab
     Outfits = 2
 }
 
-public class DistributionViewModel : ReactiveObject
+public partial class DistributionViewModel : ReactiveObject
 {
     private readonly ILogger _logger;
     private readonly SettingsViewModel _settings;
@@ -276,10 +276,15 @@ public class DistributionViewModel : ReactiveObject
     private static string GetFirstNonEmptyStatus(params string[] statuses) =>
         statuses.FirstOrDefault(s => !string.IsNullOrWhiteSpace(s)) ?? "Ready";
 
-    [Reactive] public int SelectedTabIndex { get; set; }
+    [Reactive]
+    private int _selectedTabIndex;
     public bool IsEditMode => SelectedTabIndex == (int)DistributionTab.Create;
-    [Reactive] public bool IsLoading { get; private set; }
-    [Reactive] public string StatusMessage { get; private set; } = "Ready";
+
+    [Reactive]
+    private bool _isLoading;
+
+    [Reactive]
+    private string _statusMessage = "Ready";
 
     public DistributionEditTabViewModel EditTab { get; }
     public DistributionNpcsTabViewModel NpcsTab { get; }

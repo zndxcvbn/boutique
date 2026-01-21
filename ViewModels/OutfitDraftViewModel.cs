@@ -4,11 +4,11 @@ using System.Reactive;
 using Boutique.Utilities;
 using Mutagen.Bethesda.Plugins;
 using ReactiveUI;
-using ReactiveUI.Fody.Helpers;
+using ReactiveUI.SourceGenerators;
 
 namespace Boutique.ViewModels;
 
-public class OutfitDraftViewModel : ReactiveObject
+public partial class OutfitDraftViewModel : ReactiveObject
 {
     private readonly ObservableCollection<ArmorRecordViewModel> _pieces;
     private readonly Func<OutfitDraftViewModel, Task> _previewDraft;
@@ -70,7 +70,8 @@ public class OutfitDraftViewModel : ReactiveObject
 
     public bool HasPieces => _pieces.Count > 0;
 
-    [Reactive] public FormKey? FormKey { get; set; }
+    [Reactive]
+    private FormKey? _formKey;
 
     public bool IsOverride { get; init; }
 

@@ -2,11 +2,11 @@ using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using ReactiveUI;
-using ReactiveUI.Fody.Helpers;
+using ReactiveUI.SourceGenerators;
 
 namespace Boutique.ViewModels;
 
-public class ArmorRecordViewModel : ReactiveObject
+public partial class ArmorRecordViewModel : ReactiveObject
 {
     private readonly ILinkCache? _linkCache;
     private readonly string _searchCache;
@@ -106,13 +106,13 @@ public class ArmorRecordViewModel : ReactiveObject
     public int SlotCompatibilityPriority => IsSlotCompatible ? 0 : 1;
 
     [Reactive]
-    public bool IsSlotCompatible { get; set; } = true;
+    private bool _isSlotCompatible = true;
 
+    [Reactive]
+    private bool _isMapped;
     public string FormKeyString => Armor.FormKey.ToString();
     public string SummaryLine => $"{DisplayName} ({SlotSummary})";
 
-    [Reactive]
-    public bool IsMapped { get; set; }
 
     public bool MatchesSearch(string searchTerm)
     {

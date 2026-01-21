@@ -1,10 +1,10 @@
 using Boutique.Models;
 using ReactiveUI;
-using ReactiveUI.Fody.Helpers;
+using ReactiveUI.SourceGenerators;
 
 namespace Boutique.ViewModels;
 
-public class NpcRecordViewModel : SelectableRecordViewModel<NpcRecord>
+public partial class NpcRecordViewModel : SelectableRecordViewModel<NpcRecord>
 {
     public NpcRecordViewModel(NpcRecord npcRecord) : base(npcRecord)
     {
@@ -14,8 +14,11 @@ public class NpcRecordViewModel : SelectableRecordViewModel<NpcRecord>
 
     public NpcRecord NpcRecord => Record;
 
-    [Reactive] public bool HasConflict { get; set; }
-    [Reactive] public string? ConflictingFileName { get; set; }
+    [Reactive]
+    private bool _hasConflict;
+
+    [Reactive]
+    private string? _conflictingFileName;
 
     public string ConflictTooltip => HasConflict && !string.IsNullOrEmpty(ConflictingFileName)
         ? $"Conflict: This NPC already has an outfit distribution in '{ConflictingFileName}'"

@@ -9,7 +9,7 @@ using Mutagen.Bethesda;
 using Mutagen.Bethesda.Installs;
 using Mutagen.Bethesda.Skyrim;
 using ReactiveUI;
-using ReactiveUI.Fody.Helpers;
+using ReactiveUI.SourceGenerators;
 using Serilog;
 
 namespace Boutique.ViewModels;
@@ -21,18 +21,7 @@ public enum ThemeOption
     Dark
 }
 
-public class RelayCommand(Action execute) : ICommand
-{
-    private readonly Action _execute = execute;
-
-#pragma warning disable CS0067 // Event is never used - required by ICommand interface
-    public event EventHandler? CanExecuteChanged;
-#pragma warning restore CS0067
-    public bool CanExecute(object? parameter) => true;
-    public void Execute(object? parameter) => _execute();
-}
-
-public class SettingsViewModel : ReactiveObject
+public partial class SettingsViewModel : ReactiveObject
 {
     private readonly PatcherSettings _settings;
     private readonly GuiSettingsService _guiSettings;
@@ -116,25 +105,20 @@ public class SettingsViewModel : ReactiveObject
             .Where(lang => lang != null)
             .Subscribe(lang => _localizationService.SetLanguage(lang!.Code));
 
-        BrowseDataPathCommand = new RelayCommand(BrowseDataPath);
-        BrowseOutputPathCommand = new RelayCommand(BrowseOutputPath);
-        AutoDetectPathCommand = new RelayCommand(AutoDetectPath);
-        RestartTutorialCommand = new RelayCommand(RestartTutorial);
-
         if (string.IsNullOrEmpty(SkyrimDataPath))
             AutoDetectPath();
     }
 
-    [Reactive] public bool IsRunningFromMO2 { get; set; }
-    [Reactive] public string DetectionSource { get; set; } = string.Empty;
-    [Reactive] public bool DetectionFailed { get; set; }
-    [Reactive] public string SkyrimDataPath { get; set; } = string.Empty;
-    [Reactive] public string OutputPatchPath { get; set; } = string.Empty;
-    [Reactive] public string PatchFileName { get; set; } = string.Empty;
-    [Reactive] public SkyrimRelease SelectedSkyrimRelease { get; set; }
-    [Reactive] public ThemeOption SelectedTheme { get; set; }
-    [Reactive] public LanguageOption? SelectedLanguage { get; set; }
-    [Reactive] public double SelectedFontScale { get; set; }
+    [Reactive] private bool _isRunningFromMO2;
+    [Reactive] private string _detectionSource = string.Empty;
+    [Reactive] private bool _detectionFailed;
+    [Reactive] private string _skyrimDataPath = string.Empty;
+    [Reactive] private string _outputPatchPath = string.Empty;
+    [Reactive] private string _patchFileName = string.Empty;
+    [Reactive] private SkyrimRelease _selectedSkyrimRelease;
+    [Reactive] private ThemeOption _selectedTheme;
+    [Reactive] private LanguageOption? _selectedLanguage;
+    [Reactive] private double SelectedFontScale { get; set; }
 
     public IReadOnlyList<SkyrimRelease> SkyrimReleaseOptions { get; } = new[]
     {
@@ -156,13 +140,9 @@ public class SettingsViewModel : ReactiveObject
         }
     }
 
-    public ICommand BrowseDataPathCommand { get; }
-    public ICommand BrowseOutputPathCommand { get; }
-    public ICommand AutoDetectPathCommand { get; }
-    public ICommand RestartTutorialCommand { get; }
-
     public static bool IsTutorialEnabled => FeatureFlags.TutorialEnabled;
 
+    [ReactiveCommand]
     private void BrowseDataPath()
     {
         var dialog = new OpenFileDialog
@@ -182,6 +162,7 @@ public class SettingsViewModel : ReactiveObject
         }
     }
 
+    [ReactiveCommand]
     private void BrowseOutputPath()
     {
         var dialog = new OpenFileDialog
@@ -235,6 +216,7 @@ public class SettingsViewModel : ReactiveObject
         return path;
     }
 
+    [ReactiveCommand]
     private void AutoDetectPath()
     {
         var (gameRelease, gameName) = GetGameInfo(SelectedSkyrimRelease);
@@ -262,10 +244,7 @@ public class SettingsViewModel : ReactiveObject
         };
     }
 
-    private static string GetDetectionMessage(string gameName, bool success) =>
-        success ? $"Detected {gameName} using Mutagen"
-                : $"Auto-detection failed for {gameName} - please set manually";
-
+    [ReactiveCommand]
     private void RestartTutorial()
     {
         if (!FeatureFlags.TutorialEnabled)

@@ -1,11 +1,11 @@
 using Boutique.Models;
 using Mutagen.Bethesda.Plugins;
 using ReactiveUI;
-using ReactiveUI.Fody.Helpers;
+using ReactiveUI.SourceGenerators;
 
 namespace Boutique.ViewModels;
 
-public class SelectableRecordViewModel<TRecord> : ReactiveObject, ISelectableRecordViewModel
+public partial class SelectableRecordViewModel<TRecord> : ReactiveObject, ISelectableRecordViewModel
     where TRecord : IGameRecord
 {
     private readonly string _searchCache;
@@ -24,8 +24,11 @@ public class SelectableRecordViewModel<TRecord> : ReactiveObject, ISelectableRec
     public string FormKeyString => Record.FormKeyString;
     public FormKey FormKey => Record.FormKey;
 
-    [Reactive] public bool IsSelected { get; set; }
-    [Reactive] public bool IsExcluded { get; set; }
+    [Reactive]
+    private bool _isSelected;
+
+    [Reactive]
+    private bool _isExcluded;
 
     public bool MatchesSearch(string searchTerm) =>
         string.IsNullOrWhiteSpace(searchTerm) ||

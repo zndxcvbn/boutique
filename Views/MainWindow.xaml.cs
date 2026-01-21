@@ -161,9 +161,9 @@ public partial class MainWindow : Window
         if (_initialized)
             return;
 
-        if (DataContext is MainViewModel viewModel && viewModel.InitializeCommand.CanExecute(null))
+        if (DataContext is MainViewModel viewModel)
         {
-            viewModel.InitializeCommand.Execute(null);
+            viewModel.InitializeCommand.Execute().Subscribe();
             _initialized = true;
         }
 

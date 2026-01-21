@@ -17,12 +17,12 @@ using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using ReactiveUI;
-using ReactiveUI.Fody.Helpers;
+using ReactiveUI.SourceGenerators;
 using Serilog;
 
 namespace Boutique.ViewModels;
 
-public class MainViewModel : ReactiveObject
+public partial class MainViewModel : ReactiveObject
 {
     private static readonly BipedObjectFlag[] BipedObjectFlags = Enum.GetValues<BipedObjectFlag>()
         .Where(f => f != 0 && ((uint)f & ((uint)f - 1)) == 0) // Only single-bit flags (powers of 2)
@@ -50,6 +50,15 @@ public class MainViewModel : ReactiveObject
     private ObservableCollection<ArmorRecordViewModel> _targetArmors = [];
     private ICollectionView? _targetArmorsView;
     private ICollectionView? _filteredOutfitPluginsView;
+
+
+    private IObservable<bool> _matchesCountGreaterThanZero;
+    private IObservable<bool> _isMapSelected;
+    private IObservable<bool> _isMapGlamOnly;
+    private IObservable<bool> _canCreateOutfit;
+    private IObservable<bool> _canSaveOutfits;
+    private IObservable<bool> _canLoadOutfitPlugin;
+    private IObservable<bool> _canCopyExistingOutfits;
 
     public MainViewModel(
         MutagenService mutagenService,
@@ -112,43 +121,28 @@ public class MainViewModel : ReactiveObject
         this.WhenAnyValue(x => x.AvailablePlugins)
             .Subscribe(_ => ConfigureFilteredOutfitPluginsView());
 
-        InitializeCommand = ReactiveCommand.CreateFromTask(InitializeAsync);
-        CreatePatchCommand = ReactiveCommand.CreateFromTask(
-            CreatePatchAsync,
-            this.WhenAnyValue(x => x.Matches.Count, count => count > 0));
-        ClearMappingsCommand = ReactiveCommand.Create(
-            ClearMappings,
-            this.WhenAnyValue(x => x.Matches.Count, count => count > 0));
-        MapSelectedCommand = ReactiveCommand.Create(
-            MapSelected,
-            this.WhenAnyValue(
+        _matchesCountGreaterThanZero = this.WhenAnyValue(x => x.Matches.Count, count => count > 0);
+
+        _isMapSelected = this.WhenAnyValue(
                 x => x.SelectedSourceArmors,
                 x => x.SelectedTargetArmor,
-                (sources, target) => sources.OfType<ArmorRecordViewModel>().Any() && target is not null));
-        MapGlamOnlyCommand = ReactiveCommand.Create(
-            MapSelectedAsGlamOnly,
-            this.WhenAnyValue(
-                x => x.SelectedSourceArmors,
-                sources => sources.OfType<ArmorRecordViewModel>().Any()));
-        RemoveMappingCommand = ReactiveCommand.Create<ArmorMatchViewModel>(RemoveMapping);
+                (sources, target) => sources.OfType<ArmorRecordViewModel>().Any() && target is not null);
 
-        var canCreateOutfit = this.WhenAnyValue(x => x.SelectedOutfitArmorCount, count => count > 0);
-        var canSaveOutfits = this.WhenAnyValue(
+        _isMapGlamOnly = this.WhenAnyValue(
+                x => x.SelectedSourceArmors,
+                sources => sources.OfType<ArmorRecordViewModel>().Any());
+
+        _canCreateOutfit = this.WhenAnyValue(x => x.SelectedOutfitArmorCount, count => count > 0);
+        _canSaveOutfits = this.WhenAnyValue(
             x => x.HasOutfitDrafts,
             x => x.HasPendingOutfitDeletions,
             x => x.IsCreatingOutfits,
             (hasDrafts, hasDeletions, isBusy) => (hasDrafts || hasDeletions) && !isBusy);
 
-        CreateOutfitCommand = ReactiveCommand.CreateFromTask(CreateOutfitAsync, canCreateOutfit);
-        SaveOutfitsCommand = ReactiveCommand.CreateFromTask(SaveOutfitsAsync, canSaveOutfits);
+        _canLoadOutfitPlugin = this.WhenAnyValue(x => x.SelectedOutfitPlugin, plugin => !string.IsNullOrWhiteSpace(plugin));
 
-        var canLoadOutfitPlugin =
-            this.WhenAnyValue(x => x.SelectedOutfitPlugin, plugin => !string.IsNullOrWhiteSpace(plugin));
-        LoadOutfitPluginCommand =
-            ReactiveCommand.CreateFromTask(() => LoadOutfitPluginAsync(forceReload: true), canLoadOutfitPlugin);
+        _canCopyExistingOutfits = this.WhenAnyValue(x => x.HasExistingPluginOutfits);
 
-        var canCopyExistingOutfits = this.WhenAnyValue(x => x.HasExistingPluginOutfits);
-        CopyExistingOutfitsCommand = ReactiveCommand.Create(CopyExistingOutfits, canCopyExistingOutfits);
 
         Settings.WhenAnyValue(x => x.PatchFileName)
             .Skip(1)
@@ -168,9 +162,11 @@ public class MainViewModel : ReactiveObject
     public SettingsViewModel Settings { get; }
     public DistributionViewModel Distribution { get; }
 
-    [Reactive] public ObservableCollection<string> AvailablePlugins { get; set; } = [];
+    [ReactiveCollection]
+    private ObservableCollection<string> _availablePlugins = [];
 
-    [Reactive] public string OutfitPluginSearchText { get; set; } = string.Empty;
+    [Reactive]
+    private string _outfitPluginSearchText = string.Empty;
 
     public ICollectionView? FilteredOutfitPlugins
     {
@@ -198,11 +194,14 @@ public class MainViewModel : ReactiveObject
         }
     }
 
-    [Reactive] public ObservableCollection<ArmorMatchViewModel> Matches { get; set; } = [];
+    [ReactiveCollection]
+    private ObservableCollection<ArmorMatchViewModel> _matches = [];
 
-    [Reactive] public string SourceSearchText { get; set; } = string.Empty;
+    [Reactive]
+    private string _sourceSearchText = string.Empty;
 
-    [Reactive] public string TargetSearchText { get; set; } = string.Empty;
+    [Reactive]
+    private string _targetSearchText = string.Empty;
 
     public ObservableCollection<ArmorRecordViewModel> OutfitArmors
     {
@@ -224,7 +223,8 @@ public class MainViewModel : ReactiveObject
         }
     }
 
-    [Reactive] public string OutfitSearchText { get; set; } = string.Empty;
+    [Reactive]
+    private string _outfitSearchText = string.Empty;
 
     public IList SelectedOutfitArmors
     {
@@ -240,7 +240,8 @@ public class MainViewModel : ReactiveObject
         }
     }
 
-    [Reactive] public int SelectedOutfitArmorCount { get; private set; }
+    [Reactive]
+    private int _selectedOutfitArmorCount;
 
     public string? SelectedOutfitPlugin
     {
@@ -273,13 +274,17 @@ public class MainViewModel : ReactiveObject
 
     public ReadOnlyObservableCollection<ExistingOutfitViewModel> ExistingOutfits { get; }
 
-    [Reactive] public bool IsCreatingOutfits { get; private set; }
+    [Reactive]
+    private bool _isCreatingOutfits;
 
-    [Reactive] public bool HasOutfitDrafts { get; private set; }
+    [Reactive]
+    private bool _hasOutfitDrafts;
 
-    [Reactive] public bool HasPendingOutfitDeletions { get; private set; }
+    [Reactive]
+    private bool _hasPendingOutfitDeletions;
 
-    [Reactive] public bool HasExistingPluginOutfits { get; private set; }
+    [Reactive]
+    private bool _hasExistingPluginOutfits;
 
     public IList SelectedSourceArmors
     {
@@ -317,7 +322,8 @@ public class MainViewModel : ReactiveObject
     private ArmorRecordViewModel? SelectedSourceArmor =>
         _selectedSourceArmors.OfType<ArmorRecordViewModel>().FirstOrDefault();
 
-    [Reactive] public ArmorRecordViewModel? SelectedTargetArmor { get; set; }
+    [Reactive]
+    private ArmorRecordViewModel? _selectedTargetArmor;
 
     public ICollectionView? SourceArmorsView
     {
@@ -388,32 +394,25 @@ public class MainViewModel : ReactiveObject
         }
     }
 
-    [Reactive] public bool IsLoading { get; set; }
+    [Reactive]
+    private bool _isLoading;
 
-    [Reactive] public bool IsPatching { get; set; }
+    [Reactive]
+    private bool _isPatching;
 
     public bool IsProgressActive => IsPatching || IsCreatingOutfits;
 
-    [Reactive] public string StatusMessage { get; set; } = "Ready";
+    [Reactive]
+    private string _statusMessage = "Ready";
 
-    [Reactive] public int ProgressCurrent { get; set; }
+    [Reactive]
+    private int _progressCurrent;
 
-    [Reactive] public int ProgressTotal { get; set; }
+    [Reactive]
+    private int _progressTotal;
 
-    [Reactive] public int MainTabIndex { get; set; }
-
-    public ICommand InitializeCommand { get; }
-    public ICommand CreatePatchCommand { get; }
-    public ICommand ClearMappingsCommand { get; }
-    public ICommand MapSelectedCommand { get; }
-    public ICommand MapGlamOnlyCommand { get; }
-    public ReactiveCommand<ArmorMatchViewModel, Unit> RemoveMappingCommand { get; }
-    public ReactiveCommand<Unit, Unit> CreateOutfitCommand { get; }
-
-    public ReactiveCommand<Unit, Unit> SaveOutfitsCommand { get; }
-
-    public ReactiveCommand<Unit, Unit> LoadOutfitPluginCommand { get; }
-    public ReactiveCommand<Unit, Unit> CopyExistingOutfitsCommand { get; }
+    [Reactive]
+    private int _mainTabIndex;
 
     private async Task<int> LoadExistingOutfitsAsync(string plugin)
     {
@@ -500,6 +499,7 @@ public class MainViewModel : ReactiveObject
         return discoveredCount;
     }
 
+    [ReactiveCommand(CanExecute = nameof(_canCopyExistingOutfits))]
     private void CopyExistingOutfits()
     {
         if (_existingOutfits.Count == 0)
@@ -811,6 +811,7 @@ public class MainViewModel : ReactiveObject
         TargetArmorsView?.Refresh();
     }
 
+    [ReactiveCommand(CanExecute = nameof(_isMapSelected))]
     private void MapSelected()
     {
         var sources = SelectedSourceArmors.OfType<ArmorRecordViewModel>().ToList();
@@ -855,6 +856,7 @@ public class MainViewModel : ReactiveObject
         }
     }
 
+    [ReactiveCommand(CanExecute = nameof(_isMapGlamOnly))]
     private void MapSelectedAsGlamOnly()
     {
         var sources = SelectedSourceArmors.OfType<ArmorRecordViewModel>().ToList();
@@ -894,6 +896,7 @@ public class MainViewModel : ReactiveObject
         }
     }
 
+    [ReactiveCommand(CanExecute = nameof(_matchesCountGreaterThanZero))]
     private void ClearMappings()
     {
         if (!ClearMappingsInternal())
@@ -928,6 +931,7 @@ public class MainViewModel : ReactiveObject
         return true;
     }
 
+    [ReactiveCommand]
     private void RemoveMapping(ArmorMatchViewModel mapping)
     {
         if (!Matches.Contains(mapping))
@@ -959,7 +963,8 @@ public class MainViewModel : ReactiveObject
         await SyncOutfitPluginWithTargetAsync(plugin, forceOutfitReload);
     }
 
-    public async Task LoadOutfitPluginAsync(bool forceReload = false)
+    [ReactiveCommand(CanExecute = nameof(_canLoadOutfitPlugin))]
+    public async Task LoadOutfitPluginAsync(bool forceReload = true)
     {
         var plugin = SelectedOutfitPlugin;
         if (string.IsNullOrWhiteSpace(plugin))
@@ -983,6 +988,7 @@ public class MainViewModel : ReactiveObject
             await LoadOutfitPluginAsync(true);
     }
 
+    [ReactiveCommand]
     private async Task InitializeAsync()
     {
         BeginLoading();
@@ -1357,6 +1363,7 @@ public class MainViewModel : ReactiveObject
         return formKey.ModKey;
     }
 
+    [ReactiveCommand(CanExecute = nameof(_canCreateOutfit))]
     private async Task CreateOutfitAsync()
     {
         var selectedPieces = SelectedOutfitArmors
@@ -1676,6 +1683,7 @@ public class MainViewModel : ReactiveObject
         _logger.Information("Removed armor {Armor} from outfit draft {EditorId}.", piece.DisplayName, draft.EditorId);
     }
 
+    [ReactiveCommand(CanExecute = nameof(_canSaveOutfits))]
     private async Task SaveOutfitsAsync()
     {
         var populatedDrafts = _outfitDrafts.Where(d => d.HasPieces).ToList();
@@ -1781,6 +1789,7 @@ public class MainViewModel : ReactiveObject
         view.Refresh();
     }
 
+    [ReactiveCommand(CanExecute = nameof(_matchesCountGreaterThanZero))]
     private async Task CreatePatchAsync()
     {
         IsPatching = true;
@@ -1856,7 +1865,7 @@ public class MainViewModel : ReactiveObject
     }
 }
 
-public class ArmorMatchViewModel : ReactiveObject
+public partial class ArmorMatchViewModel : ReactiveObject
 {
     public ArmorMatchViewModel(
         ArmorMatch match,
@@ -1877,7 +1886,8 @@ public class ArmorMatchViewModel : ReactiveObject
     public ArmorMatch Match { get; }
     public ArmorRecordViewModel Source { get; }
 
-    [Reactive] public ArmorRecordViewModel? Target { get; private set; }
+    [Reactive]
+    private ArmorRecordViewModel? _target;
 
     public bool HasTarget => Match.IsGlamOnly || Target is not null;
     public bool IsGlamOnly => Match.IsGlamOnly;

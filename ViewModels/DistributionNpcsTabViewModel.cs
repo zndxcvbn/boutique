@@ -9,17 +9,20 @@ using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using ReactiveUI;
-using ReactiveUI.Fody.Helpers;
+using ReactiveUI.SourceGenerators;
 using Serilog;
 
 namespace Boutique.ViewModels;
 
-public class DistributionNpcsTabViewModel : ReactiveObject
+public partial class DistributionNpcsTabViewModel : ReactiveObject
 {
     private readonly ArmorPreviewService _armorPreviewService;
     private readonly MutagenService _mutagenService;
     private readonly GameDataCacheService _cache;
     private readonly ILogger _logger;
+
+    private IObservable<bool> _hasFilters;
+    private IObservable<bool> _notLoading;
 
     public DistributionNpcsTabViewModel(
         ArmorPreviewService armorPreviewService,
@@ -32,14 +35,10 @@ public class DistributionNpcsTabViewModel : ReactiveObject
         _cache = cache;
         _logger = logger.ForContext<DistributionNpcsTabViewModel>();
 
-        var notLoading = this.WhenAnyValue(vm => vm.IsLoading, loading => !loading);
-        ScanNpcOutfitsCommand = ReactiveCommand.CreateFromTask(ScanNpcOutfitsAsync, notLoading);
-        PreviewNpcOutfitCommand = ReactiveCommand.CreateFromTask<NpcOutfitAssignmentViewModel>(PreviewNpcOutfitAsync, notLoading);
-        PreviewDistributionOutfitCommand = ReactiveCommand.CreateFromTask<OutfitDistribution>(PreviewDistributionOutfitAsync, notLoading);
-        ClearFiltersCommand = ReactiveCommand.Create(ClearFilters);
+        _notLoading = this.WhenAnyValue(vm => vm.IsLoading, loading => !loading);
 
-        var hasFilters = this.WhenAnyValue(vm => vm.HasActiveFilters);
-        CopyFilterCommand = ReactiveCommand.Create(CopyFilter, hasFilters);
+        _hasFilters = this.WhenAnyValue(vm => vm.HasActiveFilters);
+
 
         // NPCs tab search filtering - combine text search with SPID filters
         this.WhenAnyValue(vm => vm.NpcOutfitSearchText)
@@ -97,13 +96,13 @@ public class DistributionNpcsTabViewModel : ReactiveObject
     }
 
     [Reactive]
-    public bool IsLoading { get; private set; }
+    private bool _isLoading;
 
     [Reactive]
-    public string StatusMessage { get; private set; } = string.Empty;
+    private string _statusMessage = string.Empty;
 
-    [Reactive]
-    public ObservableCollection<NpcOutfitAssignmentViewModel> NpcOutfitAssignments { get; private set; } = [];
+    [ReactiveCollection]
+    private ObservableCollection<NpcOutfitAssignmentViewModel> _npcOutfitAssignments = [];
 
     public NpcOutfitAssignmentViewModel? SelectedNpcAssignment
     {
@@ -121,22 +120,22 @@ public class DistributionNpcsTabViewModel : ReactiveObject
     }
 
     [Reactive]
-    public string NpcOutfitSearchText { get; set; } = string.Empty;
+    private string _npcOutfitSearchText = string.Empty;
 
     [Reactive]
-    public bool HideVanillaDistributions { get; set; }
+    private bool _hideVanillaDistributions;
+
+    [ReactiveCollection]
+    private ObservableCollection<NpcOutfitAssignmentViewModel> _filteredNpcOutfitAssignments = [];
 
     [Reactive]
-    public ObservableCollection<NpcOutfitAssignmentViewModel> FilteredNpcOutfitAssignments { get; private set; } = [];
-
-    [Reactive]
-    public string SelectedNpcOutfitContents { get; private set; } = string.Empty;
+    private string _selectedNpcOutfitContents = string.Empty;
 
     /// <summary>
     /// Gets the NpcFilterData for the currently selected NPC, used to display detailed stats.
     /// </summary>
     [Reactive]
-    public NpcFilterData? SelectedNpcFilterData { get; private set; }
+    private NpcFilterData? _selectedNpcFilterData;
 
     #region SPID Filter Properties
 
@@ -149,85 +148,87 @@ public class DistributionNpcsTabViewModel : ReactiveObject
     public IReadOnlyList<string> GenderFilterOptions { get; } = ["Any", "Female", "Male"];
 
     [Reactive]
-    public string SelectedGenderFilter { get; set; } = "Any";
+    private string _selectedGenderFilter = "Any";
 
     /// <summary>Gets the unique filter options for the dropdown.</summary>
     public IReadOnlyList<string> UniqueFilterOptions { get; } = ["Any", "Unique Only", "Non-Unique"];
 
     [Reactive]
-    public string SelectedUniqueFilter { get; set; } = "Any";
+    private string _selectedUniqueFilter = "Any";
 
     /// <summary>Gets the templated filter options for the dropdown.</summary>
     public IReadOnlyList<string> TemplatedFilterOptions { get; } = ["Any", "Templated", "Non-Templated"];
 
-    [Reactive] public string SelectedTemplatedFilter { get; set; } = "Any";
+    [Reactive]
+    private string _selectedTemplatedFilter = "Any";
 
     /// <summary>Child filter options for the dropdown.</summary>
     public IReadOnlyList<string> ChildFilterOptions { get; } = ["Any", "Children", "Adults"];
 
-    [Reactive] public string SelectedChildFilter { get; set; } = "Any";
+    [Reactive]
+    private string _selectedChildFilter = "Any";
 
     /// <summary>Available factions for filtering (from centralized cache).</summary>
     public ObservableCollection<FactionRecordViewModel> AvailableFactions => _cache.AllFactions;
 
-    [Reactive] public FactionRecordViewModel? SelectedFaction { get; set; }
+    [Reactive]
+    private FactionRecordViewModel? _selectedFaction;
 
     /// <summary>Available races for filtering (from centralized cache).</summary>
     public ObservableCollection<RaceRecordViewModel> AvailableRaces => _cache.AllRaces;
 
-    [Reactive] public RaceRecordViewModel? SelectedRace { get; set; }
+    [Reactive]
+    private RaceRecordViewModel? _selectedRace;
 
     /// <summary>Available keywords for filtering (from centralized cache).</summary>
     public ObservableCollection<KeywordRecordViewModel> AvailableKeywords => _cache.AllKeywords;
 
-    [Reactive] public KeywordRecordViewModel? SelectedKeyword { get; set; }
+    [Reactive]
+    private KeywordRecordViewModel? _selectedKeyword;
 
     /// <summary>Available classes for filtering (from centralized cache).</summary>
     public ObservableCollection<ClassRecordViewModel> AvailableClasses => _cache.AllClasses;
 
-    [Reactive] public ClassRecordViewModel? SelectedClass { get; set; }
+    [Reactive]
+    private ClassRecordViewModel? _selectedClass;
 
     /// <summary>
     /// Generated SPID syntax based on current filters.
     /// </summary>
-    [Reactive] public string GeneratedSpidSyntax { get; private set; } = string.Empty;
+    [Reactive]
+    private string _generatedSpidSyntax = string.Empty;
 
     /// <summary>
     /// Generated SkyPatcher syntax based on current filters.
     /// </summary>
-    [Reactive] public string GeneratedSkyPatcherSyntax { get; private set; } = string.Empty;
+    [Reactive]
+    private string _generatedSkyPatcherSyntax = string.Empty;
 
     /// <summary>
     /// Human-readable description of active filters.
     /// </summary>
-    [Reactive] public string FilterDescription { get; private set; } = "No filters active";
+    [Reactive]
+    private string _filterDescription = "No filters active";
 
     /// <summary>
     /// Whether any filters are currently active.
     /// </summary>
-    [Reactive] public bool HasActiveFilters { get; private set; }
+    [Reactive]
+    private bool _hasActiveFilters;
 
     /// <summary>
     /// Count of NPCs matching current filters.
     /// </summary>
-    [Reactive] public int FilteredCount { get; private set; }
+    [Reactive]
+    private int _filteredCount;
 
     /// <summary>
     /// Total count of NPCs before filtering.
     /// </summary>
-    [Reactive] public int TotalCount { get; private set; }
+    [Reactive]
+    private int _totalCount;
 
     #endregion
-
-    public ReactiveCommand<Unit, Unit> ScanNpcOutfitsCommand { get; }
-
-    public ReactiveCommand<NpcOutfitAssignmentViewModel, Unit> PreviewNpcOutfitCommand { get; }
-
-    public ReactiveCommand<OutfitDistribution, Unit> PreviewDistributionOutfitCommand { get; }
-
-    public ReactiveCommand<Unit, Unit> ClearFiltersCommand { get; }
-
-    public ReactiveCommand<Unit, Unit> CopyFilterCommand { get; }
 
     public Interaction<ArmorPreviewSceneCollection, Unit> ShowPreview { get; } = new();
 
@@ -241,6 +242,7 @@ public class DistributionNpcsTabViewModel : ReactiveObject
     /// <summary>
     /// Ensures NPC outfit data is loaded (uses cache if available).
     /// </summary>
+    [ReactiveCommand(CanExecute = nameof(_notLoading))]
     public async Task ScanNpcOutfitsAsync()
     {
         _logger.Debug("ScanNpcOutfitsAsync started");
@@ -292,6 +294,7 @@ public class DistributionNpcsTabViewModel : ReactiveObject
         }
     }
 
+    [ReactiveCommand(CanExecute = nameof(_notLoading))]
     private async Task PreviewNpcOutfitAsync(NpcOutfitAssignmentViewModel? npcAssignment)
     {
         if (npcAssignment == null || !npcAssignment.FinalOutfitFormKey.HasValue)
@@ -353,6 +356,7 @@ public class DistributionNpcsTabViewModel : ReactiveObject
         }
     }
 
+    [ReactiveCommand(CanExecute = nameof(_notLoading))]
     private async Task PreviewDistributionOutfitAsync(OutfitDistribution? clickedDistribution)
     {
         if (clickedDistribution == null || SelectedNpcAssignment == null)
@@ -580,6 +584,7 @@ public class DistributionNpcsTabViewModel : ReactiveObject
         GeneratedSkyPatcherSyntax = skyPatcherSyntax;
     }
 
+    [ReactiveCommand]
     private void ClearFilters()
     {
         SelectedGenderFilter = "Any";
@@ -599,6 +604,7 @@ public class DistributionNpcsTabViewModel : ReactiveObject
         UpdateSyntaxPreview();
     }
 
+    [ReactiveCommand(CanExecute = nameof(_hasFilters))]
     private void CopyFilter()
     {
         if (!HasActiveFilters)

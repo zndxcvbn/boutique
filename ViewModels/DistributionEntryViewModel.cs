@@ -5,7 +5,7 @@ using Boutique.Models;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Skyrim;
 using ReactiveUI;
-using ReactiveUI.Fody.Helpers;
+using ReactiveUI.SourceGenerators;
 
 namespace Boutique.ViewModels;
 
@@ -23,7 +23,7 @@ public enum UniqueFilter
     NonUniqueOnly
 }
 
-public class DistributionEntryViewModel : ReactiveObject
+public partial class DistributionEntryViewModel : ReactiveObject
 {
     private ObservableCollection<NpcRecordViewModel> _selectedNpcs = [];
     private ObservableCollection<FactionRecordViewModel> _selectedFactions = [];
@@ -263,40 +263,40 @@ public class DistributionEntryViewModel : ReactiveObject
     public DistributionEntry Entry { get; }
 
     [Reactive]
-    public DistributionType Type { get; set; } = DistributionType.Outfit;
+    private DistributionType _type = DistributionType.Outfit;
 
     [Reactive]
-    public IOutfitGetter? SelectedOutfit { get; set; }
+    private IOutfitGetter? _selectedOutfit;
 
     [Reactive]
-    public string KeywordToDistribute { get; set; } = string.Empty;
+    private string _keywordToDistribute = string.Empty;
 
     public bool IsOutfitDistribution => Type == DistributionType.Outfit;
     public bool IsKeywordDistribution => Type == DistributionType.Keyword;
 
     [Reactive]
-    public bool UseChance { get; set; }
+    private bool _useChance;
 
     [Reactive]
-    public int Chance { get; set; } = 100;
+    private int _chance = 100;
 
     [Reactive]
-    public string LevelFilters { get; set; } = string.Empty;
+    private string _levelFilters = string.Empty;
 
     [Reactive]
-    public string RawStringFilters { get; set; } = string.Empty;
+    private string _rawStringFilters = string.Empty;
 
     [Reactive]
-    public string RawFormFilters { get; set; } = string.Empty;
+    private string _rawFormFilters = string.Empty;
 
     [Reactive]
-    public GenderFilter Gender { get; set; } = GenderFilter.Any;
+    private GenderFilter _gender = GenderFilter.Any;
 
     [Reactive]
-    public UniqueFilter Unique { get; set; } = UniqueFilter.Any;
+    private UniqueFilter _unique = UniqueFilter.Any;
 
     [Reactive]
-    public bool? IsChild { get; set; }
+    private bool? _isChild;
 
     public static DistributionType[] TypeOptions { get; } = [DistributionType.Outfit, DistributionType.Keyword];
     public static GenderFilter[] GenderOptions { get; } = [GenderFilter.Any, GenderFilter.Female, GenderFilter.Male];
@@ -394,7 +394,8 @@ public class DistributionEntryViewModel : ReactiveObject
 
     public ReactiveCommand<Unit, Unit> RemoveCommand { get; }
 
-    [Reactive] public bool IsSelected { get; set; }
+    [Reactive]
+    private bool _isSelected;
 
     public void UpdateEntryNpcs()
     {

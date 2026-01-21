@@ -9,12 +9,12 @@ using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
 using Mutagen.Bethesda.Skyrim;
 using ReactiveUI;
-using ReactiveUI.Fody.Helpers;
+using ReactiveUI.SourceGenerators;
 using Serilog;
 
 namespace Boutique.ViewModels;
 
-public class DistributionOutfitsTabViewModel : ReactiveObject
+public partial class DistributionOutfitsTabViewModel : ReactiveObject
 {
     private readonly NpcScanningService _npcScanningService;
     private readonly NpcOutfitResolutionService _npcOutfitResolutionService;
@@ -23,6 +23,8 @@ public class DistributionOutfitsTabViewModel : ReactiveObject
     private readonly GameDataCacheService _cache;
     private readonly SettingsViewModel _settings;
     private readonly ILogger _logger;
+
+    private IObservable<bool> _notLoading;
 
     public DistributionOutfitsTabViewModel(
         NpcScanningService npcScanningService,
@@ -41,12 +43,7 @@ public class DistributionOutfitsTabViewModel : ReactiveObject
         _settings = settings;
         _logger = logger.ForContext<DistributionOutfitsTabViewModel>();
 
-        var notLoading = this.WhenAnyValue(vm => vm.IsLoading, loading => !loading);
-        LoadOutfitsCommand = ReactiveCommand.CreateFromTask(LoadOutfitsAsync, notLoading);
-        PreviewOutfitCommand = ReactiveCommand.CreateFromTask<OutfitRecordViewModel>(PreviewOutfitAsync, notLoading);
-        PreviewDistributionOutfitCommand = ReactiveCommand.CreateFromTask<OutfitDistribution>(PreviewDistributionOutfitAsync, notLoading);
-        CopyOutfitCommand = ReactiveCommand.CreateFromTask<OutfitRecordViewModel>(CopyOutfit, notLoading);
-        CopyOutfitAsOverrideCommand = ReactiveCommand.CreateFromTask<OutfitRecordViewModel>(CopyOutfitAsOverride, notLoading);
+        _notLoading = this.WhenAnyValue(vm => vm.IsLoading, loading => !loading);
 
         // Outfits tab search filtering
         this.WhenAnyValue(vm => vm.OutfitSearchText)
@@ -62,12 +59,11 @@ public class DistributionOutfitsTabViewModel : ReactiveObject
     }
 
     [Reactive]
-    public bool IsLoading { get; private set; }
+    private bool _isLoading;
 
     [Reactive]
-    public string StatusMessage { get; private set; } = string.Empty;
+    private string _statusMessage = string.Empty;
 
-    [Reactive]
     public ObservableCollection<OutfitRecordViewModel> Outfits { get; private set; } = [];
 
     public OutfitRecordViewModel? SelectedOutfit
@@ -86,26 +82,14 @@ public class DistributionOutfitsTabViewModel : ReactiveObject
     }
 
     [Reactive]
-    public string OutfitSearchText { get; set; } = string.Empty;
+    private string _outfitSearchText = string.Empty;
 
     [Reactive]
-    public bool HideVanillaOutfits { get; set; }
+    private bool _hideVanillaOutfits;
 
-    [Reactive]
     public ObservableCollection<OutfitRecordViewModel> FilteredOutfits { get; private set; } = [];
 
-    [Reactive]
     public ObservableCollection<NpcOutfitAssignmentViewModel> SelectedOutfitNpcAssignments { get; private set; } = [];
-
-    public ReactiveCommand<Unit, Unit> LoadOutfitsCommand { get; }
-
-    public ReactiveCommand<OutfitRecordViewModel, Unit> PreviewOutfitCommand { get; }
-
-    public ReactiveCommand<OutfitDistribution, Unit> PreviewDistributionOutfitCommand { get; }
-
-    public ReactiveCommand<OutfitRecordViewModel, Unit> CopyOutfitCommand { get; }
-
-    public ReactiveCommand<OutfitRecordViewModel, Unit> CopyOutfitAsOverrideCommand { get; }
 
     public Interaction<ArmorPreviewSceneCollection, Unit> ShowPreview { get; } = new();
 
@@ -123,6 +107,7 @@ public class DistributionOutfitsTabViewModel : ReactiveObject
     /// </summary>
     private IReadOnlyList<DistributionFileViewModel> DistributionFiles => _cache.AllDistributionFiles;
 
+    [ReactiveCommand(CanExecute = nameof(_notLoading))]
     public async Task LoadOutfitsAsync()
     {
         _logger.Debug("LoadOutfitsAsync started");
@@ -215,6 +200,7 @@ public class DistributionOutfitsTabViewModel : ReactiveObject
         }
     }
 
+    [ReactiveCommand(CanExecute = nameof(_notLoading))]
     private async Task PreviewOutfitAsync(OutfitRecordViewModel? outfitVm)
     {
         if (outfitVm == null)
@@ -269,6 +255,7 @@ public class DistributionOutfitsTabViewModel : ReactiveObject
         }
     }
 
+    [ReactiveCommand(CanExecute = nameof(_notLoading))]
     private async Task PreviewDistributionOutfitAsync(OutfitDistribution? clickedDistribution)
     {
         if (clickedDistribution == null)
@@ -339,8 +326,10 @@ public class DistributionOutfitsTabViewModel : ReactiveObject
         }
     }
 
+    [ReactiveCommand(CanExecute = nameof(_notLoading))]
     private Task CopyOutfit(OutfitRecordViewModel outfitVm) => CopyOutfitInternal(outfitVm, isOverride: false);
 
+    [ReactiveCommand(CanExecute = nameof(_notLoading))]
     private Task CopyOutfitAsOverride(OutfitRecordViewModel outfitVm) => CopyOutfitInternal(outfitVm, isOverride: true);
 
     private Task CopyOutfitInternal(OutfitRecordViewModel outfitVm, bool isOverride)
