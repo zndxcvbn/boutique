@@ -328,13 +328,24 @@ public partial class DistributionNpcsTabViewModel : ReactiveObject
         try
         {
             StatusMessage = $"Building preview for {label}...";
-            var scene = await _armorPreviewService.BuildPreviewAsync(armorPieces, GenderedModelVariant.Female);
-            var sceneWithMetadata = scene with
-            {
-                OutfitLabel = label,
-                SourceFile = outfit.FormKey.ModKey.FileName.String
-            };
-            var collection = new ArmorPreviewSceneCollection(sceneWithMetadata);
+
+            var npcGender = GetNpcGender(npcAssignment.NpcFormKey, linkCache);
+            var metadata = new OutfitMetadata(label, outfit.FormKey.ModKey.FileName.String, false);
+            var collection = new ArmorPreviewSceneCollection(
+                count: 1,
+                initialIndex: 0,
+                metadata: new[] { metadata },
+                sceneBuilder: async (_, gender) =>
+                {
+                    var scene = await _armorPreviewService.BuildPreviewAsync(armorPieces, gender);
+                    return scene with
+                    {
+                        OutfitLabel = label,
+                        SourceFile = outfit.FormKey.ModKey.FileName.String
+                    };
+                },
+                initialGender: npcGender);
+
             await ShowPreview.Handle(collection);
             StatusMessage = $"Preview ready for {label}.";
         }
@@ -385,11 +396,12 @@ public partial class DistributionNpcsTabViewModel : ReactiveObject
                     d.IsWinner))
                 .ToList();
 
+            var npcGender = GetNpcGender(SelectedNpcAssignment.NpcFormKey, linkCache);
             var collection = new ArmorPreviewSceneCollection(
                 distributions.Count,
                 clickedIndex,
                 metadata,
-                async index =>
+                async (index, gender) =>
                 {
                     var distribution = distributions[index];
 
@@ -400,14 +412,15 @@ public partial class DistributionNpcsTabViewModel : ReactiveObject
                     if (armorPieces.Count == 0)
                         throw new InvalidOperationException($"Outfit '{outfit.EditorID ?? outfit.FormKey.ToString()}' has no armor pieces");
 
-                    var scene = await _armorPreviewService.BuildPreviewAsync(armorPieces, GenderedModelVariant.Female);
+                    var scene = await _armorPreviewService.BuildPreviewAsync(armorPieces, gender);
                     return scene with
                     {
                         OutfitLabel = distribution.OutfitEditorId ?? distribution.OutfitFormKey.ToString(),
                         SourceFile = distribution.FileName,
                         IsWinner = distribution.IsWinner
                     };
-                });
+                },
+                initialGender: npcGender);
 
             await ShowPreview.Handle(collection);
             StatusMessage = $"Preview ready with {distributions.Count} outfit(s).";
@@ -658,5 +671,17 @@ public partial class DistributionNpcsTabViewModel : ReactiveObject
         }
 
         SelectedNpcOutfitContents = sb.ToString();
+    }
+
+    private static GenderedModelVariant GetNpcGender(FormKey npcFormKey, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
+    {
+        if (linkCache.TryResolve<INpcGetter>(npcFormKey, out var npc))
+        {
+            return npc.Configuration.Flags.HasFlag(NpcConfiguration.Flag.Female)
+                ? GenderedModelVariant.Female
+                : GenderedModelVariant.Male;
+        }
+
+        return GenderedModelVariant.Female;
     }
 }

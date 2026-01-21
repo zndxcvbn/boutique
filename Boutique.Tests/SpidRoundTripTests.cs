@@ -473,4 +473,76 @@ public class SpidRoundTripTests
     }
 
     #endregion
+
+    #region Magecore Test Data Lines
+
+    [Theory]
+    [InlineData("Keyword = MAGECORE_isMage|*Conjurer,*Cryomancer,*Electromancer,*Mage,*Necro,*Pyromancer,*Wizard,*Warlock,*Sorcerer")]
+    [InlineData("Keyword = MAGECORE_isFemale|MAGECORE_isMage|NONE|NONE|F/-U/-C")]
+    [InlineData("Keyword = MAGECORE_isGroupA|MAGECORE_isMage+MAGECORE_isFemale|NONE|NONE|NONE|NONE|33")]
+    [InlineData("Keyword = MAGECORE_isGroupB|MAGECORE_isMage+MAGECORE_isFemale,-MAGECORE_isGroupA|NONE|NONE|NONE|NONE|50")]
+    [InlineData("Keyword = MAGECORE_isGroupC|MAGECORE_isMage+MAGECORE_isFemale,-MAGECORE_isGroupA,-MAGECORE_isGroupB")]
+    public void RoundTrip_MagecoreKeywordLines_PreservesLine(string input)
+    {
+        var parsed = SpidLineParser.TryParse(input, out var filter);
+        Assert.True(parsed, $"Failed to parse: {input}");
+        Assert.NotNull(filter);
+
+        var formatted = DistributionFileFormatter.FormatSpidDistributionFilter(filter);
+        Assert.Equal(input, formatted);
+    }
+
+    [Fact]
+    public void Parse_MagecoreWildcards_ParsesAllExpressions()
+    {
+        var input = "Keyword = MAGECORE_isMage|*Conjurer,*Cryomancer,*Electromancer,*Mage,*Necro,*Pyromancer,*Wizard,*Warlock,*Sorcerer";
+        var parsed = SpidLineParser.TryParse(input, out var filter);
+
+        Assert.True(parsed);
+        Assert.NotNull(filter);
+        Assert.Equal("MAGECORE_isMage", filter.FormIdentifier);
+        Assert.Equal(9, filter.StringFilters.Expressions.Count);
+
+        var values = filter.StringFilters.Expressions
+            .SelectMany(e => e.Parts)
+            .Select(p => p.Value)
+            .ToList();
+        Assert.Contains("*Conjurer", values);
+        Assert.Contains("*Cryomancer", values);
+        Assert.Contains("*Sorcerer", values);
+    }
+
+    [Fact]
+    public void Parse_MagecoreGlobalExclusions_ParsesCorrectly()
+    {
+        var input = "Keyword = MAGECORE_isGroupC|MAGECORE_isMage+MAGECORE_isFemale,-MAGECORE_isGroupA,-MAGECORE_isGroupB|NONE|NONE|NONE|NONE|100";
+        var parsed = SpidLineParser.TryParse(input, out var filter);
+
+        Assert.True(parsed);
+        Assert.NotNull(filter);
+        Assert.Equal("MAGECORE_isGroupC", filter.FormIdentifier);
+        Assert.Single(filter.StringFilters.Expressions);
+        Assert.Equal(2, filter.StringFilters.Expressions[0].Parts.Count);
+        Assert.Equal("MAGECORE_isMage", filter.StringFilters.Expressions[0].Parts[0].Value);
+        Assert.Equal("MAGECORE_isFemale", filter.StringFilters.Expressions[0].Parts[1].Value);
+        Assert.Equal(2, filter.StringFilters.GlobalExclusions.Count);
+        Assert.Equal("MAGECORE_isGroupA", filter.StringFilters.GlobalExclusions[0].Value);
+        Assert.Equal("MAGECORE_isGroupB", filter.StringFilters.GlobalExclusions[1].Value);
+        Assert.Equal(100, filter.Chance);
+    }
+
+    [Theory]
+    [InlineData("Outfit = MAGECOREMasterResearcherMagickaOutfit|MAGECORE_isFemale+MAGECORE_isMage+MAGECORE_isMasterLevel+MAGECORE_isGroupA,-MAGECORE_hasMasterSkill")]
+    [InlineData("Outfit = MAGECOREExpertResearcherAlterationOutfit|MAGECORE_isFemale+MAGECORE_isMage+MAGECORE_isExpertAlteration+MAGECORE_isGroupA,-MAGECORE_reachMasterLevel,-MAGECORE_hasMasterSkill")]
+    public void RoundTrip_MagecoreOutfitLines_PreservesLine(string input)
+    {
+        var parsed = SpidLineParser.TryParse(input, out var filter);
+        Assert.True(parsed, $"Failed to parse: {input}");
+        Assert.NotNull(filter);
+
+        var formatted = DistributionFileFormatter.FormatSpidDistributionFilter(filter);
+        Assert.Equal(input, formatted);
+    }
+
+    #endregion
 }

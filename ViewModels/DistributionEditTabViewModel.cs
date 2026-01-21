@@ -16,6 +16,8 @@ using Serilog;
 
 namespace Boutique.ViewModels;
 
+public record PreviewLineHighlightRequest(int LineNumber, string LineContent);
+
 public partial class DistributionEditTabViewModel : ReactiveObject
 {
     private readonly DistributionFileWriterService _fileWriterService;
@@ -30,8 +32,10 @@ public partial class DistributionEditTabViewModel : ReactiveObject
     private bool _isBulkLoading;
     private bool _outfitsLoaded;
     private string? _justSavedFilePath;
+    private readonly Dictionary<DistributionEntryViewModel, IDisposable> _entryChangedSubscriptions = new();
     private readonly Dictionary<DistributionEntryViewModel, IDisposable> _useChanceSubscriptions = new();
     private readonly Dictionary<DistributionEntryViewModel, IDisposable> _typeSubscriptions = new();
+    private DistributionEntryViewModel? _lastChangedEntry;
 
     private IObservable<bool> _hasEntries;
     private IObservable<bool> _notLoading;
@@ -351,6 +355,8 @@ public partial class DistributionEditTabViewModel : ReactiveObject
     [Reactive]
     private string _distributionFileContent = string.Empty;
 
+    [Reactive] public PreviewLineHighlightRequest? HighlightRequest { get; private set; }
+
     /// <summary>
     /// The distribution file format (SPID or SkyPatcher).
     /// Defaults to SkyPatcher for new files, or detected from existing files.
@@ -462,10 +468,12 @@ public partial class DistributionEditTabViewModel : ReactiveObject
 
     private void SubscribeToEntryChanges(DistributionEntryViewModel entry)
     {
-        Observable.FromEventPattern(entry, nameof(entry.EntryChanged))
+        var entryChangedSub = Observable.FromEventPattern(entry, nameof(entry.EntryChanged))
+            .Do(_ => _lastChangedEntry = entry)
             .Throttle(TimeSpan.FromMilliseconds(300))
             .ObserveOn(RxApp.MainThreadScheduler)
             .Subscribe(_ => UpdateFileContent());
+        _entryChangedSubscriptions[entry] = entryChangedSub;
 
         var useChanceSub = entry.WhenAnyValue(e => e.UseChance)
             .Subscribe(_ => UpdateHasChanceBasedEntries());
@@ -478,6 +486,12 @@ public partial class DistributionEditTabViewModel : ReactiveObject
 
     private void UnsubscribeFromEntryChanges(DistributionEntryViewModel entry)
     {
+        if (_entryChangedSubscriptions.TryGetValue(entry, out var entryChangedSub))
+        {
+            entryChangedSub.Dispose();
+            _entryChangedSubscriptions.Remove(entry);
+        }
+
         if (_useChanceSubscriptions.TryGetValue(entry, out var sub))
         {
             sub.Dispose();
@@ -1239,12 +1253,52 @@ public partial class DistributionEditTabViewModel : ReactiveObject
 
             _logger.Debug("UpdateFileContent: Generated {LineCount} lines", DistributionFileContent.Split('\n').Length);
             DetectConflicts();
+
+            RaiseHighlightRequestForChangedEntry(effectiveFormat);
         }
         catch (Exception ex)
         {
             _logger.Error(ex, "Error updating distribution file content");
             DistributionFileContent = $"; Error generating file content: {ex.Message}";
         }
+    }
+
+    private void RaiseHighlightRequestForChangedEntry(DistributionFileType effectiveFormat)
+    {
+        var entryToHighlight = _lastChangedEntry ?? SelectedEntry;
+        _lastChangedEntry = null;
+
+        if (entryToHighlight == null || _isBulkLoading)
+            return;
+
+        var lineNumber = CalculateLineNumberForEntry(entryToHighlight, effectiveFormat);
+        if (lineNumber < 0)
+            return;
+
+        var lines = DistributionFileContent.Split('\n');
+        var lineContent = lineNumber < lines.Length ? lines[lineNumber].TrimEnd('\r') : string.Empty;
+
+        HighlightRequest = new PreviewLineHighlightRequest(lineNumber, lineContent);
+    }
+
+    private int CalculateLineNumberForEntry(DistributionEntryViewModel targetEntry, DistributionFileType format)
+    {
+        var lineNumber = 3;
+
+        foreach (var entry in DistributionEntries)
+        {
+            var producesLine = entry.Type == DistributionType.Keyword
+                ? !string.IsNullOrWhiteSpace(entry.KeywordToDistribute)
+                : entry.SelectedOutfit != null;
+
+            if (entry == targetEntry)
+                return producesLine ? lineNumber : -1;
+
+            if (producesLine)
+                lineNumber++;
+        }
+
+        return -1;
     }
 
     private async Task LoadAvailableOutfitsAsync()
@@ -1465,13 +1519,30 @@ public partial class DistributionEditTabViewModel : ReactiveObject
         try
         {
             StatusMessage = $"Building preview for {label}...";
-            var scene = await _armorPreviewService.BuildPreviewAsync(armorPieces, GenderedModelVariant.Female);
-            var sceneWithMetadata = scene with
+
+            var initialGender = entry.Gender switch
             {
-                OutfitLabel = label,
-                SourceFile = outfit.FormKey.ModKey.FileName.String
+                GenderFilter.Male => GenderedModelVariant.Male,
+                GenderFilter.Female => GenderedModelVariant.Female,
+                _ => GenderedModelVariant.Female
             };
-            var collection = new ArmorPreviewSceneCollection(sceneWithMetadata);
+
+            var metadata = new OutfitMetadata(label, outfit.FormKey.ModKey.FileName.String, false);
+            var collection = new ArmorPreviewSceneCollection(
+                count: 1,
+                initialIndex: 0,
+                metadata: new[] { metadata },
+                sceneBuilder: async (_, gender) =>
+                {
+                    var scene = await _armorPreviewService.BuildPreviewAsync(armorPieces, gender);
+                    return scene with
+                    {
+                        OutfitLabel = label,
+                        SourceFile = outfit.FormKey.ModKey.FileName.String
+                    };
+                },
+                initialGender: initialGender);
+
             await ShowPreview.Handle(collection);
             StatusMessage = $"Preview ready for {label}.";
         }
@@ -1630,21 +1701,21 @@ public partial class DistributionEditTabViewModel : ReactiveObject
             entryVm.UpdateEntryNpcs();
         }
 
-        var factionVms = ResolveFactionFormKeys(entry.FactionFormKeys);
+        var factionVms = ResolveFactionFilters(entry.FactionFilters);
         if (factionVms.Count > 0)
         {
             entryVm.SelectedFactions = new ObservableCollection<FactionRecordViewModel>(factionVms);
             entryVm.UpdateEntryFactions();
         }
 
-        var keywordVms = ResolveKeywordEditorIds(entry.KeywordEditorIds);
+        var keywordVms = ResolveKeywordFilters(entry.KeywordFilters);
         if (keywordVms.Count > 0)
         {
             entryVm.SelectedKeywords = new ObservableCollection<KeywordRecordViewModel>(keywordVms);
             entryVm.UpdateEntryKeywords();
         }
 
-        var raceVms = ResolveRaceFormKeys(entry.RaceFormKeys);
+        var raceVms = ResolveRaceFilters(entry.RaceFilters);
         if (raceVms.Count > 0)
         {
             entryVm.SelectedRaces = new ObservableCollection<RaceRecordViewModel>(raceVms);
@@ -1725,15 +1796,16 @@ public partial class DistributionEditTabViewModel : ReactiveObject
         return null;
     }
 
-    private List<FactionRecordViewModel> ResolveFactionFormKeys(IEnumerable<FormKey> formKeys)
+    private List<FactionRecordViewModel> ResolveFactionFilters(IEnumerable<FormKeyFilter> filters)
     {
         var factionVms = new List<FactionRecordViewModel>();
 
-        foreach (var formKey in formKeys)
+        foreach (var filter in filters)
         {
-            var factionVm = ResolveFactionFormKey(formKey);
+            var factionVm = ResolveFactionFormKey(filter.FormKey);
             if (factionVm != null)
             {
+                factionVm.IsExcluded = filter.IsExcluded;
                 factionVms.Add(factionVm);
             }
         }
@@ -1746,7 +1818,7 @@ public partial class DistributionEditTabViewModel : ReactiveObject
         var existingFaction = AvailableFactions.FirstOrDefault(f => f.FormKey == formKey);
         if (existingFaction != null)
         {
-            return existingFaction;
+            return new FactionRecordViewModel(existingFaction.FactionRecord);
         }
 
         if (_mutagenService.LinkCache is ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache &&
@@ -1763,15 +1835,16 @@ public partial class DistributionEditTabViewModel : ReactiveObject
         return null;
     }
 
-    private List<KeywordRecordViewModel> ResolveKeywordEditorIds(IEnumerable<string> editorIds)
+    private List<KeywordRecordViewModel> ResolveKeywordFilters(IEnumerable<KeywordFilter> filters)
     {
         var keywordVms = new List<KeywordRecordViewModel>();
 
-        foreach (var editorId in editorIds)
+        foreach (var filter in filters)
         {
-            var keywordVm = ResolveKeywordEditorId(editorId);
+            var keywordVm = ResolveKeywordEditorId(filter.EditorId);
             if (keywordVm != null)
             {
+                keywordVm.IsExcluded = filter.IsExcluded;
                 keywordVms.Add(keywordVm);
             }
         }
@@ -1789,7 +1862,7 @@ public partial class DistributionEditTabViewModel : ReactiveObject
             string.Equals(k.KeywordRecord.EditorID, editorId, StringComparison.OrdinalIgnoreCase));
         if (existingKeyword != null)
         {
-            return existingKeyword;
+            return new KeywordRecordViewModel(existingKeyword.KeywordRecord);
         }
 
         // Try to resolve from LinkCache
@@ -1817,7 +1890,7 @@ public partial class DistributionEditTabViewModel : ReactiveObject
         var existingKeyword = AvailableKeywords.FirstOrDefault(k => k.FormKey == formKey);
         if (existingKeyword != null)
         {
-            return existingKeyword;
+            return new KeywordRecordViewModel(existingKeyword.KeywordRecord);
         }
 
         if (_mutagenService.LinkCache is ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache &&
@@ -1833,15 +1906,16 @@ public partial class DistributionEditTabViewModel : ReactiveObject
         return null;
     }
 
-    private List<RaceRecordViewModel> ResolveRaceFormKeys(IEnumerable<FormKey> formKeys)
+    private List<RaceRecordViewModel> ResolveRaceFilters(IEnumerable<FormKeyFilter> filters)
     {
         var raceVms = new List<RaceRecordViewModel>();
 
-        foreach (var formKey in formKeys)
+        foreach (var filter in filters)
         {
-            var raceVm = ResolveRaceFormKey(formKey);
+            var raceVm = ResolveRaceFormKey(filter.FormKey);
             if (raceVm != null)
             {
+                raceVm.IsExcluded = filter.IsExcluded;
                 raceVms.Add(raceVm);
             }
         }

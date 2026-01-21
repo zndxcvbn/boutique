@@ -126,6 +126,9 @@
   <data name="Settings_Theme" xml:space="preserve">
     <value>Theme:</value>
   </data>
+  <data name="Settings_FontSize" xml:space="preserve">
+    <value>Font Size:</value>
+  </data>
   <data name="Settings_Language" xml:space="preserve">
     <value>Language:</value>
   </data>
@@ -319,7 +322,7 @@
     <value>Available Armors</value>
   </data>
   <data name="OutfitCreator_OutfitQueue" xml:space="preserve">
-    <value>Outfit Queue</value>
+    <value>Boutique Outfits</value>
   </data>
   <data name="OutfitCreator_CreateNewOutfit" xml:space="preserve">
     <value>Create New Outfit from Selected</value>
@@ -328,7 +331,7 @@
     <value>Drop armors here to create a new outfit (double-click an armor to quick add).</value>
   </data>
   <data name="OutfitCreator_NoOutfitsQueued" xml:space="preserve">
-    <value>No outfits queued. Select armors and click Create Outfit.</value>
+    <value>No outfits created yet. Select armors and click Create Outfit.</value>
   </data>
   <data name="OutfitCreator_NoPiecesSelected" xml:space="preserve">
     <value>No pieces selected.</value>
@@ -343,7 +346,7 @@
     <value>Save Outfits</value>
   </data>
   <data name="OutfitCreator_OutfitsQueuedFormat" xml:space="preserve">
-    <value>{0} outfit(s) queued</value>
+    <value>{0} outfit(s)</value>
   </data>
   <data name="OutfitCreator_PreviewArmor" xml:space="preserve">
     <value>Preview armor</value>

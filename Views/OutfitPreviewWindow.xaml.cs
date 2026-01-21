@@ -48,11 +48,7 @@ public sealed partial class OutfitPreviewWindow : IDisposable
     private float _keyFillMultiplier = 1.6f;
     private float _rimMultiplier = 1f;
     private int _currentSceneIndex;
-
-    public OutfitPreviewWindow(ArmorPreviewScene scene, ThemeService themeService)
-        : this(new ArmorPreviewSceneCollection(scene), themeService)
-    {
-    }
+    private GenderedModelVariant _currentGender;
 
     public OutfitPreviewWindow(ArmorPreviewSceneCollection sceneCollection, ThemeService themeService)
     {
@@ -60,19 +56,33 @@ public sealed partial class OutfitPreviewWindow : IDisposable
         _sceneCollection = sceneCollection ?? throw new ArgumentNullException(nameof(sceneCollection));
         _themeService = themeService;
         _currentSceneIndex = sceneCollection.InitialIndex;
+        _currentGender = sceneCollection.InitialGender;
 
-        // Apply title bar theme
-        SourceInitialized += (_, _) => _themeService.ApplyTitleBarTheme(this);
+        SourceInitialized += (_, _) =>
+        {
+            _themeService.ApplyTitleBarTheme(this);
+            RootScaleTransform.ScaleX = _themeService.CurrentFontScale;
+            RootScaleTransform.ScaleY = _themeService.CurrentFontScale;
+        };
         _themeService.ThemeChanged += OnThemeChanged;
 
         InitializeViewport();
+        InitializeGenderDropdown();
         BuildScene();
+
+        // Add window-level keyboard shortcuts
+        PreviewKeyDown += OnWindowPreviewKeyDown;
     }
 
     private void OnThemeChanged(object? sender, bool isDark)
     {
         var hwnd = new WindowInteropHelper(this).Handle;
         ThemeService.ApplyTitleBarTheme(hwnd, isDark);
+    }
+
+    private void InitializeGenderDropdown()
+    {
+        GenderComboBox.SelectedIndex = _currentGender == GenderedModelVariant.Female ? 0 : 1;
     }
 
     private void InitializeViewport()
@@ -142,7 +152,13 @@ public sealed partial class OutfitPreviewWindow : IDisposable
 
     private async void BuildScene()
     {
-        var scene = await _sceneCollection.GetSceneAsync(_currentSceneIndex);
+        LoadingPanel.Visibility = Visibility.Visible;
+        MissingAssetsPanel.Visibility = Visibility.Collapsed;
+
+        var scene = await _sceneCollection.GetSceneAsync(_currentSceneIndex, _currentGender);
+
+        LoadingPanel.Visibility = Visibility.Collapsed;
+
         UpdateMetadataDisplay(_currentSceneIndex);
         UpdateMissingAssetsPanel(scene);
         RenderScene(scene);
@@ -540,6 +556,32 @@ public sealed partial class OutfitPreviewWindow : IDisposable
 
     private void OnClose(object sender, RoutedEventArgs e) => Close();
 
+    private void OnGenderChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (GenderComboBox.SelectedItem is not System.Windows.Controls.ComboBoxItem selectedItem)
+            return;
+
+        var newGender = selectedItem.Tag?.ToString() == "Male"
+            ? GenderedModelVariant.Male
+            : GenderedModelVariant.Female;
+
+        if (newGender == _currentGender)
+            return;
+
+        _currentGender = newGender;
+        BuildScene();
+    }
+
+    private void ToggleGender()
+    {
+        _currentGender = _currentGender == GenderedModelVariant.Female
+            ? GenderedModelVariant.Male
+            : GenderedModelVariant.Female;
+
+        GenderComboBox.SelectedIndex = _currentGender == GenderedModelVariant.Female ? 0 : 1;
+        BuildScene();
+    }
+
     private void OnPreviousOutfit(object sender, RoutedEventArgs e) => NavigateOutfit(-1);
 
     private void OnNextOutfit(object sender, RoutedEventArgs e) => NavigateOutfit(1);
@@ -552,6 +594,34 @@ public sealed partial class OutfitPreviewWindow : IDisposable
         _currentSceneIndex = (_currentSceneIndex + direction + _sceneCollection.Count)
             % _sceneCollection.Count;
         BuildScene();
+    }
+
+    private void OnWindowPreviewKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.IsRepeat)
+            return;
+
+        if (e.Key == Key.Tab)
+        {
+            ToggleGender();
+            e.Handled = true;
+            return;
+        }
+
+        if (_sceneCollection.Count > 1)
+        {
+            switch (e.Key)
+            {
+                case Key.Left:
+                    NavigateOutfit(-1);
+                    e.Handled = true;
+                    break;
+                case Key.Right:
+                    NavigateOutfit(1);
+                    e.Handled = true;
+                    break;
+            }
+        }
     }
 
     private void OnViewportKeyDown(object sender, KeyEventArgs e)

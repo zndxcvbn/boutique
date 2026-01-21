@@ -50,6 +50,7 @@ public partial class SettingsViewModel : ReactiveObject
         _settings.SelectedSkyrimRelease = SelectedSkyrimRelease;
 
         SelectedTheme = (ThemeOption)_themeService.CurrentThemeSetting;
+        SelectedFontScale = _themeService.CurrentFontScale;
 
         this.WhenAnyValue(x => x.SkyrimDataPath)
             .Skip(1)
@@ -93,6 +94,10 @@ public partial class SettingsViewModel : ReactiveObject
                 ShowRestartDialog();
             });
 
+        this.WhenAnyValue(x => x.SelectedFontScale)
+            .Skip(1)
+            .Subscribe(scale => _themeService.SetFontScale(scale));
+
         SelectedLanguage = _localizationService.GetCurrentLanguageOption() ?? AvailableLanguages[0];
 
         this.WhenAnyValue(x => x.SelectedLanguage)
@@ -113,6 +118,7 @@ public partial class SettingsViewModel : ReactiveObject
     [Reactive] private SkyrimRelease _selectedSkyrimRelease;
     [Reactive] private ThemeOption _selectedTheme;
     [Reactive] private LanguageOption? _selectedLanguage;
+    [Reactive] private double SelectedFontScale { get; set; }
 
     public IReadOnlyList<SkyrimRelease> SkyrimReleaseOptions { get; } = new[]
     {
@@ -122,6 +128,7 @@ public partial class SettingsViewModel : ReactiveObject
     };
     public IReadOnlyList<ThemeOption> ThemeOptions { get; } = Enum.GetValues<ThemeOption>();
     public IReadOnlyList<LanguageOption> AvailableLanguages => _localizationService.AvailableLanguages;
+    public IReadOnlyList<double> FontScaleOptions { get; } = [0.85, 1.0, 1.15, 1.3];
 
     public string FullOutputPath
     {
@@ -185,14 +192,11 @@ public partial class SettingsViewModel : ReactiveObject
         if (string.IsNullOrEmpty(path) || !Directory.Exists(path))
             return path ?? string.Empty;
 
-        // Check if the current path has plugins
         var hasPlugins = PathUtilities.HasPluginFiles(path);
 
         if (hasPlugins)
             return path;
 
-        // Common mistake: user selected "Game Root" instead of "Game Root\Data"
-        // This is common with Wabbajack modlists
         var dataSubfolder = Path.Combine(path, "Data");
         if (Directory.Exists(dataSubfolder))
         {
@@ -215,84 +219,29 @@ public partial class SettingsViewModel : ReactiveObject
     [ReactiveCommand]
     private void AutoDetectPath()
     {
-        // Try various MO2 environment variables - different MO2 versions/configs set different ones
-        var mo2DataPath = Environment.GetEnvironmentVariable("MO_DATAPATH");
-        if (!string.IsNullOrEmpty(mo2DataPath) && Directory.Exists(mo2DataPath))
-        {
-            SkyrimDataPath = mo2DataPath;
-            IsRunningFromMO2 = true;
-            DetectionSource = "Detected from Mod Organizer 2 (MO_DATAPATH)";
-            DetectionFailed = false;
-            return;
-        }
-
-        var mo2GamePath = Environment.GetEnvironmentVariable("MO_GAMEPATH");
-        if (!string.IsNullOrEmpty(mo2GamePath))
-        {
-            var dataPath = Path.Combine(mo2GamePath, "Data");
-            if (Directory.Exists(dataPath))
-            {
-                SkyrimDataPath = dataPath;
-                IsRunningFromMO2 = true;
-                DetectionSource = "Detected from Mod Organizer 2 (MO_GAMEPATH)";
-                DetectionFailed = false;
-                return;
-            }
-        }
-
-        // MO2 2.5+ may use different variable names
-        var mo2VirtualPath = Environment.GetEnvironmentVariable("VIRTUAL_STORE");
-        if (!string.IsNullOrEmpty(mo2VirtualPath) && Directory.Exists(mo2VirtualPath))
-        {
-            SkyrimDataPath = mo2VirtualPath;
-            IsRunningFromMO2 = true;
-            DetectionSource = "Detected from Mod Organizer 2 (VIRTUAL_STORE)";
-            DetectionFailed = false;
-            return;
-        }
-
-        // Check if running under USVFS (MO2's virtual filesystem hook)
-        var usvfsLog = Environment.GetEnvironmentVariable("USVFS_LOGFILE");
-        var mo2Profile = Environment.GetEnvironmentVariable("MO_PROFILE");
-        if (!string.IsNullOrEmpty(usvfsLog) || !string.IsNullOrEmpty(mo2Profile))
-        {
-            // We're running under MO2's USVFS but didn't get the data path
-            // Log this for debugging - the VFS should make the Data folder work
-            IsRunningFromMO2 = true;
-            DetectionSource = "Running under Mod Organizer 2 USVFS (data path not explicitly set)";
-            DetectionFailed = false;
-
-            // Don't return - fall through to find the game's Data folder which USVFS will virtualize
-        }
-
-        // Convert SkyrimRelease to GameRelease for Mutagen API
-        var gameRelease = SelectedSkyrimRelease switch
-        {
-            SkyrimRelease.SkyrimSE => GameRelease.SkyrimSE,
-            SkyrimRelease.SkyrimVR => GameRelease.SkyrimVR,
-            SkyrimRelease.SkyrimSEGog => GameRelease.SkyrimSEGog,
-            _ => GameRelease.SkyrimSE
-        };
-
-        var gameName = SelectedSkyrimRelease switch
-        {
-            SkyrimRelease.SkyrimVR => "Skyrim VR",
-            SkyrimRelease.SkyrimSEGog => "Skyrim SE (GOG)",
-            _ => "Skyrim SE"
-        };
+        var (gameRelease, gameName) = GetGameInfo(SelectedSkyrimRelease);
 
         if (GameLocations.TryGetDataFolder(gameRelease, out var dataFolder))
         {
             SkyrimDataPath = dataFolder.Path;
-            IsRunningFromMO2 = false;
-            DetectionSource = $"Detected {gameName} using Mutagen";
             DetectionFailed = false;
-            return;
+        }
+        else
+        {
+            DetectionFailed = true;
         }
 
-        IsRunningFromMO2 = false;
-        DetectionSource = $"Auto-detection failed for {gameName} - please set manually";
-        DetectionFailed = true;
+        DetectionSource = GetDetectionMessage(gameName, !DetectionFailed);
+    }
+
+    private static (GameRelease GameRelease, string GameName) GetGameInfo(SkyrimRelease release)
+    {
+        return release switch
+        {
+            SkyrimRelease.SkyrimVR => (GameRelease.SkyrimVR, "Skyrim VR"),
+            SkyrimRelease.SkyrimSEGog => (GameRelease.SkyrimSEGog, "Skyrim SE (GOG)"),
+            _ => (GameRelease.SkyrimSE, "Skyrim SE")
+        };
     }
 
     [ReactiveCommand]

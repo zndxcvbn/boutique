@@ -42,11 +42,9 @@ public class NpcOutfitResolutionService
 
             try
             {
-                // Sort files: SPID files alphabetically, then SkyPatcher files alphabetically
                 var sortedFiles = SortDistributionFiles(distributionFiles);
                 _logger.Information("Processing {Count} distribution files in order", sortedFiles.Count);
 
-                // Log each file for debugging
                 foreach (var file in sortedFiles)
                 {
                     var outfitLineCount = file.Lines.Count(l => l.IsOutfitDistribution);
@@ -55,15 +53,12 @@ public class NpcOutfitResolutionService
                         file.FileName, file.Type, file.Lines.Count, outfitLineCount);
                 }
 
-                // Build a dictionary of NPC FormKey -> list of distributions
                 var npcDistributions = new Dictionary<FormKey, List<OutfitDistribution>>();
 
-                // Cache all NPCs for NPC identifier resolution
                 _logger.Debug("Loading all NPCs from LinkCache...");
                 var allNpcs = linkCache.WinningOverrides<INpcGetter>().ToList();
                 _logger.Debug("Loaded {Count} NPCs from LinkCache", allNpcs.Count);
 
-                // Use GroupBy to handle duplicate EditorIDs (can happen with mod conflicts)
                 var npcByEditorId = allNpcs
                     .Where(n => !string.IsNullOrWhiteSpace(n.EditorID))
                     .GroupBy(n => n.EditorID!, StringComparer.OrdinalIgnoreCase)
@@ -76,17 +71,14 @@ public class NpcOutfitResolutionService
                     .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
                 _logger.Debug("Built NPC Name lookup with {Count} entries", npcByName.Count);
 
-                // Build outfit lookup for fast EditorID resolution
                 var outfitByEditorId = FormKeyHelper.BuildOutfitEditorIdLookup(linkCache);
                 _logger.Debug("Built Outfit EditorID lookup with {Count} entries", outfitByEditorId.Count);
 
-                // First, add ESP-provided outfits (processing order 0, so INI files win)
                 _logger.Debug("Scanning NPCs for ESP-provided default outfits...");
                 ProcessEspProvidedOutfits(linkCache, allNpcs, npcDistributions);
                 _logger.Debug("After processing ESP outfits: {NpcCount} unique NPCs with distributions", npcDistributions.Count);
 
-                // Process each file in order (starting at order 1, so they win over ESP)
-                for (int fileIndex = 0; fileIndex < sortedFiles.Count; fileIndex++)
+                for (var fileIndex = 0; fileIndex < sortedFiles.Count; fileIndex++)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     var file = sortedFiles[fileIndex];
@@ -95,7 +87,6 @@ public class NpcOutfitResolutionService
                         "Processing file {Index}/{Total}: {FileName}",
                         fileIndex + 1, sortedFiles.Count, file.FileName);
 
-                    // Processing order starts at 1 (ESP is 0)
                     ProcessDistributionFile(file, fileIndex + 1, linkCache, npcByEditorId, npcByName, outfitByEditorId, npcDistributions);
 
                     _logger.Debug(
@@ -105,7 +96,6 @@ public class NpcOutfitResolutionService
 
                 _logger.Debug("Total unique NPCs with distributions: {Count}", npcDistributions.Count);
 
-                // Build the final NPC outfit assignments
                 var assignments = BuildNpcOutfitAssignments(npcDistributions, linkCache, allNpcs);
 
                 _logger.Information("Resolved outfit assignments for {Count} NPCs", assignments.Count);
@@ -144,18 +134,14 @@ public class NpcOutfitResolutionService
 
             try
             {
-                // Sort files: SPID files alphabetically, then SkyPatcher files alphabetically
                 var sortedFiles = SortDistributionFiles(distributionFiles);
                 _logger.Information("Processing {Count} distribution files in order", sortedFiles.Count);
 
-                // Build a dictionary of NPC FormKey -> list of distributions
                 var npcDistributions = new Dictionary<FormKey, List<OutfitDistribution>>();
 
-                // Build outfit lookup for fast EditorID resolution
                 var outfitByEditorId = FormKeyHelper.BuildOutfitEditorIdLookup(linkCache);
                 _logger.Debug("Built Outfit EditorID lookup with {Count} entries", outfitByEditorId.Count);
 
-                // Simulate SPID keyword distributions before processing outfit lines
                 var keywordEntries = _keywordResolver.ParseKeywordDistributions(sortedFiles);
                 var (sortedKeywords, cyclicKeywords) = _keywordResolver.TopologicalSort(keywordEntries);
 
@@ -171,13 +157,11 @@ public class NpcOutfitResolutionService
                     "Keyword simulation: {KeywordCount} keyword types, {NpcCount} NPCs with assignments",
                     sortedKeywords.Count, simulatedKeywords.Count(kvp => kvp.Value.Count > 0));
 
-                // First, add ESP-provided outfits (processing order 0, so INI files win)
                 _logger.Debug("Scanning NPCs for ESP-provided default outfits...");
                 ProcessEspProvidedOutfitsFromFilterData(linkCache, npcFilterData, npcDistributions);
                 _logger.Debug("After processing ESP outfits: {NpcCount} unique NPCs with distributions", npcDistributions.Count);
 
-                // Process each file in order (starting at order 1, so they win over ESP)
-                for (int fileIndex = 0; fileIndex < sortedFiles.Count; fileIndex++)
+                for (var fileIndex = 0; fileIndex < sortedFiles.Count; fileIndex++)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     var file = sortedFiles[fileIndex];
@@ -186,7 +170,6 @@ public class NpcOutfitResolutionService
                         "Processing file {Index}/{Total}: {FileName}",
                         fileIndex + 1, sortedFiles.Count, file.FileName);
 
-                    // Processing order starts at 1 (ESP is 0)
                     ProcessDistributionFileWithFilters(file, fileIndex + 1, linkCache, npcFilterData, outfitByEditorId, npcDistributions, simulatedKeywords);
 
                     _logger.Debug(
@@ -196,7 +179,6 @@ public class NpcOutfitResolutionService
 
                 _logger.Debug("Total unique NPCs with distributions: {Count}", npcDistributions.Count);
 
-                // Build the final NPC outfit assignments
                 var assignments = BuildNpcOutfitAssignmentsFromFilterData(npcDistributions, npcFilterData);
 
                 _logger.Information("Resolved outfit assignments for {Count} NPCs using full filter matching", assignments.Count);
@@ -259,14 +241,12 @@ public class NpcOutfitResolutionService
         Dictionary<FormKey, HashSet<string>> simulatedKeywords,
         ref int matchedNpcCount)
     {
-        // Parse the SPID line using the full parser
-        if (!SpidLineParser.TryParse(line.RawText, out var filter) || filter == null)
+        if (!SpidLineParser.TryParse(line.RawText, out var filter) || filter is null)
         {
             _logger.Debug("Failed to parse SPID line: {Line}", line.RawText);
             return;
         }
 
-        // Resolve the outfit FormKey
         var outfitFormKey = FormKeyHelper.ResolveOutfit(filter.OutfitIdentifier, linkCache);
         if (outfitFormKey == null || outfitFormKey.Value.IsNull)
         {
@@ -280,17 +260,13 @@ public class NpcOutfitResolutionService
             outfitEditorId = outfit.EditorID;
         }
 
-        // Find all matching NPCs using the filter matching service with virtual keywords
         var matchingNpcs = SpidFilterMatchingService.GetMatchingNpcsWithVirtualKeywords(allNpcs, filter, simulatedKeywords);
 
         _logger.Information("SPID line matched {Count} NPCs: {Line}", matchingNpcs.Count,
             line.RawText.Length > 80 ? line.RawText[..80] + "..." : line.RawText);
 
-        // Determine targeting type
-        var hasRaceTargeting = filter.FormFilters.Expressions.Any(e =>
-            e.Parts.Any(p => p.LooksLikeRace));
+        var hasRaceTargeting = filter.FormFilters.Expressions.Any(e => e.Parts.Any(p => p.LooksLikeRace));
 
-        // Add distribution for each matching NPC
         foreach (var npc in matchingNpcs)
         {
             if (!npcDistributions.TryGetValue(npc.FormKey, out var distributions))
@@ -329,7 +305,6 @@ public class NpcOutfitResolutionService
         Dictionary<FormKey, List<OutfitDistribution>> npcDistributions,
         ref int matchedNpcCount)
     {
-        // SkyPatcher uses explicit NPC FormKeys, not filters
         var results = new List<(FormKey NpcFormKey, FormKey OutfitFormKey, string? OutfitEditorId)>();
 
         ParseSkyPatcherLineForFilteredResolution(line.RawText, linkCache, outfitByEditorId, results);
@@ -477,7 +452,6 @@ public class NpcOutfitResolutionService
                 sourceMod = npcData.SourceMod;
             }
 
-            // Only count conflicts between INI files, not ESP vs INI
             var iniOnlyDistributions = updatedDistributions
                 .Where(d => d.FileType != DistributionFileType.Esp)
                 .ToList();
@@ -502,7 +476,6 @@ public class NpcOutfitResolutionService
 
     private List<DistributionFile> SortDistributionFiles(IReadOnlyList<DistributionFile> files)
     {
-        // SPID files first (alphabetically by filename), then SkyPatcher files (alphabetically by filename)
         var spidFiles = files
             .Where(f => f.Type == DistributionFileType.Spid)
             .OrderBy(f => f.FileName, StringComparer.OrdinalIgnoreCase)
@@ -542,7 +515,6 @@ public class NpcOutfitResolutionService
                 "Processing outfit line {LineNum} in {File}: {Text}",
                 line.LineNumber, file.FileName, line.RawText.Length > 100 ? line.RawText[..100] + "..." : line.RawText);
 
-            // Parse the line to extract NPC targets and outfit
             var parsedEntries = ParseDistributionLine(file, line, linkCache, npcByEditorId, npcByName, outfitByEditorId);
 
             _logger.Debug("Parsed {Count} NPC-outfit entries from line {LineNum}", parsedEntries.Count, line.LineNumber);
@@ -639,7 +611,6 @@ public class NpcOutfitResolutionService
         Dictionary<string, INpcGetter> npcByName,
         List<(FormKey, FormKey, string?)> results)
     {
-        // SPID format: Outfit = 0x800~ModKey|EditorID[,EditorID,...]
         var trimmed = lineText.Trim();
 
         _logger.Debug("ParseSpidLine: {Line}", trimmed.Length > 150 ? trimmed[..150] + "..." : trimmed);
@@ -671,7 +642,6 @@ public class NpcOutfitResolutionService
         var formIdString = valuePart.Substring(0, tildeIndex).Trim();
         var rest = valuePart.Substring(tildeIndex + 1).Trim();
 
-        // Parse FormID
         formIdString = formIdString.Replace("0x", string.Empty).Replace("0X", string.Empty);
         if (!uint.TryParse(formIdString, System.Globalization.NumberStyles.HexNumber, null, out var formId))
         {
@@ -679,7 +649,6 @@ public class NpcOutfitResolutionService
             return;
         }
 
-        // Find the | separator between ModKey and EditorIDs
         var pipeIndex = rest.IndexOf('|');
         if (pipeIndex < 0)
         {
@@ -699,19 +668,15 @@ public class NpcOutfitResolutionService
         var outfitFormKey = new FormKey(modKey, formId);
         _logger.Debug("Parsed outfit FormKey: {FormKey}", outfitFormKey);
 
-        string? outfitEditorId = null;
+        string? outfitEditorId = linkCache.TryResolve<IOutfitGetter>(outfitFormKey, out var outfit)
+            ? outfit.EditorID
+            : null;
 
-        if (linkCache.TryResolve<IOutfitGetter>(outfitFormKey, out var outfit))
-        {
-            outfitEditorId = outfit.EditorID;
+        if (outfit is not null)
             _logger.Debug("Resolved outfit EditorID: {EditorId}", outfitEditorId);
-        }
         else
-        {
             _logger.Debug("Could not resolve outfit FormKey in LinkCache");
-        }
 
-        // Parse NPC identifiers (comma-separated)
         var npcIdentifiers = editorIdsString
             .Split(',')
             .Select(s => s.Trim())
@@ -725,7 +690,6 @@ public class NpcOutfitResolutionService
         var resolvedCount = 0;
         foreach (var identifier in npcIdentifiers)
         {
-            // Try to find NPC by EditorID first, then by Name
             INpcGetter? npc = null;
             if (npcByEditorId.TryGetValue(identifier, out var npcById))
             {
@@ -742,11 +706,11 @@ public class NpcOutfitResolutionService
                 _logger.Debug("Could not resolve NPC identifier: {Identifier}", identifier);
             }
 
-            if (npc != null)
-            {
-                results.Add((npc.FormKey, outfitFormKey, outfitEditorId));
-                resolvedCount++;
-            }
+            if (npc is null)
+                continue;
+
+            results.Add((npc.FormKey, outfitFormKey, outfitEditorId));
+            resolvedCount++;
         }
 
         _logger.Debug("SPID line resolved {Resolved}/{Total} NPCs", resolvedCount, npcIdentifiers.Count);
@@ -761,12 +725,10 @@ public class NpcOutfitResolutionService
 
         foreach (var npc in allNpcs)
         {
-            // Check if NPC has a default outfit
             var defaultOutfit = npc.DefaultOutfit;
-            if (defaultOutfit == null || defaultOutfit.IsNull)
+            if (defaultOutfit is null || defaultOutfit.IsNull)
                 continue;
 
-            // Resolve the outfit
             if (!linkCache.TryResolve<IOutfitGetter>(defaultOutfit.FormKey, out var outfit))
                 continue;
 
@@ -811,12 +773,10 @@ public class NpcOutfitResolutionService
 
         foreach (var npcData in allNpcs)
         {
-            // Check if NPC has a default outfit
             var defaultOutfitFormKey = npcData.DefaultOutfitFormKey;
             if (!defaultOutfitFormKey.HasValue || defaultOutfitFormKey.Value.IsNull)
                 continue;
 
-            // Resolve the outfit
             if (!linkCache.TryResolve<IOutfitGetter>(defaultOutfitFormKey.Value, out var outfit))
                 continue;
 
@@ -907,12 +867,9 @@ public class NpcOutfitResolutionService
                     if (firstContext != null)
                         sourceMod = firstContext.ModKey;
                 }
-                catch
-                {
-                }
+                catch { }
             }
 
-            // Only count conflicts between INI files, not ESP vs INI
             var iniOnlyDistributions = updatedDistributions
                 .Where(d => d.FileType != DistributionFileType.Esp)
                 .ToList();
@@ -929,7 +886,6 @@ public class NpcOutfitResolutionService
                 HasConflict: hasConflict));
         }
 
-        // Sort by display name for UI
         return assignments
             .OrderBy(a => a.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ToList();

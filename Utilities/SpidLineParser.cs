@@ -36,21 +36,17 @@ public static class SpidLineParser
 
         var trimmed = line.Trim();
 
-        // Find the = sign
         var equalsIndex = trimmed.IndexOf('=');
         if (equalsIndex < 0)
             return false;
 
-        // Extract the form type keyword before the equals sign
         var beforeEquals = trimmed[..equalsIndex].Trim();
         if (string.IsNullOrWhiteSpace(beforeEquals))
             return false;
 
-        // Check if it's a recognized form type
         if (!FormTypeMap.TryGetValue(beforeEquals, out var formType))
             return false;
 
-        // If a filter is specified, only parse matching types
         if (formTypeFilter.HasValue && formType != formTypeFilter.Value)
             return false;
 
@@ -69,15 +65,11 @@ public static class SpidLineParser
 
     private static SpidDistributionFilter? ParseValuePart(string valuePart, string rawLine, SpidFormType formType)
     {
-        // Split by | to get all sections
-        // But first we need to extract the form identifier, which can itself contain | or ~
         var (formIdentifier, remainder) = ExtractFormIdentifier(valuePart);
 
         if (string.IsNullOrWhiteSpace(formIdentifier))
             return null;
 
-        // Now split the remainder by | to get filter sections
-        // Sections: StringFilters|FormFilters|LevelFilters|TraitFilters|CountOrPackageIdx|Chance
         var sections = string.IsNullOrWhiteSpace(remainder)
             ? []
             : remainder.Split('|');
@@ -105,11 +97,9 @@ public static class SpidLineParser
 
     private static (string Identifier, string Remainder) ExtractFormIdentifier(string valuePart)
     {
-        // Check for tilde format: 0x800~Plugin.esp or 0x800~Plugin.esp|filters
         var tildeIndex = valuePart.IndexOf('~');
         if (tildeIndex >= 0)
         {
-            // Format: FormID~ModKey|filters
             var afterTilde = valuePart[(tildeIndex + 1)..];
             var modEndIndex = FormKeyHelper.FindModKeyEnd(afterTilde);
 
@@ -123,13 +113,11 @@ public static class SpidLineParser
             }
         }
 
-        // Check for pipe-format FormKey: Plugin.esp|0x12345|filters
         var firstPipe = valuePart.IndexOf('|');
         if (firstPipe >= 0)
         {
             var firstPart = valuePart[..firstPipe];
 
-            // If first part is a mod key
             if (FormKeyHelper.IsModKeyFileName(firstPart))
             {
                 var afterFirstPipe = valuePart[(firstPipe + 1)..];
@@ -140,27 +128,20 @@ public static class SpidLineParser
                     var potentialFormId = afterFirstPipe[..secondPipe];
                     if (FormKeyHelper.LooksLikeFormId(potentialFormId))
                     {
-                        // This is ModKey|FormID|filters
                         var identifier = valuePart[..(firstPipe + 1 + secondPipe)];
                         var remainder = afterFirstPipe[(secondPipe + 1)..];
                         return (identifier, remainder);
                     }
                 }
-                else
+                else if (FormKeyHelper.LooksLikeFormId(afterFirstPipe))
                 {
-                    // Only one pipe: ModKey|FormID (no filters)
-                    if (FormKeyHelper.LooksLikeFormId(afterFirstPipe))
-                    {
-                        return (valuePart, string.Empty);
-                    }
+                    return (valuePart, string.Empty);
                 }
             }
 
-            // First part is not a mod key, so it's EditorID|filters
             return (firstPart, valuePart[(firstPipe + 1)..]);
         }
 
-        // No pipe or tilde - just an EditorID
         return (valuePart, string.Empty);
     }
 
@@ -186,13 +167,7 @@ public static class SpidLineParser
         if (IsNone(sectionText))
             return section;
 
-        // Split by comma for OR expressions
         var expressions = sectionText!.Split(',', StringSplitOptions.RemoveEmptyEntries);
-
-        // SPID syntax: comma is OR for positive terms, but negated terms (e.g., ",-X")
-        // are global exclusions that apply to ALL expressions as AND NOT.
-        // e.g., "A+B,-C,-D" means "(A AND B) AND NOT C AND NOT D"
-        // e.g., "A,B,-C" means "(A OR B) AND NOT C"
         var globalExclusions = new List<SpidFilterPart>();
 
         foreach (var expr in expressions)
@@ -201,8 +176,6 @@ public static class SpidLineParser
             if (string.IsNullOrEmpty(trimmedExpr))
                 continue;
 
-            // Check if this entire comma-segment is just a negated term (starts with -)
-            // If so, it's a global exclusion, not an OR expression
             if (trimmedExpr.StartsWith('-') && !trimmedExpr.Contains('+'))
             {
                 var exclusionValue = trimmedExpr[1..].Trim();
@@ -225,11 +198,8 @@ public static class SpidLineParser
             }
         }
 
-        // Store global exclusions separately (they act as AND NOT on the whole section)
         if (globalExclusions.Count > 0)
-        {
             section.GlobalExclusions.AddRange(globalExclusions);
-        }
 
         return section;
     }
@@ -279,7 +249,6 @@ public static class SpidLineParser
         bool? isTeammate = null;
         bool? isDead = null;
 
-        // Trait filters can be separated by / and can be negated with -
         var traits = traitText!.Split('/', StringSplitOptions.RemoveEmptyEntries);
 
         foreach (var trait in traits)
@@ -349,14 +318,8 @@ public static class SpidLineParser
 
         foreach (var expr in filter.StringFilters.Expressions)
         {
-            foreach (var part in expr.Parts)
-            {
-                // Skip if it has wildcards, looks like a keyword, or is negated
-                if (part.HasWildcard || part.LooksLikeKeyword || part.IsNegated)
-                    continue;
-
+            foreach (var part in expr.Parts.Where(p => !p.HasWildcard && !p.LooksLikeKeyword && !p.IsNegated))
                 results.Add(part.Value);
-            }
         }
 
         return results;
@@ -368,71 +331,27 @@ public static class SpidLineParser
 
         foreach (var expr in filter.StringFilters.Expressions)
         {
-            foreach (var part in expr.Parts)
-            {
-                if (part.LooksLikeKeyword && !part.IsNegated)
-                {
-                    results.Add(part.Value);
-                }
-            }
+            foreach (var part in expr.Parts.Where(p => p.LooksLikeKeyword && !p.IsNegated))
+                results.Add(part.Value);
         }
 
         return results;
     }
 
-    public static IReadOnlyList<string> GetFactionIdentifiers(SpidDistributionFilter filter)
-    {
-        var results = new List<string>();
+    public static IReadOnlyList<string> GetFactionIdentifiers(SpidDistributionFilter filter) =>
+        filter.FormFilters.Expressions
+            .SelectMany(e => e.Parts.Where(p => p.LooksLikeFaction && !p.IsNegated).Select(p => p.Value))
+            .ToList();
 
-        foreach (var expr in filter.FormFilters.Expressions)
-        {
-            foreach (var part in expr.Parts)
-            {
-                if (part.LooksLikeFaction && !part.IsNegated)
-                {
-                    results.Add(part.Value);
-                }
-            }
-        }
+    public static IReadOnlyList<string> GetRaceIdentifiers(SpidDistributionFilter filter) =>
+        filter.FormFilters.Expressions
+            .SelectMany(e => e.Parts.Where(p => p.LooksLikeRace && !p.IsNegated).Select(p => p.Value))
+            .ToList();
 
-        return results;
-    }
-
-    public static IReadOnlyList<string> GetRaceIdentifiers(SpidDistributionFilter filter)
-    {
-        var results = new List<string>();
-
-        foreach (var expr in filter.FormFilters.Expressions)
-        {
-            foreach (var part in expr.Parts)
-            {
-                if (part.LooksLikeRace && !part.IsNegated)
-                {
-                    results.Add(part.Value);
-                }
-            }
-        }
-
-        return results;
-    }
-
-    public static IReadOnlyList<string> GetClassIdentifiers(SpidDistributionFilter filter)
-    {
-        var results = new List<string>();
-
-        foreach (var expr in filter.FormFilters.Expressions)
-        {
-            foreach (var part in expr.Parts)
-            {
-                if (part.LooksLikeClass && !part.IsNegated)
-                {
-                    results.Add(part.Value);
-                }
-            }
-        }
-
-        return results;
-    }
+    public static IReadOnlyList<string> GetClassIdentifiers(SpidDistributionFilter filter) =>
+        filter.FormFilters.Expressions
+            .SelectMany(e => e.Parts.Where(p => p.LooksLikeClass && !p.IsNegated).Select(p => p.Value))
+            .ToList();
 
     public static bool IsSpidLine(string line) =>
         TryParse(line, out _, formTypeFilter: null);

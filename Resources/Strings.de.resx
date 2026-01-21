@@ -126,6 +126,9 @@
   <data name="Settings_Theme" xml:space="preserve">
     <value>Farbschema:</value>
   </data>
+  <data name="Settings_FontSize" xml:space="preserve">
+    <value>Schriftgröße:</value>
+  </data>
   <data name="Settings_Language" xml:space="preserve">
     <value>Sprache:</value>
   </data>
@@ -319,7 +322,7 @@
     <value>Verfügbare Rüstungen</value>
   </data>
   <data name="OutfitCreator_OutfitQueue" xml:space="preserve">
-    <value>Outfit-Warteschlange</value>
+    <value>Boutique-Outfits</value>
   </data>
   <data name="OutfitCreator_CreateNewOutfit" xml:space="preserve">
     <value>Neues Outfit aus Auswahl erstellen</value>
@@ -328,7 +331,7 @@
     <value>Rüstungen hierher ziehen um ein neues Outfit zu erstellen (Doppelklick zum schnellen Hinzufügen).</value>
   </data>
   <data name="OutfitCreator_NoOutfitsQueued" xml:space="preserve">
-    <value>Keine Outfits in Warteschlange. Rüstungen auswählen und "Outfit erstellen" klicken.</value>
+    <value>Noch keine Outfits erstellt. Rüstungen auswählen und "Outfit erstellen" klicken.</value>
   </data>
   <data name="OutfitCreator_NoPiecesSelected" xml:space="preserve">
     <value>Keine Teile ausgewählt.</value>
@@ -343,7 +346,7 @@
     <value>Outfits speichern</value>
   </data>
   <data name="OutfitCreator_OutfitsQueuedFormat" xml:space="preserve">
-    <value>{0} Outfit(s) in Warteschlange</value>
+    <value>{0} Outfit(s)</value>
   </data>
   <data name="OutfitCreator_PreviewArmor" xml:space="preserve">
     <value>Rüstung anzeigen</value>

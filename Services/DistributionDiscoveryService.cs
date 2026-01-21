@@ -38,7 +38,6 @@ public class DistributionDiscoveryService(ILogger logger)
         {
             _logger.Debug("Starting distribution file discovery in {DataPath}", dataFolderPath);
 
-            var spidEnumSw = System.Diagnostics.Stopwatch.StartNew();
             var nonRecursiveOptions = new EnumerationOptions
             {
                 RecurseSubdirectories = false,
@@ -47,17 +46,13 @@ public class DistributionDiscoveryService(ILogger logger)
                 MatchCasing = MatchCasing.CaseInsensitive
             };
             var spidFiles = Directory.EnumerateFiles(dataFolderPath, "*_DISTR.ini", nonRecursiveOptions).ToList();
-            _logger.Information("[PERF] SPID file enumeration: {ElapsedMs}ms ({Count} files)", spidEnumSw.ElapsedMilliseconds, spidFiles.Count);
 
-            var spidParseSw = System.Diagnostics.Stopwatch.StartNew();
             foreach (var spidFile in spidFiles)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 spidFileCount++;
                 TryParse(spidFile, DistributionFileType.Spid);
             }
-
-            _logger.Information("[PERF] SPID file parsing: {ElapsedMs}ms ({Count} files)", spidParseSw.ElapsedMilliseconds, spidFileCount);
 
             _logger.Debug("Found {Count} SPID distribution files (*_DISTR.ini)", spidFileCount);
 
@@ -66,7 +61,6 @@ public class DistributionDiscoveryService(ILogger logger)
             {
                 _logger.Debug("SkyPatcher directory exists: {Path}", skyPatcherRoot);
 
-                var skyEnumSw = System.Diagnostics.Stopwatch.StartNew();
                 var skyPatcherOptions = new EnumerationOptions
                 {
                     RecurseSubdirectories = true,
@@ -75,9 +69,7 @@ public class DistributionDiscoveryService(ILogger logger)
                     MatchCasing = MatchCasing.CaseInsensitive
                 };
                 var skyFiles = Directory.EnumerateFiles(skyPatcherRoot, "*.ini*", skyPatcherOptions).ToList();
-                _logger.Information("[PERF] SkyPatcher file enumeration: {ElapsedMs}ms ({Count} files)", skyEnumSw.ElapsedMilliseconds, skyFiles.Count);
 
-                var skyParseSw = System.Diagnostics.Stopwatch.StartNew();
                 foreach (var iniFile in skyFiles)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -91,7 +83,6 @@ public class DistributionDiscoveryService(ILogger logger)
                     }
                 }
 
-                _logger.Information("[PERF] SkyPatcher file parsing: {ElapsedMs}ms ({Count} valid files)", skyParseSw.ElapsedMilliseconds, skyPatcherFileCount);
                 _logger.Debug("Found {Count} SkyPatcher distribution files", skyPatcherFileCount);
             }
             else
@@ -399,13 +390,8 @@ public class DistributionDiscoveryService(ILogger logger)
     internal static IReadOnlyList<string> ExtractSkyPatcherOutfitKeys(string trimmed)
     {
         var keys = new List<string>();
-
-        // Extract from filterByOutfits= syntax
         ExtractFromMarker(trimmed, "filterByOutfits=", keys);
-
-        // Extract from outfitDefault= syntax
         ExtractFromMarker(trimmed, "outfitDefault=", keys);
-
         return keys;
     }
 
@@ -421,7 +407,7 @@ public class DistributionDiscoveryService(ILogger logger)
 
             index += marker.Length;
             var endIndex = trimmed.IndexOf(':', index);
-            string segment = endIndex >= 0 ? trimmed[index..endIndex] : trimmed[index..];
+            var segment = endIndex >= 0 ? trimmed[index..endIndex] : trimmed[index..];
             startIndex = endIndex >= 0 ? endIndex + 1 : trimmed.Length;
 
             if (string.IsNullOrWhiteSpace(segment))

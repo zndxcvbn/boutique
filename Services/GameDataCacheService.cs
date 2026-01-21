@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using Boutique.Models;
+using Boutique.Utilities;
 using Boutique.ViewModels;
 using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Cache;
@@ -84,52 +85,14 @@ public class GameDataCacheService
             _isLoading = true;
             _logger.Information("Loading game data cache...");
 
-            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-
-            var npcsResult = await Task.Run(() =>
-            {
-                var sw = System.Diagnostics.Stopwatch.StartNew();
-                var result = LoadNpcs(linkCache);
-                _logger.Information("[PERF] LoadNpcs: {ElapsedMs}ms ({Count} NPCs)", sw.ElapsedMilliseconds, result.Item1.Count);
-                return result;
-            });
+            var npcsResult = await Task.Run(() => LoadNpcs(linkCache));
             var (npcFilterDataList, npcRecordsList) = npcsResult;
 
-            var factionsTask = Task.Run(() =>
-            {
-                var sw = System.Diagnostics.Stopwatch.StartNew();
-                var result = LoadFactions(linkCache);
-                _logger.Information("[PERF] LoadFactions: {ElapsedMs}ms ({Count} factions)", sw.ElapsedMilliseconds, result.Count);
-                return result;
-            });
-            var racesTask = Task.Run(() =>
-            {
-                var sw = System.Diagnostics.Stopwatch.StartNew();
-                var result = LoadRaces(linkCache);
-                _logger.Information("[PERF] LoadRaces: {ElapsedMs}ms ({Count} races)", sw.ElapsedMilliseconds, result.Count);
-                return result;
-            });
-            var keywordsTask = Task.Run(() =>
-            {
-                var sw = System.Diagnostics.Stopwatch.StartNew();
-                var result = LoadKeywords(linkCache);
-                _logger.Information("[PERF] LoadKeywords: {ElapsedMs}ms ({Count} keywords)", sw.ElapsedMilliseconds, result.Count);
-                return result;
-            });
-            var classesTask = Task.Run(() =>
-            {
-                var sw = System.Diagnostics.Stopwatch.StartNew();
-                var result = LoadClasses(linkCache);
-                _logger.Information("[PERF] LoadClasses: {ElapsedMs}ms ({Count} classes)", sw.ElapsedMilliseconds, result.Count);
-                return result;
-            });
-            var outfitsTask = Task.Run(() =>
-            {
-                var sw = System.Diagnostics.Stopwatch.StartNew();
-                var result = LoadOutfits(linkCache);
-                _logger.Information("[PERF] LoadOutfits: {ElapsedMs}ms ({Count} outfits)", sw.ElapsedMilliseconds, result.Count);
-                return result;
-            });
+            var factionsTask = Task.Run(() => LoadFactions(linkCache));
+            var racesTask = Task.Run(() => LoadRaces(linkCache));
+            var keywordsTask = Task.Run(() => LoadKeywords(linkCache));
+            var classesTask = Task.Run(() => LoadClasses(linkCache));
+            var outfitsTask = Task.Run(() => LoadOutfits(linkCache));
 
             await Task.WhenAll(factionsTask, racesTask, keywordsTask, classesTask, outfitsTask);
 
@@ -196,11 +159,9 @@ public class GameDataCacheService
 
             await LoadDistributionDataAsync(npcFilterDataList);
 
-            stopwatch.Stop();
             _isLoaded = true;
             _logger.Information(
-                "Game data cache loaded in {ElapsedMs}ms: {NpcCount} NPCs, {FactionCount} factions, {RaceCount} races, {ClassCount} classes, {KeywordCount} keywords, {OutfitCount} outfits, {FileCount} distribution files, {AssignmentCount} NPC outfit assignments.",
-                stopwatch.ElapsedMilliseconds,
+                "Game data cache loaded: {NpcCount} NPCs, {FactionCount} factions, {RaceCount} races, {ClassCount} classes, {KeywordCount} keywords, {OutfitCount} outfits, {FileCount} distribution files, {AssignmentCount} NPC outfit assignments.",
                 npcFilterDataList.Count,
                 factionsList.Count,
                 racesList.Count,
@@ -300,10 +261,11 @@ public class GameDataCacheService
 
         try
         {
-            var discoverSw = System.Diagnostics.Stopwatch.StartNew();
             _logger.Debug("Discovering distribution files in {DataPath}...", dataPath);
             var discoveredFiles = await _discoveryService.DiscoverAsync(dataPath);
-            _logger.Information("[PERF] DiscoverAsync: {ElapsedMs}ms ({Count} files)", discoverSw.ElapsedMilliseconds, discoveredFiles.Count);
+
+            var virtualKeywords = ExtractVirtualKeywords(discoveredFiles);
+            _logger.Information("Extracted {Count} virtual keywords from SPID distribution files.", virtualKeywords.Count);
 
             var outfitFiles = discoveredFiles
                 .Where(f => f.OutfitDistributionCount > 0)
@@ -315,12 +277,10 @@ public class GameDataCacheService
                 .Select(f => new DistributionFileViewModel(f))
                 .ToList();
 
-            var resolveSw = System.Diagnostics.Stopwatch.StartNew();
             _logger.Debug("Resolving NPC outfit assignments...");
             var assignments = await _outfitResolutionService.ResolveNpcOutfitsWithFiltersAsync(
                 outfitFiles,
                 npcFilterDataList);
-            _logger.Information("[PERF] ResolveNpcOutfitsWithFiltersAsync: {ElapsedMs}ms ({Count} assignments)", resolveSw.ElapsedMilliseconds, assignments.Count);
 
             _logger.Debug("Resolved {Count} NPC outfit assignments.", assignments.Count);
 
@@ -337,6 +297,14 @@ public class GameDataCacheService
                 {
                     AllNpcOutfitAssignments.Add(new NpcOutfitAssignmentViewModel(assignment));
                 }
+
+                foreach (var keyword in virtualKeywords)
+                {
+                    if (!AllKeywords.Any(k => string.Equals(k.EditorID, keyword.EditorID, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        AllKeywords.Add(keyword);
+                    }
+                }
             });
         }
         catch (Exception ex)
@@ -345,13 +313,83 @@ public class GameDataCacheService
         }
     }
 
+    private static List<KeywordRecordViewModel> ExtractVirtualKeywords(IReadOnlyList<DistributionFile> discoveredFiles)
+    {
+        var existingEditorIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var virtualKeywords = new List<KeywordRecordViewModel>();
+
+        foreach (var file in discoveredFiles)
+        {
+            if (file.Type != DistributionFileType.Spid)
+                continue;
+
+            var sourceName = ExtractModFolderName(file.FullPath);
+
+            foreach (var line in file.Lines)
+            {
+                if (line.IsKeywordDistribution && !string.IsNullOrWhiteSpace(line.KeywordIdentifier))
+                {
+                    AddKeywordIfNew(line.KeywordIdentifier, sourceName);
+                }
+
+                if ((line.IsKeywordDistribution || line.IsOutfitDistribution) &&
+                    SpidLineParser.TryParse(line.RawText, out var filter) && filter != null)
+                {
+                    foreach (var keyword in GetAllKeywordIdentifiers(filter))
+                    {
+                        AddKeywordIfNew(keyword, sourceName);
+                    }
+                }
+            }
+        }
+
+        return virtualKeywords.OrderBy(k => k.DisplayName).ToList();
+
+        void AddKeywordIfNew(string editorId, string? source)
+        {
+            if (existingEditorIds.Add(editorId))
+            {
+                var record = new KeywordRecord(FormKey.Null, editorId, ModKey.Null, source);
+                virtualKeywords.Add(new KeywordRecordViewModel(record));
+            }
+        }
+    }
+
+    private static string? ExtractModFolderName(string fullPath)
+    {
+        var fileName = System.IO.Path.GetFileNameWithoutExtension(fullPath);
+        if (!string.IsNullOrEmpty(fileName))
+        {
+            var distrSuffix = "_DISTR";
+            if (fileName.EndsWith(distrSuffix, StringComparison.OrdinalIgnoreCase))
+                return fileName[..^distrSuffix.Length];
+        }
+
+        var directory = System.IO.Path.GetDirectoryName(fullPath);
+        if (string.IsNullOrEmpty(directory))
+            return fileName;
+
+        return new System.IO.DirectoryInfo(directory).Name;
+    }
+
+    private static IEnumerable<string> GetAllKeywordIdentifiers(SpidDistributionFilter filter)
+    {
+        foreach (var expr in filter.StringFilters.Expressions)
+        {
+            foreach (var part in expr.Parts)
+            {
+                if (part.LooksLikeKeyword)
+                {
+                    yield return part.Value;
+                }
+            }
+        }
+    }
+
     private (List<NpcFilterData>, List<NpcRecordViewModel>) LoadNpcs(ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
     {
-        var enumSw = System.Diagnostics.Stopwatch.StartNew();
         var allNpcs = linkCache.WinningOverrides<INpcGetter>().ToList();
-        _logger.Information("[PERF] LoadNpcs enumeration: {ElapsedMs}ms ({Count} total NPCs)", enumSw.ElapsedMilliseconds, allNpcs.Count);
 
-        var processSw = System.Diagnostics.Stopwatch.StartNew();
         var validNpcs = allNpcs
             .Where(npc => npc.FormKey != FormKey.Null && !string.IsNullOrWhiteSpace(npc.EditorID))
             .ToList();
@@ -365,10 +403,8 @@ public class GameDataCacheService
             {
                 var originalModKey = npc.FormKey.ModKey;
                 var filterData = BuildNpcFilterData(npc, linkCache, originalModKey);
-                if (filterData != null)
-                {
+                if (filterData is not null)
                     filterDataBag.Add(filterData);
-                }
 
                 var record = new NpcRecord(
                     npc.FormKey,
@@ -377,14 +413,8 @@ public class GameDataCacheService
                     originalModKey);
                 recordsBag.Add(new NpcRecordViewModel(record));
             }
-            catch
-            {
-            }
+            catch { }
         });
-
-        _logger.Information(
-            "[PERF] LoadNpcs processing: {ElapsedMs}ms ({ValidCount} valid NPCs)",
-            processSw.ElapsedMilliseconds, validNpcs.Count);
 
         return ([.. filterDataBag], [.. recordsBag]);
     }

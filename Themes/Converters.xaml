@@ -13,4 +13,5 @@
     <utilities:NullToVisibilityConverter x:Key="NullToVisConverter" />
     <utilities:EqualityToVisibilityConverter x:Key="EqualityToVisConverter" />
     <utilities:InequalityToVisibilityConverter x:Key="InequalityToVisConverter" />
+    <utilities:StringNotEmptyConverter x:Key="StringNotEmptyConverter" />
 </ResourceDictionary>

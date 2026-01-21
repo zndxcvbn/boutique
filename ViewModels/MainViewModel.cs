@@ -525,7 +525,7 @@ public partial class MainViewModel : ReactiveObject
                     d.FormKey.HasValue &&
                     d.FormKey.Value == existing.FormKey))
             {
-                _logger.Debug("Skipping existing outfit {EditorId} because it is already queued.", existing.EditorId);
+                _logger.Debug("Skipping existing outfit {EditorId} because it already exists.", existing.EditorId);
                 continue;
             }
 
@@ -571,16 +571,16 @@ public partial class MainViewModel : ReactiveObject
 
         if (copied > 0)
         {
-            StatusMessage = $"Copied {copied} existing outfit(s) into the queue.";
+            StatusMessage = $"Copied {copied} existing outfit(s).";
             _logger.Information(
-                "Copied {CopiedCount} existing outfit(s) into the queue from plugin {Plugin}.",
+                "Copied {CopiedCount} existing outfit(s) from plugin {Plugin}.",
                 copied,
                 SelectedOutfitPlugin ?? "<none>");
         }
         else
         {
-            StatusMessage = "Existing outfits are already queued or could not be copied.";
-            _logger.Information("No existing outfits were copied; they may already be queued or lacked valid pieces.");
+            StatusMessage = "Existing outfits already exist or could not be copied.";
+            _logger.Information("No existing outfits were copied; they may already exist or lacked valid pieces.");
         }
     }
 
@@ -1309,7 +1309,7 @@ public partial class MainViewModel : ReactiveObject
 
         if (existingDraft != null)
         {
-            StatusMessage = $"Override for {editorId} is already in the queue.";
+            StatusMessage = $"Override for {editorId} already exists.";
             return Task.CompletedTask;
         }
 
@@ -1332,8 +1332,8 @@ public partial class MainViewModel : ReactiveObject
         draft.PropertyChanged += OutfitDraftOnPropertyChanged;
         _outfitDrafts.Add(draft);
 
-        StatusMessage = $"Queued override for '{editorId}' with {armorPieces.Count} piece(s).";
-        _logger.Information("Queued override draft for {EditorId} ({FormKey}) with {PieceCount} pieces.",
+        StatusMessage = $"Added override for '{editorId}' with {armorPieces.Count} piece(s).";
+        _logger.Information("Added override for {EditorId} ({FormKey}) with {PieceCount} pieces.",
             editorId, outfit.FormKey, armorPieces.Count);
 
         return Task.CompletedTask;
@@ -1433,8 +1433,8 @@ public partial class MainViewModel : ReactiveObject
         draft.PropertyChanged += OutfitDraftOnPropertyChanged;
         _outfitDrafts.Add(draft);
 
-        StatusMessage = $"Queued outfit '{draft.Name}' with {distinctPieces.Count} piece(s).";
-        _logger.Information("Queued outfit draft {EditorId} with {PieceCount} pieces.", draft.EditorId,
+        StatusMessage = $"Added outfit '{draft.Name}' with {distinctPieces.Count} piece(s).";
+        _logger.Information("Added outfit {EditorId} with {PieceCount} pieces.", draft.EditorId,
             distinctPieces.Count);
     }
 
@@ -1488,12 +1488,21 @@ public partial class MainViewModel : ReactiveObject
         try
         {
             StatusMessage = $"Building preview for '{draft.EditorId}'...";
-            var scene = await _previewService.BuildPreviewAsync(pieces, GenderedModelVariant.Female);
-            var sceneWithMetadata = scene with
-            {
-                OutfitLabel = draft.EditorId
-            };
-            var collection = new ArmorPreviewSceneCollection(sceneWithMetadata);
+
+            var metadata = new OutfitMetadata(draft.EditorId, null, false);
+            var collection = new ArmorPreviewSceneCollection(
+                count: 1,
+                initialIndex: 0,
+                metadata: new[] { metadata },
+                sceneBuilder: async (_, gender) =>
+                {
+                    var scene = await _previewService.BuildPreviewAsync(pieces, gender);
+                    return scene with
+                    {
+                        OutfitLabel = draft.EditorId
+                    };
+                });
+
             await ShowPreview.Handle(collection);
             StatusMessage = $"Preview ready for '{draft.EditorId}'.";
         }
@@ -1509,13 +1518,22 @@ public partial class MainViewModel : ReactiveObject
         try
         {
             StatusMessage = $"Building preview for '{armor.DisplayName}'...";
-            var scene = await _previewService.BuildPreviewAsync([armor], GenderedModelVariant.Female);
-            var sceneWithMetadata = scene with
-            {
-                OutfitLabel = armor.DisplayName,
-                SourceFile = armor.Armor.FormKey.ModKey.FileName.String
-            };
-            var collection = new ArmorPreviewSceneCollection(sceneWithMetadata);
+
+            var metadata = new OutfitMetadata(armor.DisplayName, armor.Armor.FormKey.ModKey.FileName.String, false);
+            var collection = new ArmorPreviewSceneCollection(
+                count: 1,
+                initialIndex: 0,
+                metadata: new[] { metadata },
+                sceneBuilder: async (_, gender) =>
+                {
+                    var scene = await _previewService.BuildPreviewAsync([armor], gender);
+                    return scene with
+                    {
+                        OutfitLabel = armor.DisplayName,
+                        SourceFile = armor.Armor.FormKey.ModKey.FileName.String
+                    };
+                });
+
             await ShowPreview.Handle(collection);
             StatusMessage = $"Preview ready for '{armor.DisplayName}'.";
         }
@@ -1649,7 +1667,7 @@ public partial class MainViewModel : ReactiveObject
             _pendingOutfitDeletions.Add(draft.EditorId);
             HasPendingOutfitDeletions = true;
             StatusMessage = $"Removed outfit '{draft.EditorId}'. Will be deleted from patch on save.";
-            _logger.Information("Queued outfit {EditorId} for deletion.", draft.EditorId);
+            _logger.Information("Marked outfit {EditorId} for deletion.", draft.EditorId);
         }
         else
         {
@@ -1719,18 +1737,26 @@ public partial class MainViewModel : ReactiveObject
                     _pendingOutfitDeletions.Remove(editorId);
                 HasPendingOutfitDeletions = _pendingOutfitDeletions.Count > 0;
 
-                foreach (var result in results)
+                _suppressAutoSave = true;
+                try
                 {
-                    var draft = _outfitDrafts.FirstOrDefault(d =>
-                        string.Equals(d.EditorId, result.EditorId, StringComparison.OrdinalIgnoreCase));
+                    foreach (var result in results)
+                    {
+                        var draft = _outfitDrafts.FirstOrDefault(d =>
+                            string.Equals(d.EditorId, result.EditorId, StringComparison.OrdinalIgnoreCase));
 
-                    if (draft != null && !draft.FormKey.HasValue)
-                        draft.FormKey = result.FormKey;
+                        if (draft != null && !draft.FormKey.HasValue)
+                            draft.FormKey = result.FormKey;
+                    }
+
+                    StatusMessage = "Refreshing outfits...";
+                    await _gameDataCache.RefreshOutfitsFromPatchAsync();
+                    StatusMessage = message;
                 }
-
-                StatusMessage = "Refreshing outfits...";
-                await _gameDataCache.RefreshOutfitsFromPatchAsync();
-                StatusMessage = message;
+                finally
+                {
+                    _suppressAutoSave = false;
+                }
             }
         }
         catch (Exception ex)
