@@ -23,7 +23,7 @@ namespace Boutique.ViewModels;
 
 public partial class MainViewModel : ReactiveObject
 {
-    private static readonly BipedObjectFlag[] BipedObjectFlags = Enum.GetValues<BipedObjectFlag>()
+    private static readonly BipedObjectFlag[] _bipedObjectFlags = Enum.GetValues<BipedObjectFlag>()
         .Where(f => f != 0 && ((uint)f & ((uint)f - 1)) == 0) // Only single-bit flags (powers of 2)
         .ToArray();
 
@@ -1257,7 +1257,7 @@ public partial class MainViewModel : ReactiveObject
                 continue;
             }
 
-            foreach (var flag in BipedObjectFlags)
+            foreach (var flag in _bipedObjectFlags)
             {
                 if (!mask.HasFlag(flag))
                 {

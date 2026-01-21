@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Reactive.Linq;
 using System.Windows;
@@ -26,6 +27,7 @@ public partial class SettingsViewModel : ReactiveObject
 {
     private readonly GuiSettingsService _guiSettings;
     private readonly LocalizationService _localizationService;
+    private readonly MutagenService _mutagenService;
     private readonly PatcherSettings _settings;
     private readonly ThemeService _themeService;
     private readonly TutorialService _tutorialService;
@@ -40,18 +42,45 @@ public partial class SettingsViewModel : ReactiveObject
     [Reactive] private ThemeOption _selectedTheme;
     [Reactive] private string _skyrimDataPath = string.Empty;
 
+    [ReactiveCollection] private ObservableCollection<string> _availableBlacklistPlugins = [];
+    [ReactiveCollection] private ObservableCollection<string> _blacklistedPluginNames = [];
+
+    public string? SelectedBlacklistPlugin
+    {
+        get => field;
+        set
+        {
+            if (string.IsNullOrEmpty(value) || BlacklistedPluginNames.Contains(value))
+            {
+                return;
+            }
+
+            BlacklistedPluginNames.Add(value);
+            field = null;
+            this.RaisePropertyChanged();
+        }
+    }
+
     public SettingsViewModel(
         PatcherSettings settings,
         GuiSettingsService guiSettings,
         ThemeService themeService,
         TutorialService tutorialService,
-        LocalizationService localizationService)
+        LocalizationService localizationService,
+        MutagenService mutagenService)
     {
         _settings = settings;
         _guiSettings = guiSettings;
         _themeService = themeService;
         _tutorialService = tutorialService;
         _localizationService = localizationService;
+        _mutagenService = mutagenService;
+
+        _mutagenService.Initialized += OnMutagenInitialized;
+
+        BlacklistedPluginNames = new ObservableCollection<string>(guiSettings.BlacklistedPlugins ?? []);
+        BlacklistedPluginNames.CollectionChanged += (_, _) =>
+            _guiSettings.BlacklistedPlugins = BlacklistedPluginNames.ToList();
 
         var savedDataPath = !string.IsNullOrEmpty(guiSettings.SkyrimDataPath)
             ? guiSettings.SkyrimDataPath
@@ -176,6 +205,9 @@ public partial class SettingsViewModel : ReactiveObject
     }
 
     [ReactiveCommand]
+    private void RemoveBlacklistPlugin(string plugin) => BlacklistedPluginNames.Remove(plugin);
+
+    [ReactiveCommand]
     private void BrowseOutputPath()
     {
         var dialog = new OpenFileDialog
@@ -293,5 +325,12 @@ public partial class SettingsViewModel : ReactiveObject
         {
             Application.Current.Shutdown();
         }
+    }
+
+    private async void OnMutagenInitialized(object? sender, EventArgs e)
+    {
+        var plugins = await _mutagenService.GetAvailablePluginsAsync();
+        Application.Current.Dispatcher.Invoke(() =>
+            AvailableBlacklistPlugins = new ObservableCollection<string>(plugins));
     }
 }

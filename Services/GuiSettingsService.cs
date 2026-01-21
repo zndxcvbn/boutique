@@ -15,6 +15,7 @@ public class GuiSettings
     public SkyrimRelease SelectedSkyrimRelease { get; set; }
     public string? LastDistributionFilePath { get; set; }
     public string? Language { get; set; }
+    public List<string>? BlacklistedPlugins { get; set; }
 
     public double? WindowLeft { get; set; }
     public double? WindowTop { get; set; }
@@ -142,6 +143,16 @@ public class GuiSettingsService
             }
 
             _settings.Language = value;
+            SaveSettings();
+        }
+    }
+
+    public List<string>? BlacklistedPlugins
+    {
+        get => _settings.BlacklistedPlugins;
+        set
+        {
+            _settings.BlacklistedPlugins = value;
             SaveSettings();
         }
     }

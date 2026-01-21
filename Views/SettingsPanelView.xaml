@@ -5,6 +5,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:Boutique.ViewModels"
              xmlns:themes="clr-namespace:Boutique.Themes"
+             xmlns:controls="clr-namespace:Boutique.Controls"
              xmlns:lex="http://wpflocalizeextension.codeplex.com"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance vm:MainViewModel, IsDesignTimeCreatable=False}"
@@ -24,6 +25,7 @@
     <!-- Settings Grid -->
     <Grid Grid.Row="1">
       <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
         <RowDefinition Height="Auto" />
         <RowDefinition Height="Auto" />
         <RowDefinition Height="Auto" />
@@ -132,6 +134,39 @@
               Command="{Binding Settings.RestartTutorialCommand}"
               HorizontalAlignment="Left" MinWidth="120"
               Visibility="{Binding Settings.IsTutorialEnabled, Converter={StaticResource BoolToVisConverter}}" />
+
+      <!-- Row 9: Blacklist ESPs -->
+      <TextBlock Grid.Row="9" Grid.Column="0" Text="{lex:Loc Settings_Blacklist}"
+                 Style="{DynamicResource {x:Static themes:ResourceKeys.SettingsLabelStyleKey}}"
+                 VerticalAlignment="Top" Margin="0,4,0,0" />
+      <StackPanel Grid.Row="9" Grid.Column="1" Margin="0,0,0,12">
+        <controls:FilterableSelector
+          ItemsSource="{Binding Settings.AvailableBlacklistPlugins}"
+          SelectedItem="{Binding Settings.SelectedBlacklistPlugin, Mode=TwoWay}"
+          MinWidth="200" MaxDropDownHeight="200" HorizontalAlignment="Left" />
+        <ItemsControl ItemsSource="{Binding Settings.BlacklistedPluginNames}" Margin="0,8,0,0">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <WrapPanel Orientation="Horizontal" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Border Background="{DynamicResource Brush.CardBackground}"
+                      BorderBrush="{DynamicResource Brush.BorderMedium}"
+                      BorderThickness="1" CornerRadius="3" Padding="6,2" Margin="0,0,4,4">
+                <StackPanel Orientation="Horizontal">
+                  <TextBlock Text="{Binding}" VerticalAlignment="Center" />
+                  <Button Content="✕" Padding="4,0" Margin="6,0,0,0"
+                          Command="{Binding DataContext.Settings.RemoveBlacklistPluginCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                          CommandParameter="{Binding}"
+                          Style="{DynamicResource {x:Static themes:ResourceKeys.IconButtonStyleKey}}" />
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
     </Grid>
   </Grid>
 </UserControl>

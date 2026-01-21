@@ -204,12 +204,14 @@ public class FilterableSelector : Control
         {
             _filteredView.Filter = item =>
             {
-                if (item == null || string.IsNullOrEmpty(filterPath))
+                if (item == null)
                 {
                     return true;
                 }
 
-                var value = GetPropertyValue(item, filterPath);
+                var value = string.IsNullOrEmpty(filterPath)
+                    ? item.ToString()
+                    : GetPropertyValue(item, filterPath);
                 return value?.Contains(filterText, StringComparison.OrdinalIgnoreCase) == true;
             };
         }
