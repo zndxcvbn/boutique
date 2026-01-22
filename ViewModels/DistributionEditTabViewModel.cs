@@ -155,13 +155,11 @@ public partial class DistributionEditTabViewModel : ReactiveObject, IDisposable
         _notLoading = this.WhenAnyValue(vm => vm.IsLoading, loading => !loading);
 
         _canSave = this.WhenAnyValue(
-            vm => vm.DistributionEntriesCount,
             vm => vm.DistributionFilePath,
             vm => vm.IsCreatingNewFile,
             vm => vm.NewFileName,
-            (count, path, isNew, newName) =>
-                count > 0 &&
-                (!string.IsNullOrWhiteSpace(path) || (isNew && !string.IsNullOrWhiteSpace(newName))));
+            (path, isNew, newName) =>
+                !string.IsNullOrWhiteSpace(path) || (isNew && !string.IsNullOrWhiteSpace(newName)));
 
         _canPaste = this.WhenAnyValue(
             vm => vm.HasCopiedFilter,
@@ -854,12 +852,6 @@ public partial class DistributionEditTabViewModel : ReactiveObject, IDisposable
         if (string.IsNullOrWhiteSpace(DistributionFilePath))
         {
             StatusMessage = "Please select a file path.";
-            return;
-        }
-
-        if (DistributionEntries.Count == 0)
-        {
-            StatusMessage = "No distribution entries to save.";
             return;
         }
 
