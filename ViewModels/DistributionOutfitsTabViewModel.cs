@@ -95,6 +95,8 @@ public partial class DistributionOutfitsTabViewModel : ReactiveObject, IDisposab
 
     public ObservableCollection<NpcOutfitAssignmentViewModel> SelectedOutfitNpcAssignments { get; } = [];
 
+    public ObservableCollection<OutfitDistributionSummary> SelectedOutfitDistributions { get; } = [];
+
     public Interaction<ArmorPreviewSceneCollection, Unit> ShowPreview { get; } = new();
 
     public bool IsInitialized => _mutagenService.IsInitialized;
@@ -403,6 +405,7 @@ public partial class DistributionOutfitsTabViewModel : ReactiveObject, IDisposab
     private async Task UpdateSelectedOutfitNpcAssignmentsAsync()
     {
         SelectedOutfitNpcAssignments.Clear();
+        SelectedOutfitDistributions.Clear();
 
         if (SelectedOutfit == null || _npcAssignments == null)
         {
@@ -413,13 +416,37 @@ public partial class DistributionOutfitsTabViewModel : ReactiveObject, IDisposab
         var selectedOutfitRef = SelectedOutfit;
 
         // Run filtering on background thread to avoid UI freeze
-        var matchingAssignments = await Task.Run(() =>
+        var (matchingAssignments, distributionSummaries) = await Task.Run(() =>
         {
             // Find all NPCs that have this outfit as their final resolved outfit
-            return _npcAssignments
+            var assignments = _npcAssignments
                 .Where(assignment => assignment.FinalOutfitFormKey == outfitFormKey)
                 .Select(assignment => new NpcOutfitAssignmentViewModel(assignment))
                 .ToList();
+
+            // Extract unique distribution files with NPC counts
+            var distributions = assignments
+                .SelectMany(a => a.Distributions.Select(d => (Npc: a, Dist: d)))
+                .GroupBy(x => x.Dist.FileName)
+                .Select(g =>
+                {
+                    var first = g.First().Dist;
+                    return new OutfitDistributionSummary
+                    {
+                        FileName = first.FileName,
+                        FileType = first.FileType,
+                        OutfitEditorId = first.OutfitEditorId,
+                        OutfitFormKey = first.OutfitFormKey,
+                        IsWinner = g.Any(x => x.Dist.IsWinner),
+                        NpcCount = g.Select(x => x.Npc.NpcFormKey).Distinct().Count(),
+                        TargetingDescription = first.TargetingDescription
+                    };
+                })
+                .OrderByDescending(d => d.IsWinner)
+                .ThenByDescending(d => d.NpcCount)
+                .ToList();
+
+            return (assignments, distributions);
         });
 
         // Check if selection changed while we were processing
@@ -433,10 +460,16 @@ public partial class DistributionOutfitsTabViewModel : ReactiveObject, IDisposab
             SelectedOutfitNpcAssignments.Add(vm);
         }
 
+        foreach (var dist in distributionSummaries)
+        {
+            SelectedOutfitDistributions.Add(dist);
+        }
+
         _logger.Debug(
-            "UpdateSelectedOutfitNpcAssignmentsAsync: Found {Count} NPCs with outfit {EditorID}",
+            "UpdateSelectedOutfitNpcAssignmentsAsync: Found {Count} NPCs with outfit {EditorID}, {DistCount} distribution files",
             matchingAssignments.Count,
-            selectedOutfitRef.EditorID);
+            selectedOutfitRef.EditorID,
+            distributionSummaries.Count);
     }
 
     private void UpdateOutfitNpcCounts()
@@ -501,4 +534,15 @@ public partial class DistributionOutfitsTabViewModel : ReactiveObject, IDisposab
         _outfitsSource.Dispose();
         GC.SuppressFinalize(this);
     }
+}
+
+public class OutfitDistributionSummary
+{
+    public required string FileName { get; init; }
+    public required DistributionFileType FileType { get; init; }
+    public string? OutfitEditorId { get; init; }
+    public FormKey OutfitFormKey { get; init; }
+    public bool IsWinner { get; init; }
+    public int NpcCount { get; init; }
+    public string? TargetingDescription { get; init; }
 }
