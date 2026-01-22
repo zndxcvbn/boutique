@@ -115,7 +115,7 @@
     <value>Версия Skyrim:</value>
   </data>
     <data name="Settings_SkyrimDataPath" xml:space="preserve">
-    <value>Путь к данным Skyrim:</value>
+    <value>Путь к Skyrim Data:</value>
   </data>
     <data name="Settings_PatchFileName" xml:space="preserve">
     <value>Имя файла патча:</value>
@@ -124,7 +124,7 @@
     <value>Путь вывода:</value>
   </data>
     <data name="Settings_OutputPathTooltip" xml:space="preserve">
-    <value>Оставьте пустым для использования пути данных Skyrim. Укажите свой путь для модлистов Wabbajack или папки overwrite MO2.</value>
+    <value>Оставьте пустым для использования пути Skyrim Data. Укажите свой путь для модлистов Wabbajack или папки overwrite MO2.</value>
   </data>
     <data name="Settings_Detection" xml:space="preserve">
     <value>Обнаружение:</value>
@@ -746,7 +746,7 @@
 
     <!-- Dialogs -->
     <data name="Dialog_SelectDataFolder" xml:space="preserve">
-    <value>Выберите папку Data Skyrim</value>
+    <value>Выберите папку Skyrim Data</value>
   </data>
     <data name="Dialog_SelectOutputFolder" xml:space="preserve">
     <value>Выберите папку вывода для патча</value>
