@@ -45,11 +45,8 @@ public class MutagenService(ILoggingService loggingService, PatcherSettings sett
         _ => GameRelease.SkyrimSE
     };
 
-    private SkyrimRelease GetSkyrimRelease()
-    {
-        _logger.Information("Using user-selected Skyrim release: {Release}", _settings.SelectedSkyrimRelease);
-        return _settings.SelectedSkyrimRelease != default ? _settings.SelectedSkyrimRelease : SkyrimRelease.SkyrimSE;
-    }
+    private SkyrimRelease GetSkyrimRelease() =>
+        _settings.SelectedSkyrimRelease != default ? _settings.SelectedSkyrimRelease : SkyrimRelease.SkyrimSE;
 
     public async Task InitializeAsync(string dataFolderPath)
     {
