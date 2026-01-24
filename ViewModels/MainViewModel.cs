@@ -1051,6 +1051,8 @@ public partial class MainViewModel : ReactiveObject, IDisposable
 
         try
         {
+            var previousOutfitPlugin = SelectedOutfitPlugin;
+
             var plugins = await _mutagenService.GetAvailablePluginsAsync();
             var previousCount = _availablePluginsSource.Count;
             _availablePluginsSource.Edit(list =>
@@ -1059,6 +1061,12 @@ public partial class MainViewModel : ReactiveObject, IDisposable
                 list.AddRange(plugins);
             });
             this.RaisePropertyChanged(nameof(AvailablePluginsTotalCount));
+
+            if (!string.IsNullOrEmpty(previousOutfitPlugin) &&
+                _availablePluginsSource.Items.Contains(previousOutfitPlugin, StringComparer.OrdinalIgnoreCase))
+            {
+                SelectedOutfitPlugin = previousOutfitPlugin;
+            }
 
             _logger.Information(
                 "Available plugins refreshed: {PreviousCount} → {NewCount} plugins.",
