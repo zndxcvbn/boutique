@@ -182,7 +182,18 @@ public class SpidFilterMatchingService
             return false;
         }
 
-        return FormKey.TryFactory(value, out formKey) || FormKeyHelper.TryParse(value, out formKey);
+        if (FormKey.TryFactory(value, out formKey) || FormKeyHelper.TryParse(value, out formKey))
+        {
+            return true;
+        }
+
+        if (FormKeyHelper.TryParseFormId(value, out var id))
+        {
+            formKey = new FormKey(FormKeyHelper.SkyrimModKey, id);
+            return true;
+        }
+
+        return false;
     }
 
     private static bool MatchesLevelFilters(NpcFilterData npc, string? levelFilters)

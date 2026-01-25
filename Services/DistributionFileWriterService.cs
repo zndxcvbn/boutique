@@ -73,13 +73,18 @@ public class DistributionFileWriterService
                         {
                             var filterParts = new List<string>();
 
-                            if (entry.NpcFormKeys.Count > 0)
+                            var includedNpcs = entry.NpcFilters.Where(f => !f.IsExcluded).ToList();
+                            var excludedNpcs = entry.NpcFilters.Where(f => f.IsExcluded).ToList();
+                            if (includedNpcs.Count > 0)
                             {
-                                var npcFormKeys = entry.NpcFormKeys
-                                    .Select(fk => FormatFormKey(fk))
-                                    .ToList();
-                                var npcList = string.Join(",", npcFormKeys);
+                                var npcList = string.Join(",", includedNpcs.Select(f => FormatFormKey(f.FormKey)));
                                 filterParts.Add($"filterByNpcs={npcList}");
+                            }
+
+                            if (excludedNpcs.Count > 0)
+                            {
+                                var npcList = string.Join(",", excludedNpcs.Select(f => FormatFormKey(f.FormKey)));
+                                filterParts.Add($"filterByNpcsExcluded={npcList}");
                             }
 
                             var includedFactions = entry.FactionFilters.Where(f => !f.IsExcluded).ToList();
@@ -355,19 +360,20 @@ public class DistributionFileWriterService
             }
 
             var npcStrings = SkyPatcherSyntax.ExtractFilterValues(line, "filterByNpcs");
+            var excludedNpcStrings = SkyPatcherSyntax.ExtractFilterValues(line, "filterByNpcsExcluded");
             var factionStrings = SkyPatcherSyntax.ExtractFilterValuesWithVariants(line, "filterByFactions");
             var keywordStrings = SkyPatcherSyntax.ExtractFilterValuesWithVariants(line, "filterByKeywords");
             var raceStrings = SkyPatcherSyntax.ExtractFilterValuesWithVariants(line, "filterByRaces");
             var classStrings = SkyPatcherSyntax.ExtractFilterValues(line, "filterByClass");
             var genderFilter = SkyPatcherSyntax.ParseGenderFilter(line);
 
-            var npcFormKeys = ResolveNpcIdentifiers(npcStrings, linkCache);
+            var npcFilters = ResolveNpcIdentifiersToFilters(npcStrings, excludedNpcStrings, linkCache);
             var factionFilters = ResolveFactionIdentifiers(factionStrings, linkCache);
             var keywordFilters = ResolveKeywordIdentifiersToFilters(keywordStrings, linkCache);
             var raceFilters = ResolveRaceIdentifiers(raceStrings, linkCache);
             var classFormKeys = ResolveClassIdentifiers(classStrings, linkCache);
 
-            var hasAnyParsedFilter = npcFormKeys.Count > 0 ||
+            var hasAnyParsedFilter = npcFilters.Count > 0 ||
                                      factionFilters.Count > 0 ||
                                      keywordFilters.Count > 0 ||
                                      raceFilters.Count > 0 ||
@@ -416,7 +422,7 @@ public class DistributionFileWriterService
                 new DistributionEntry
                 {
                     Outfit = outfit,
-                    NpcFormKeys = npcFormKeys,
+                    NpcFilters = npcFilters,
                     FactionFilters = factionFilters,
                     KeywordFilters = keywordFilters,
                     RaceFilters = raceFilters,
@@ -431,36 +437,50 @@ public class DistributionFileWriterService
         }
     }
 
-    private List<FormKey> ResolveNpcIdentifiers(
-        List<string> identifiers,
+    private List<FormKeyFilter> ResolveNpcIdentifiersToFilters(
+        List<string> includedIdentifiers,
+        List<string> excludedIdentifiers,
         ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
     {
-        var results = new List<FormKey>();
-        foreach (var id in identifiers)
-        {
-            // Try FormKey format first
-            if (TryParseFormKey(id) is { } formKey)
-            {
-                results.Add(formKey);
-                continue;
-            }
+        var results = new List<FormKeyFilter>();
 
-            // Try EditorID lookup
-            var npc = linkCache.PriorityOrder.WinningOverrides<INpcGetter>()
-                .FirstOrDefault(n => string.Equals(n.EditorID, id, StringComparison.OrdinalIgnoreCase)
-                                     || string.Equals(n.Name?.String, id, StringComparison.OrdinalIgnoreCase));
-            if (npc != null)
+        foreach (var id in includedIdentifiers)
+        {
+            if (TryResolveNpcIdentifier(id, linkCache) is { } formKey)
             {
-                results.Add(npc.FormKey);
-                _logger.Debug("Resolved NPC EditorID/Name '{Id}' to {FormKey}", id, npc.FormKey);
+                results.Add(new FormKeyFilter(formKey, false));
             }
-            else
+        }
+
+        foreach (var id in excludedIdentifiers)
+        {
+            if (TryResolveNpcIdentifier(id, linkCache) is { } formKey)
             {
-                _logger.Warning("Could not resolve NPC identifier: {Id}", id);
+                results.Add(new FormKeyFilter(formKey, true));
             }
         }
 
         return results;
+    }
+
+    private FormKey? TryResolveNpcIdentifier(string id, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
+    {
+        if (TryParseFormKey(id) is { } formKey)
+        {
+            return formKey;
+        }
+
+        var npc = linkCache.PriorityOrder.WinningOverrides<INpcGetter>()
+            .FirstOrDefault(n => string.Equals(n.EditorID, id, StringComparison.OrdinalIgnoreCase)
+                                 || string.Equals(n.Name?.String, id, StringComparison.OrdinalIgnoreCase));
+        if (npc != null)
+        {
+            _logger.Debug("Resolved NPC EditorID/Name '{Id}' to {FormKey}", id, npc.FormKey);
+            return npc.FormKey;
+        }
+
+        _logger.Warning("Could not resolve NPC identifier: {Id}", id);
+        return null;
     }
 
     private List<FormKeyFilter> ResolveFactionIdentifiers(
@@ -602,19 +622,15 @@ public class DistributionFileWriterService
 
     private static string FormatSpidLine(DistributionEntry entry, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
     {
-        // Position 1: Outfit identifier
         var outfitIdentifier = FormatOutfitIdentifier(entry.Outfit!);
 
-        // Position 2: StringFilters - NPC names (comma-separated for OR) and Keywords (+ for AND)
         var stringFilters = new List<string>();
 
-        // Add NPC names first (comma-separated)
         var npcNames = new List<string>();
-        foreach (var npcFormKey in entry.NpcFormKeys)
+        foreach (var filter in entry.NpcFilters.Where(f => !f.IsExcluded))
         {
-            if (linkCache.TryResolve<INpcGetter>(npcFormKey, out var npc))
+            if (linkCache.TryResolve<INpcGetter>(filter.FormKey, out var npc))
             {
-                // Prefer Name, fall back to EditorID
                 var name = npc.Name?.String;
                 if (!string.IsNullOrWhiteSpace(name))
                 {
@@ -632,7 +648,6 @@ public class DistributionFileWriterService
             stringFilters.Add(string.Join(",", npcNames));
         }
 
-        // Add keywords (+ separated for AND logic, with negation prefix for excluded)
         var includedKeywords = entry.KeywordFilters.Where(k => !k.IsExcluded).Select(k => k.EditorId).ToList();
         var excludedKeywords = entry.KeywordFilters.Where(k => k.IsExcluded).Select(k => $"-{k.EditorId}").ToList();
         if (includedKeywords.Count > 0)
@@ -647,7 +662,6 @@ public class DistributionFileWriterService
 
         var stringFiltersPart = stringFilters.Count > 0 ? string.Join(",", stringFilters) : null;
 
-        // Position 3: FormFilters - all form filter types (AND with +, negation with - prefix)
         var formFilters = new List<string>();
 
         foreach (var filter in entry.FactionFilters)
@@ -675,6 +689,11 @@ public class DistributionFileWriterService
             {
                 formFilters.Add(classRecord.EditorID);
             }
+        }
+
+        foreach (var filter in entry.NpcFilters.Where(f => f.IsExcluded))
+        {
+            formFilters.Add($"-{FormKeyHelper.FormatForSpid(filter.FormKey)}");
         }
 
         foreach (var combatStyleFormKey in entry.CombatStyleFormKeys)

@@ -18,7 +18,11 @@ public sealed class DistributionEntry
     public DistributionType Type { get; set; } = DistributionType.Outfit;
     public IOutfitGetter? Outfit { get; set; }
     public string? KeywordToDistribute { get; set; }
-    public List<FormKey> NpcFormKeys { get; set; } = [];
+
+    /// <summary>
+    ///     NPC filters with negation support. Allows targeting or excluding specific NPCs.
+    /// </summary>
+    public List<FormKeyFilter> NpcFilters { get; set; } = [];
 
     /// <summary>
     ///     Keyword filters with negation support. EditorIDs of game keywords or virtual keywords (SPID-distributed via Keyword

@@ -440,6 +440,47 @@ public class SpidLineParserTests
     #region Targeting Description
 
     [Fact]
+    public void TryParse_WithBareHexFormIdsInFormFilters_ParsesCorrectly()
+    {
+        var result = SpidLineParser.TryParse(
+            "Outfit = 0xB3E8D~Skyrim.esm|ActorTypeNPC|0x48362,-0x13BB6,-0x1A6D9|NONE|F|NONE|100",
+            out var filter);
+
+        Assert.True(result);
+        Assert.NotNull(filter);
+        Assert.Equal("0xB3E8D~Skyrim.esm", filter.OutfitIdentifier);
+        Assert.True(filter.StringFilters.HasKeywords);
+        Assert.Single(filter.FormFilters.Expressions);
+        Assert.Equal("0x48362", filter.FormFilters.Expressions[0].Parts[0].Value);
+        Assert.Equal(2, filter.FormFilters.GlobalExclusions.Count);
+        Assert.Equal("0x13BB6", filter.FormFilters.GlobalExclusions[0].Value);
+        Assert.True(filter.FormFilters.GlobalExclusions[0].IsNegated);
+        Assert.Equal("0x1A6D9", filter.FormFilters.GlobalExclusions[1].Value);
+        Assert.True(filter.FormFilters.GlobalExclusions[1].IsNegated);
+        Assert.True(filter.TraitFilters.IsFemale);
+        Assert.Equal(100, filter.Chance);
+    }
+
+    [Fact]
+    public void TryParse_WithSpecificNpcFormIdInFormFilters_ParsesCorrectly()
+    {
+        var result = SpidLineParser.TryParse(
+            "Outfit = 0xB3E8E~Skyrim.esm|ActorTypeNPC|0x1A6D9|NONE|F|NONE|100",
+            out var filter);
+
+        Assert.True(result);
+        Assert.NotNull(filter);
+        Assert.Equal("0xB3E8E~Skyrim.esm", filter.OutfitIdentifier);
+        Assert.Single(filter.FormFilters.Expressions);
+        Assert.Equal("0x1A6D9", filter.FormFilters.Expressions[0].Parts[0].Value);
+        Assert.False(filter.FormFilters.Expressions[0].Parts[0].IsNegated);
+    }
+
+    #endregion
+
+    #region Targeting Description
+
+    [Fact]
     public void GetTargetingDescription_AllNpcs_ReturnsAllNpcs()
     {
         SpidLineParser.TryParse("Outfit = VampireOutfit", out var filter);

@@ -250,7 +250,9 @@ public partial class DistributionEditTabViewModel : ReactiveObject, IDisposable
         }
 
         var npcOccurrences = DistributionEntries
-            .SelectMany(entry => entry.SelectedNpcs.Select(npc => (Entry: entry, Npc: npc)))
+            .SelectMany(entry => entry.SelectedNpcs
+                .Where(npc => !npc.IsExcluded)
+                .Select(npc => (Entry: entry, Npc: npc)))
             .GroupBy(x => x.Npc.FormKey)
             .Where(g => g.Count() > 1)
             .Select(g => (
@@ -1949,7 +1951,7 @@ public partial class DistributionEditTabViewModel : ReactiveObject, IDisposable
     {
         var entryVm = new DistributionEntryViewModel(entry, RemoveDistributionEntry, IsFormatChangingToSpid);
         ResolveEntryOutfit(entryVm);
-        var npcVms = ResolveNpcFormKeys(entry.NpcFormKeys);
+        var npcVms = ResolveNpcFilters(entry.NpcFilters);
         if (npcVms.Count > 0)
         {
             entryVm.SelectedNpcs = new ObservableCollection<NpcRecordViewModel>(npcVms);
@@ -2007,19 +2009,16 @@ public partial class DistributionEditTabViewModel : ReactiveObject, IDisposable
         }
     }
 
-    /// <summary>
-    ///     Resolves a list of NPC FormKeys to NpcRecordViewModels,
-    ///     preferring existing instances from AvailableNpcs.
-    /// </summary>
-    private List<NpcRecordViewModel> ResolveNpcFormKeys(IEnumerable<FormKey> formKeys)
+    private List<NpcRecordViewModel> ResolveNpcFilters(IEnumerable<FormKeyFilter> filters)
     {
         var npcVms = new List<NpcRecordViewModel>();
 
-        foreach (var npcFormKey in formKeys)
+        foreach (var filter in filters)
         {
-            var npcVm = ResolveNpcFormKey(npcFormKey);
+            var npcVm = ResolveNpcFormKey(filter.FormKey);
             if (npcVm != null)
             {
+                npcVm.IsExcluded = filter.IsExcluded;
                 npcVms.Add(npcVm);
             }
         }
@@ -2027,16 +2026,12 @@ public partial class DistributionEditTabViewModel : ReactiveObject, IDisposable
         return npcVms;
     }
 
-    /// <summary>
-    ///     Resolves a single NPC FormKey to an NpcRecordViewModel,
-    ///     preferring an existing instance from AvailableNpcs.
-    /// </summary>
     private NpcRecordViewModel? ResolveNpcFormKey(FormKey formKey)
     {
         var existingNpc = AvailableNpcs.FirstOrDefault(npc => npc.FormKey == formKey);
         if (existingNpc != null)
         {
-            return existingNpc;
+            return new NpcRecordViewModel(existingNpc.NpcRecord);
         }
 
         if (_mutagenService.LinkCache is ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache &&
@@ -2187,7 +2182,7 @@ public partial class DistributionEditTabViewModel : ReactiveObject, IDisposable
         var existingRace = AvailableRaces.FirstOrDefault(r => r.FormKey == formKey);
         if (existingRace != null)
         {
-            return existingRace;
+            return new RaceRecordViewModel(existingRace.RaceRecord);
         }
 
         if (_mutagenService.LinkCache is ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache &&
