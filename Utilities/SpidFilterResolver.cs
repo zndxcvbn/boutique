@@ -295,6 +295,16 @@ public static class SpidFilterResolver
                     continue;
                 }
 
+                var npc = cachedNpcs.FirstOrDefault(n =>
+                    string.Equals(n.EditorID, part.Value, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(n.Name?.String, part.Value, StringComparison.OrdinalIgnoreCase));
+                if (npc != null)
+                {
+                    npcFilters.Add(new FormKeyFilter(npc.FormKey, part.IsNegated));
+                    logger?.Debug("Resolved NPC string filter '{Value}' to {FormKey}", part.Value, npc.FormKey);
+                    continue;
+                }
+
                 var keyword = linkCache.WinningOverrides<IKeywordGetter>()
                     .FirstOrDefault(k => string.Equals(k.EditorID, part.Value, StringComparison.OrdinalIgnoreCase));
                 if (keyword != null)
@@ -309,16 +319,6 @@ public static class SpidFilterResolver
                     continue;
                 }
 
-                var npc = cachedNpcs.FirstOrDefault(n =>
-                    string.Equals(n.EditorID, part.Value, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(n.Name?.String, part.Value, StringComparison.OrdinalIgnoreCase));
-                if (npc != null)
-                {
-                    npcFilters.Add(new FormKeyFilter(npc.FormKey, part.IsNegated));
-                    logger?.Debug("Resolved NPC string filter '{Value}' to {FormKey}", part.Value, npc.FormKey);
-                    continue;
-                }
-
                 keywordFilters.Add(new KeywordFilter(part.Value, part.IsNegated));
                 logger?.Verbose("Treating unresolved string filter as keyword: {Value}", part.Value);
             }
@@ -328,6 +328,16 @@ public static class SpidFilterResolver
         {
             if (exclusion.HasWildcard)
             {
+                continue;
+            }
+
+            var npc = cachedNpcs.FirstOrDefault(n =>
+                string.Equals(n.EditorID, exclusion.Value, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(n.Name?.String, exclusion.Value, StringComparison.OrdinalIgnoreCase));
+            if (npc != null)
+            {
+                npcFilters.Add(new FormKeyFilter(npc.FormKey, true));
+                logger?.Debug("Resolved excluded NPC string filter '{Value}' to {FormKey}", exclusion.Value, npc.FormKey);
                 continue;
             }
 

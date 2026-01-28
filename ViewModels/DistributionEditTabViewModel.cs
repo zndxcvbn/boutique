@@ -1546,7 +1546,7 @@ public partial class DistributionEditTabViewModel : ReactiveObject, IDisposable
 
     private int CalculateLineNumberForEntry(DistributionEntryViewModel targetEntry, DistributionFileType format)
     {
-        var lineNumber = 3;
+        var lineNumber = DistributionFileFormatter.GenerateHeaderLines().Count;
 
         foreach (var entry in DistributionEntries)
         {
@@ -1570,12 +1570,13 @@ public partial class DistributionEditTabViewModel : ReactiveObject, IDisposable
 
     public void SelectEntryByLineNumber(int lineNumber)
     {
-        if (lineNumber < 3)
+        var headerLineCount = DistributionFileFormatter.GenerateHeaderLines().Count;
+        if (lineNumber < headerLineCount)
         {
             return;
         }
 
-        var currentLine = 3;
+        var currentLine = headerLineCount;
         foreach (var entry in DistributionEntries)
         {
             var producesLine = entry.Type == DistributionType.Keyword
