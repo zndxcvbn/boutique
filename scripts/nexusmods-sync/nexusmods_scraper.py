@@ -1,5 +1,6 @@
 """NexusMods bug report scraper."""
 
+import random
 import re
 import time
 from dataclasses import dataclass
@@ -7,6 +8,13 @@ from typing import Optional
 
 import cloudscraper
 from bs4 import BeautifulSoup
+
+BROWSER_CONFIGS = [
+    {"browser": "chrome", "platform": "windows", "mobile": False},
+    {"browser": "chrome", "platform": "linux", "mobile": False},
+    {"browser": "firefox", "platform": "windows", "mobile": False},
+    {"browser": "firefox", "platform": "linux", "mobile": False},
+]
 
 
 @dataclass
@@ -52,7 +60,7 @@ class NexusModsScraper:
         self.mod_id = mod_id
         self.delay = delay
         self.session = cloudscraper.create_scraper(
-            browser={"browser": "chrome", "platform": "windows", "mobile": False}
+            browser=random.choice(BROWSER_CONFIGS)
         )
 
     def _get_bugs_url(self, page: int = 1) -> str:
@@ -62,17 +70,18 @@ class NexusModsScraper:
             url += f"&BusLoadAllRecords=false&page={page}"
         return url
 
-    def _fetch_page(self, url: str, retries: int = 3) -> Optional[BeautifulSoup]:
+    def _fetch_page(self, url: str, retries: int = 5) -> Optional[BeautifulSoup]:
         """Fetch and parse a page with retry logic."""
         for attempt in range(retries):
             try:
                 if attempt > 0:
-                    wait_time = 2 ** attempt
-                    print(f"  Retry {attempt}/{retries-1} after {wait_time}s...")
+                    wait_time = (2 ** attempt) + random.uniform(1, 3)
+                    browser_config = random.choice(BROWSER_CONFIGS)
+                    print(f"  Retry {attempt}/{retries-1} after {wait_time:.1f}s (trying {browser_config['browser']}/{browser_config['platform']})...")
                     time.sleep(wait_time)
-                    self.session = cloudscraper.create_scraper(
-                        browser={"browser": "chrome", "platform": "windows", "mobile": False}
-                    )
+                    self.session = cloudscraper.create_scraper(browser=browser_config)
+                else:
+                    time.sleep(random.uniform(0.5, 2))
                 response = self.session.get(url, timeout=30)
                 response.raise_for_status()
                 return BeautifulSoup(response.text, "html.parser")
