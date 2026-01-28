@@ -63,24 +63,33 @@ public class MutagenService(ILoggingService loggingService, PatcherSettings sett
                 return;
             }
 
-            await Task.Run(() =>
+            using (StartupProfiler.Instance.BeginOperation("MutagenService.Initialize"))
             {
-                DataFolderPath = dataFolderPath;
-
-                var useExplicitPath = !string.IsNullOrWhiteSpace(dataFolderPath) &&
-                                      PathUtilities.HasPluginFiles(dataFolderPath);
-
-                if (useExplicitPath)
+                await Task.Run(() =>
                 {
-                    _logger.Information("Using explicit data path: {DataPath}", dataFolderPath);
-                    InitializeWithExplicitPath(dataFolderPath);
-                }
-                else
-                {
-                    _logger.Information("Using auto-detection (no explicit path or path has no plugins)");
-                    InitializeWithAutoDetection(dataFolderPath);
-                }
-            });
+                    DataFolderPath = dataFolderPath;
+
+                    var useExplicitPath = !string.IsNullOrWhiteSpace(dataFolderPath) &&
+                                          PathUtilities.HasPluginFiles(dataFolderPath);
+
+                    if (useExplicitPath)
+                    {
+                        _logger.Information("Using explicit data path: {DataPath}", dataFolderPath);
+                        using (StartupProfiler.Instance.BeginOperation("BuildGameEnvironment", "MutagenService.Initialize"))
+                        {
+                            InitializeWithExplicitPath(dataFolderPath);
+                        }
+                    }
+                    else
+                    {
+                        _logger.Information("Using auto-detection (no explicit path or path has no plugins)");
+                        using (StartupProfiler.Instance.BeginOperation("BuildGameEnvironment", "MutagenService.Initialize"))
+                        {
+                            InitializeWithAutoDetection(dataFolderPath);
+                        }
+                    }
+                });
+            }
 
             Initialized?.Invoke(this, EventArgs.Empty);
         }
@@ -134,6 +143,7 @@ public class MutagenService(ILoggingService loggingService, PatcherSettings sett
 
     public async Task<IEnumerable<string>> GetAvailablePluginsAsync(bool excludeBlacklisted = true)
     {
+        using var profilerScope = StartupProfiler.Instance.BeginOperation("ScanAvailablePlugins");
         return await Task.Run(() =>
         {
             if (string.IsNullOrEmpty(DataFolderPath))
@@ -141,25 +151,11 @@ public class MutagenService(ILoggingService loggingService, PatcherSettings sett
                 return Enumerable.Empty<string>();
             }
 
-            var skyrimRelease = GetSkyrimRelease();
-
             return PathUtilities.EnumeratePluginFiles(DataFolderPath)
-                .Select(path => (Path: path, Name: Path.GetFileName(path)))
-                .Where(p => !string.IsNullOrEmpty(p.Name))
-                .Where(p => !excludeBlacklisted || !IsBlacklisted(p.Name))
-                .Where(p =>
-                {
-                    try
-                    {
-                        using var mod = SkyrimMod.CreateFromBinaryOverlay(p.Path, skyrimRelease);
-                        return mod.Armors.Count > 0 || mod.Outfits.Count > 0;
-                    }
-                    catch
-                    {
-                        return false;
-                    }
-                })
-                .Select(p => p.Name)
+                .Select(Path.GetFileName)
+                .Where(name => !string.IsNullOrEmpty(name))
+                .Cast<string>()
+                .Where(name => !excludeBlacklisted || !IsBlacklisted(name))
                 .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
                 .ToList();
         });
