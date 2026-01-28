@@ -198,6 +198,8 @@ public partial class MainViewModel : ReactiveObject, IDisposable
 
     public ReadOnlyObservableCollection<string> FilteredOutfitPlugins { get; private set; } = null!;
 
+    public ReadOnlyObservableCollection<string> AvailablePlugins { get; private set; } = null!;
+
     public int AvailablePluginsTotalCount => _availablePluginsSource.Count;
 
     public ReadOnlyObservableCollection<ArmorRecordViewModel> FilteredSourceArmors { get; private set; } = null!;
@@ -764,6 +766,13 @@ public partial class MainViewModel : ReactiveObject, IDisposable
 
     private void ConfigureOutfitPluginsFiltering()
     {
+        _disposables.Add(_availablePluginsSource.Connect()
+            .Sort(SortExpressionComparer<string>.Ascending(p => p))
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Bind(out var availablePlugins)
+            .Subscribe());
+        AvailablePlugins = availablePlugins;
+
         var pluginFilter = this.WhenAnyValue(vm => vm.OutfitPluginSearchText)
             .Throttle(TimeSpan.FromMilliseconds(200))
             .Select(searchText => new Func<string, bool>(plugin =>
