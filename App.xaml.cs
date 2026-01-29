@@ -58,6 +58,8 @@ public partial class App
             builder.RegisterType<DistributionConflictDetectionService>().SingleInstance();
             builder.RegisterType<GameDataCacheService>().SingleInstance();
             builder.RegisterType<OutfitDraftManager>().SingleInstance();
+            builder.RegisterType<DistributionEntryHydrationService>().SingleInstance();
+            builder.RegisterType<DistributionFilePathService>().SingleInstance();
             builder.RegisterType<ThemeService>().SingleInstance();
             builder.RegisterType<TutorialService>().SingleInstance();
             builder.RegisterType<GuiSettingsService>().SingleInstance();

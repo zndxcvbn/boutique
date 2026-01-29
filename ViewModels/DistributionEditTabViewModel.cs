@@ -40,7 +40,9 @@ public partial class DistributionEditTabViewModel : ReactiveObject, IDisposable
     private readonly CompositeDisposable _disposables = new();
     private readonly Dictionary<DistributionEntryViewModel, IDisposable> _entryChangedSubscriptions = new();
     private readonly DistributionFileWriterService _fileWriterService;
+    private readonly DistributionFilePathService _filePathService;
     private readonly GuiSettingsService _guiSettings;
+    private readonly DistributionEntryHydrationService _hydrationService;
 
     private readonly IObservable<bool> _hasEntries;
     private readonly ILogger _logger;
@@ -140,6 +142,8 @@ public partial class DistributionEditTabViewModel : ReactiveObject, IDisposable
         GameDataCacheService cache,
         SettingsViewModel settings,
         GuiSettingsService guiSettings,
+        DistributionEntryHydrationService hydrationService,
+        DistributionFilePathService filePathService,
         ILogger logger)
     {
         _fileWriterService = fileWriterService;
@@ -148,6 +152,8 @@ public partial class DistributionEditTabViewModel : ReactiveObject, IDisposable
         _cache = cache;
         _settings = settings;
         _guiSettings = guiSettings;
+        _hydrationService = hydrationService;
+        _filePathService = filePathService;
         _logger = logger.ForContext<DistributionEditTabViewModel>();
 
         _mutagenService.PluginsChanged += OnPluginsChanged;
@@ -589,7 +595,11 @@ public partial class DistributionEditTabViewModel : ReactiveObject, IDisposable
                         NewFileName = GenerateUniqueNewFileName();
                     }
 
-                    UpdateDistributionFilePathFromNewFileName();
+                    var newPath = _filePathService.BuildPathFromNewFileName(NewFileName, DistributionFormat);
+                    if (newPath != null)
+                    {
+                        DistributionFilePath = newPath;
+                    }
                 }
             }
 
@@ -611,7 +621,12 @@ public partial class DistributionEditTabViewModel : ReactiveObject, IDisposable
             this.RaiseAndSetIfChanged(ref field, value ?? string.Empty);
             if (IsCreatingNewFile)
             {
-                UpdateDistributionFilePathFromNewFileName();
+                var newPath = _filePathService.BuildPathFromNewFileName(value, DistributionFormat);
+                if (newPath != null)
+                {
+                    DistributionFilePath = newPath;
+                }
+
                 DetectConflicts();
             }
         }
@@ -915,7 +930,7 @@ public partial class DistributionEditTabViewModel : ReactiveObject, IDisposable
 
         foreach (var factionFormKey in filter.Factions)
         {
-            var factionVm = ResolveFactionFormKey(factionFormKey);
+            var factionVm = _hydrationService.ResolveFactionFormKey(factionFormKey);
             if (factionVm != null && !entry.SelectedFactions.Any(f => f.FormKey == factionFormKey))
             {
                 entry.AddFaction(factionVm);
@@ -925,7 +940,7 @@ public partial class DistributionEditTabViewModel : ReactiveObject, IDisposable
 
         foreach (var raceFormKey in filter.Races)
         {
-            var raceVm = ResolveRaceFormKey(raceFormKey);
+            var raceVm = _hydrationService.ResolveRaceFormKey(raceFormKey);
             if (raceVm != null && !entry.SelectedRaces.Any(r => r.FormKey == raceFormKey))
             {
                 entry.AddRace(raceVm);
@@ -935,7 +950,7 @@ public partial class DistributionEditTabViewModel : ReactiveObject, IDisposable
 
         foreach (var keywordFormKey in filter.Keywords)
         {
-            var keywordVm = ResolveKeywordByFormKey(keywordFormKey);
+            var keywordVm = _hydrationService.ResolveKeywordByFormKey(keywordFormKey);
             if (keywordVm != null && !entry.SelectedKeywords.Any(k =>
                     string.Equals(
                         k.KeywordRecord.EditorID,
@@ -949,7 +964,7 @@ public partial class DistributionEditTabViewModel : ReactiveObject, IDisposable
 
         foreach (var classFormKey in filter.Classes)
         {
-            var classVm = ResolveClassFormKey(classFormKey);
+            var classVm = _hydrationService.ResolveClassFormKey(classFormKey);
             if (classVm != null && !entry.SelectedClasses.Any(c => c.FormKey == classFormKey))
             {
                 entry.AddClass(classVm);
@@ -1404,93 +1419,16 @@ public partial class DistributionEditTabViewModel : ReactiveObject, IDisposable
 
     private void UpdateDistributionFilePathForFormat()
     {
-        if (IsCreatingNewFile)
+        var newPath = _filePathService.UpdatePathForFormat(
+            DistributionFilePath,
+            IsCreatingNewFile,
+            NewFileName,
+            DistributionFormat);
+
+        if (newPath != null)
         {
-            UpdateDistributionFilePathFromNewFileName();
+            DistributionFilePath = newPath;
         }
-        else if (!string.IsNullOrWhiteSpace(DistributionFilePath))
-        {
-            UpdateDistributionFilePathFromExistingFile();
-        }
-    }
-
-    private void UpdateDistributionFilePathFromExistingFile()
-    {
-        var dataPath = _settings.SkyrimDataPath;
-        if (string.IsNullOrWhiteSpace(dataPath) || !Directory.Exists(dataPath))
-        {
-            return;
-        }
-
-        var currentFileName = Path.GetFileNameWithoutExtension(DistributionFilePath);
-        if (string.IsNullOrWhiteSpace(currentFileName))
-        {
-            return;
-        }
-
-        // Strip any existing format-specific suffixes
-        var baseName = currentFileName;
-        if (baseName.EndsWith("_DISTR", StringComparison.OrdinalIgnoreCase))
-        {
-            baseName = baseName[..^6];
-        }
-
-        // Use output folder as base if set, otherwise fall back to data path
-        var baseDirectory = !string.IsNullOrWhiteSpace(_settings.OutputPatchPath)
-            ? _settings.OutputPatchPath
-            : dataPath;
-
-        DistributionFilePath = GetDistributionFilePath(baseDirectory, baseName, DistributionFormat);
-        _logger.Debug(
-            "Updated distribution file path for format {Format}: {Path}",
-            DistributionFormat,
-            DistributionFilePath);
-    }
-
-    private void UpdateDistributionFilePathFromNewFileName()
-    {
-        var targetDirectory = !string.IsNullOrWhiteSpace(_settings.OutputPatchPath) &&
-                              Directory.Exists(_settings.OutputPatchPath)
-            ? _settings.OutputPatchPath
-            : _settings.SkyrimDataPath;
-
-        if (string.IsNullOrWhiteSpace(targetDirectory) || !Directory.Exists(targetDirectory))
-        {
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(NewFileName))
-        {
-            DistributionFilePath = string.Empty;
-            return;
-        }
-
-        var fileName = NewFileName.Trim();
-        var baseName = fileName;
-        if (baseName.EndsWith(".ini", StringComparison.OrdinalIgnoreCase))
-        {
-            baseName = baseName[..^4];
-        }
-
-        if (baseName.EndsWith("_DISTR", StringComparison.OrdinalIgnoreCase))
-        {
-            baseName = baseName[..^6];
-        }
-
-        DistributionFilePath = GetDistributionFilePath(targetDirectory, baseName, DistributionFormat);
-    }
-
-    private static string GetDistributionFilePath(string baseDirectory, string baseName, DistributionFileType format)
-    {
-        if (format == DistributionFileType.Spid)
-        {
-            // SPID files go in base directory with *_DISTR.ini naming convention
-            return Path.Combine(baseDirectory, $"{baseName}_DISTR.ini");
-        }
-
-        // SkyPatcher files go in skse/plugins/SkyPatcher/npc/ relative to base directory
-        var skyPatcherPath = PathUtilities.GetSkyPatcherNpcPath(baseDirectory);
-        return Path.Combine(skyPatcherPath, $"{baseName}.ini");
     }
 
     private void UpdateFileContent()
@@ -2010,298 +1948,11 @@ public partial class DistributionEditTabViewModel : ReactiveObject, IDisposable
         return false;
     }
 
-    /// <summary>
-    ///     Creates a DistributionEntryViewModel from a DistributionEntry,
-    ///     resolving outfit and NPC references for proper UI binding.
-    /// </summary>
     private DistributionEntryViewModel CreateEntryViewModel(DistributionEntry entry)
     {
         var entryVm = new DistributionEntryViewModel(entry, RemoveDistributionEntry, IsFormatChangingToSpid);
-        ResolveEntryOutfit(entryVm);
-        var npcVms = ResolveNpcFilters(entry.NpcFilters);
-        if (npcVms.Count > 0)
-        {
-            entryVm.SelectedNpcs = new ObservableCollection<NpcRecordViewModel>(npcVms);
-            entryVm.UpdateEntryNpcs();
-        }
-
-        var factionVms = ResolveFactionFilters(entry.FactionFilters);
-        if (factionVms.Count > 0)
-        {
-            entryVm.SelectedFactions = new ObservableCollection<FactionRecordViewModel>(factionVms);
-            entryVm.UpdateEntryFactions();
-        }
-
-        var keywordVms = ResolveKeywordFilters(entry.KeywordFilters);
-        if (keywordVms.Count > 0)
-        {
-            entryVm.SelectedKeywords = new ObservableCollection<KeywordRecordViewModel>(keywordVms);
-            entryVm.UpdateEntryKeywords();
-        }
-
-        var raceVms = ResolveRaceFilters(entry.RaceFilters);
-        if (raceVms.Count > 0)
-        {
-            entryVm.SelectedRaces = new ObservableCollection<RaceRecordViewModel>(raceVms);
-            entryVm.UpdateEntryRaces();
-        }
-
-        var classVms = ResolveClassFormKeys(entry.ClassFormKeys);
-        if (classVms.Count > 0)
-        {
-            entryVm.SelectedClasses = new ObservableCollection<ClassRecordViewModel>(classVms);
-            entryVm.UpdateEntryClasses();
-        }
-
+        _hydrationService.HydrateEntry(entryVm, entry, AvailableOutfits);
         return entryVm;
-    }
-
-    /// <summary>
-    ///     Resolves the entry's outfit to an instance from AvailableOutfits
-    ///     so the ComboBox can properly display and select it.
-    /// </summary>
-    private void ResolveEntryOutfit(DistributionEntryViewModel entryVm)
-    {
-        if (entryVm.SelectedOutfit == null)
-        {
-            return;
-        }
-
-        var outfitFormKey = entryVm.SelectedOutfit.FormKey;
-        var matchingOutfit = AvailableOutfits.FirstOrDefault(o => o.FormKey == outfitFormKey);
-
-        if (matchingOutfit != null)
-        {
-            entryVm.SelectedOutfit = matchingOutfit;
-        }
-    }
-
-    private List<NpcRecordViewModel> ResolveNpcFilters(IEnumerable<FormKeyFilter> filters)
-    {
-        var npcVms = new List<NpcRecordViewModel>();
-
-        foreach (var filter in filters)
-        {
-            var npcVm = ResolveNpcFormKey(filter.FormKey);
-            if (npcVm != null)
-            {
-                npcVm.IsExcluded = filter.IsExcluded;
-                npcVms.Add(npcVm);
-            }
-        }
-
-        return npcVms;
-    }
-
-    private NpcRecordViewModel? ResolveNpcFormKey(FormKey formKey)
-    {
-        var existingNpc = AvailableNpcs.FirstOrDefault(npc => npc.FormKey == formKey);
-        if (existingNpc != null)
-        {
-            return new NpcRecordViewModel(existingNpc.NpcRecord);
-        }
-
-        if (_mutagenService.LinkCache is ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache &&
-            linkCache.TryResolve<INpcGetter>(formKey, out var npc))
-        {
-            var npcRecord = new NpcRecord(
-                npc.FormKey,
-                npc.EditorID,
-                npc.Name?.String,
-                npc.FormKey.ModKey);
-            return new NpcRecordViewModel(npcRecord);
-        }
-
-        return null;
-    }
-
-    private List<FactionRecordViewModel> ResolveFactionFilters(IEnumerable<FormKeyFilter> filters)
-    {
-        var factionVms = new List<FactionRecordViewModel>();
-
-        foreach (var filter in filters)
-        {
-            var factionVm = ResolveFactionFormKey(filter.FormKey);
-            if (factionVm != null)
-            {
-                factionVm.IsExcluded = filter.IsExcluded;
-                factionVms.Add(factionVm);
-            }
-        }
-
-        return factionVms;
-    }
-
-    private FactionRecordViewModel? ResolveFactionFormKey(FormKey formKey)
-    {
-        var existingFaction = AvailableFactions.FirstOrDefault(f => f.FormKey == formKey);
-        if (existingFaction != null)
-        {
-            return new FactionRecordViewModel(existingFaction.FactionRecord);
-        }
-
-        if (_mutagenService.LinkCache is ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache &&
-            linkCache.TryResolve<IFactionGetter>(formKey, out var faction))
-        {
-            var factionRecord = new FactionRecord(
-                faction.FormKey,
-                faction.EditorID,
-                faction.Name?.String,
-                faction.FormKey.ModKey);
-            return new FactionRecordViewModel(factionRecord);
-        }
-
-        return null;
-    }
-
-    private List<KeywordRecordViewModel> ResolveKeywordFilters(IEnumerable<KeywordFilter> filters)
-    {
-        var keywordVms = new List<KeywordRecordViewModel>();
-
-        foreach (var filter in filters)
-        {
-            var keywordVm = ResolveKeywordEditorId(filter.EditorId);
-            if (keywordVm != null)
-            {
-                keywordVm.IsExcluded = filter.IsExcluded;
-                keywordVms.Add(keywordVm);
-            }
-        }
-
-        return keywordVms;
-    }
-
-    private KeywordRecordViewModel? ResolveKeywordEditorId(string editorId)
-    {
-        if (string.IsNullOrWhiteSpace(editorId))
-        {
-            return null;
-        }
-
-        // Check if it's already in AvailableKeywords
-        var existingKeyword = AvailableKeywords.FirstOrDefault(k =>
-            string.Equals(k.KeywordRecord.EditorID, editorId, StringComparison.OrdinalIgnoreCase));
-        if (existingKeyword != null)
-        {
-            return new KeywordRecordViewModel(existingKeyword.KeywordRecord);
-        }
-
-        // Try to resolve from LinkCache
-        if (_mutagenService.LinkCache is ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
-        {
-            var keyword = linkCache.WinningOverrides<IKeywordGetter>()
-                .FirstOrDefault(k => string.Equals(k.EditorID, editorId, StringComparison.OrdinalIgnoreCase));
-            if (keyword != null)
-            {
-                var keywordRecord = new KeywordRecord(
-                    keyword.FormKey,
-                    keyword.EditorID,
-                    keyword.FormKey.ModKey);
-                return new KeywordRecordViewModel(keywordRecord);
-            }
-        }
-
-        // Create a virtual keyword record (for SPID-distributed keywords)
-        var virtualRecord = new KeywordRecord(FormKey.Null, editorId, ModKey.Null);
-        return new KeywordRecordViewModel(virtualRecord);
-    }
-
-    private KeywordRecordViewModel? ResolveKeywordByFormKey(FormKey formKey)
-    {
-        var existingKeyword = AvailableKeywords.FirstOrDefault(k => k.FormKey == formKey);
-        if (existingKeyword != null)
-        {
-            return new KeywordRecordViewModel(existingKeyword.KeywordRecord);
-        }
-
-        if (_mutagenService.LinkCache is ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache &&
-            linkCache.TryResolve<IKeywordGetter>(formKey, out var keyword))
-        {
-            var keywordRecord = new KeywordRecord(
-                keyword.FormKey,
-                keyword.EditorID,
-                keyword.FormKey.ModKey);
-            return new KeywordRecordViewModel(keywordRecord);
-        }
-
-        return null;
-    }
-
-    private List<RaceRecordViewModel> ResolveRaceFilters(IEnumerable<FormKeyFilter> filters)
-    {
-        var raceVms = new List<RaceRecordViewModel>();
-
-        foreach (var filter in filters)
-        {
-            var raceVm = ResolveRaceFormKey(filter.FormKey);
-            if (raceVm != null)
-            {
-                raceVm.IsExcluded = filter.IsExcluded;
-                raceVms.Add(raceVm);
-            }
-        }
-
-        return raceVms;
-    }
-
-    private RaceRecordViewModel? ResolveRaceFormKey(FormKey formKey)
-    {
-        var existingRace = AvailableRaces.FirstOrDefault(r => r.FormKey == formKey);
-        if (existingRace != null)
-        {
-            return new RaceRecordViewModel(existingRace.RaceRecord);
-        }
-
-        if (_mutagenService.LinkCache is ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache &&
-            linkCache.TryResolve<IRaceGetter>(formKey, out var race))
-        {
-            var raceRecord = new RaceRecord(
-                race.FormKey,
-                race.EditorID,
-                race.Name?.String,
-                race.FormKey.ModKey);
-            return new RaceRecordViewModel(raceRecord);
-        }
-
-        return null;
-    }
-
-    private List<ClassRecordViewModel> ResolveClassFormKeys(IEnumerable<FormKey> formKeys)
-    {
-        var classVms = new List<ClassRecordViewModel>();
-
-        foreach (var formKey in formKeys)
-        {
-            var classVm = ResolveClassFormKey(formKey);
-            if (classVm != null)
-            {
-                classVms.Add(classVm);
-            }
-        }
-
-        return classVms;
-    }
-
-    private ClassRecordViewModel? ResolveClassFormKey(FormKey formKey)
-    {
-        var existingClass = AvailableClasses.FirstOrDefault(c => c.FormKey == formKey);
-        if (existingClass != null)
-        {
-            return existingClass;
-        }
-
-        if (_mutagenService.LinkCache is ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache &&
-            linkCache.TryResolve<IClassGetter>(formKey, out var classRecord))
-        {
-            var record = new ClassRecord(
-                classRecord.FormKey,
-                classRecord.EditorID,
-                classRecord.Name?.String,
-                classRecord.FormKey.ModKey);
-            return new ClassRecordViewModel(record);
-        }
-
-        return null;
     }
 
     public void Dispose()

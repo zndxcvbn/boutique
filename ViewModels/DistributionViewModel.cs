@@ -39,6 +39,8 @@ public partial class DistributionViewModel : ReactiveObject
         ArmorPreviewService armorPreviewService,
         MutagenService mutagenService,
         GuiSettingsService guiSettings,
+        DistributionEntryHydrationService hydrationService,
+        DistributionFilePathService filePathService,
         ILogger logger)
     {
         Settings = settings;
@@ -56,6 +58,8 @@ public partial class DistributionViewModel : ReactiveObject
             gameDataCache,
             settings,
             guiSettings,
+            hydrationService,
+            filePathService,
             logger);
 
         NpcsTab = new DistributionNpcsTabViewModel(
