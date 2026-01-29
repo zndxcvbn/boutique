@@ -216,6 +216,7 @@ public partial class DistributionEntryViewModel : ReactiveObject
             .Subscribe(rawFilters =>
             {
                 Entry.RawStringFilters = string.IsNullOrWhiteSpace(rawFilters) ? null : rawFilters;
+                RaiseFilterSummaryChanged();
                 RaiseEntryChanged();
             });
 
@@ -224,6 +225,7 @@ public partial class DistributionEntryViewModel : ReactiveObject
             .Subscribe(rawFilters =>
             {
                 Entry.RawFormFilters = string.IsNullOrWhiteSpace(rawFilters) ? null : rawFilters;
+                RaiseFilterSummaryChanged();
                 RaiseEntryChanged();
             });
 
@@ -356,6 +358,16 @@ public partial class DistributionEntryViewModel : ReactiveObject
         if (UseChance && Chance < 100)
         {
             parts.Add($"{Chance}%");
+        }
+
+        if (!string.IsNullOrWhiteSpace(_rawStringFilters))
+        {
+            parts.Add("String filters");
+        }
+
+        if (!string.IsNullOrWhiteSpace(_rawFormFilters))
+        {
+            parts.Add("Form filters");
         }
 
         return parts.Count > 0 ? string.Join(", ", parts) : "No filters";
