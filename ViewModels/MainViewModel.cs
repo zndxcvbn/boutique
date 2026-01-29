@@ -131,6 +131,7 @@ public partial class MainViewModel : ReactiveObject, IDisposable
         _draftManager.DraftModified += TriggerAutoSave;
         _draftManager.RequestNameAsync = async tuple =>
             await RequestOutfitName.Handle(tuple).ToTask();
+        _draftManager.PreviewDraftAsync = PreviewDraftAsync;
 
         _draftManager.WhenAnyValue(m => m.HasDrafts)
             .Subscribe(v => HasOutfitDrafts = v);

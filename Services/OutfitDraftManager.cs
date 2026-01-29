@@ -74,6 +74,7 @@ public class OutfitDraftManager : ReactiveObject, IDisposable
     public event Action? DraftModified;
 
     public Func<(string Prompt, string DefaultValue), Task<string?>>? RequestNameAsync { get; set; }
+    public Func<OutfitDraftViewModel, Task>? PreviewDraftAsync { get; set; }
 
     public bool SuppressAutoSave
     {
@@ -631,7 +632,7 @@ public class OutfitDraftManager : ReactiveObject, IDisposable
             pieces,
             RemoveDraft,
             RemovePiece,
-            d => Task.CompletedTask,
+            d => PreviewDraftAsync?.Invoke(d) ?? Task.CompletedTask,
             d => DuplicateDraftAsync(d))
         {
             FormKey = formKey,

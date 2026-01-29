@@ -57,11 +57,11 @@ public class ArmorPreviewService(MutagenService mutagenService, GameAssetLocator
         ILinkCache linkCache,
         CancellationToken cancellationToken)
     {
-        var gender = DetermineEffectiveGender(pieces, preferredGender, linkCache);
+        var gender = preferredGender;
         _logger.Debug(
-            "Building preview for {PieceCount} armor pieces with preferred gender {PreferredGender}",
+            "Building preview for {PieceCount} armor pieces with gender {Gender}",
             pieces.Count,
-            preferredGender);
+            gender);
         var meshes = new List<PreviewMeshShape>();
         var missingAssets = new List<string>();
 
@@ -147,25 +147,6 @@ public class ArmorPreviewService(MutagenService mutagenService, GameAssetLocator
         }
 
         return new ArmorPreviewScene(gender, meshes, missingAssets);
-    }
-
-    private static GenderedModelVariant DetermineEffectiveGender(
-        IReadOnlyList<ArmorRecordViewModel> pieces,
-        GenderedModelVariant preferredGender,
-        ILinkCache linkCache)
-    {
-        if (preferredGender == GenderedModelVariant.Male)
-        {
-            return GenderedModelVariant.Male;
-        }
-
-        var hasMaleOnlyAddon = pieces
-            .SelectMany(p => p.Armor.Armature)
-            .Select(link => linkCache.TryResolve<IArmorAddonGetter>(link.FormKey, out var addon) ? addon : null)
-            .Where(addon => addon?.WorldModel != null)
-            .Any(addon => addon!.WorldModel!.Female == null && addon.WorldModel.Male != null);
-
-        return hasMaleOnlyAddon ? GenderedModelVariant.Male : GenderedModelVariant.Female;
     }
 
     private List<PreviewMeshShape> LoadMeshesFromNif(
