@@ -239,6 +239,8 @@ public class DistributionFileWriterService
                     // Build outfit lookup for fast EditorID resolution
                     var outfitByEditorId = FormKeyHelper.BuildOutfitEditorIdLookup(linkCache);
 
+                    var virtualKeywords = ExtractVirtualKeywordsFromLines(lines);
+
                     for (var lineNumber = 0; lineNumber < lines.Length; lineNumber++)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
@@ -273,6 +275,7 @@ public class DistributionFileWriterService
                                     linkCache,
                                     cachedNpcs,
                                     cachedOutfits,
+                                    virtualKeywords,
                                     _logger);
                                 if (entry == null)
                                 {
@@ -286,7 +289,7 @@ public class DistributionFileWriterService
                                     spidFilter,
                                     linkCache,
                                     cachedNpcs,
-                                    null,
+                                    virtualKeywords,
                                     _logger);
                                 if (entry == null)
                                 {
@@ -872,5 +875,28 @@ public class DistributionFileWriterService
         }
 
         return parts.Count > 0 ? string.Join("/", parts) : null;
+    }
+
+    private static HashSet<string> ExtractVirtualKeywordsFromLines(string[] lines)
+    {
+        var virtualKeywords = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var line in lines)
+        {
+            var trimmed = line.Trim();
+            if (string.IsNullOrWhiteSpace(trimmed) || trimmed.StartsWith(';') || trimmed.StartsWith('#'))
+            {
+                continue;
+            }
+
+            if (SpidLineParser.TryParse(trimmed, out var spidFilter) &&
+                spidFilter?.FormType == SpidFormType.Keyword &&
+                !string.IsNullOrWhiteSpace(spidFilter.FormIdentifier))
+            {
+                virtualKeywords.Add(spidFilter.FormIdentifier);
+            }
+        }
+
+        return virtualKeywords;
     }
 }

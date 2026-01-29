@@ -63,6 +63,17 @@ public class SpidFilterMatchingService
 
     private static bool NpcMatchesEntry(NpcFilterData npc, DistributionEntry entry)
     {
+        var hasResolvedFilters = entry.NpcFilters.Count > 0 || entry.FactionFilters.Count > 0 ||
+                                 entry.KeywordFilters.Count > 0 || entry.RaceFilters.Count > 0 ||
+                                 entry.ClassFormKeys.Count > 0 || !entry.TraitFilters.IsEmpty;
+        var hasUnresolvedFilters = !string.IsNullOrWhiteSpace(entry.RawStringFilters) ||
+                                   !string.IsNullOrWhiteSpace(entry.RawFormFilters);
+
+        if (!hasResolvedFilters && hasUnresolvedFilters)
+        {
+            return false;
+        }
+
         if (!MatchesFilters(entry.NpcFilters, f => f.FormKey, [npc.FormKey]))
         {
             return false;

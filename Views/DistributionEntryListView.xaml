@@ -180,11 +180,29 @@
               </Border>
 
               <!-- Target name -->
-              <TextBlock Grid.Column="1" Grid.Row="0"
-                         Text="{Binding TargetDisplayName}"
-                         FontWeight="SemiBold"
-                         TextTrimming="CharacterEllipsis"
-                         ToolTip="{Binding TargetDisplayName}" />
+              <StackPanel Grid.Column="1" Grid.Row="0" Orientation="Horizontal">
+                <TextBlock Text="⚠ " Foreground="#CC6600" FontWeight="Bold"
+                           ToolTip="This entry has unresolved filters that couldn't be matched to known NPCs or keywords">
+                  <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                      <Setter Property="Visibility" Value="Collapsed" />
+                      <Style.Triggers>
+                        <MultiDataTrigger>
+                          <MultiDataTrigger.Conditions>
+                            <Condition Binding="{Binding HasUnresolvedFilters}" Value="True" />
+                            <Condition Binding="{Binding IsOutfitDistribution}" Value="True" />
+                          </MultiDataTrigger.Conditions>
+                          <Setter Property="Visibility" Value="Visible" />
+                        </MultiDataTrigger>
+                      </Style.Triggers>
+                    </Style>
+                  </TextBlock.Style>
+                </TextBlock>
+                <TextBlock Text="{Binding TargetDisplayName}"
+                           FontWeight="SemiBold"
+                           TextTrimming="CharacterEllipsis"
+                           ToolTip="{Binding TargetDisplayName}" />
+              </StackPanel>
 
               <!-- Filter summary -->
               <TextBlock Grid.Column="1" Grid.Row="1"

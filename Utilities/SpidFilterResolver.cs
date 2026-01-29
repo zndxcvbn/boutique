@@ -72,7 +72,7 @@ public static class SpidFilterResolver
                 resolvedFormEditorIds,
                 logger);
 
-            var rawStringFilters = ExtractUnresolvableStringFilters(filter.StringFilters, keywordFilters);
+            var rawStringFilters = ExtractUnresolvableStringFilters(filter.StringFilters, npcFilters, keywordFilters, cachedNpcs);
             var rawFormFilters = ExtractUnresolvableFormFilters(filter.FormFilters, resolvedFormEditorIds);
 
             var hasAnyFilter = npcFilters.Count > 0 || factionFilters.Count > 0 ||
@@ -177,7 +177,7 @@ public static class SpidFilterResolver
                 resolvedFormEditorIds,
                 logger);
 
-            var rawStringFilters = ExtractUnresolvableStringFilters(filter.StringFilters, keywordFilters);
+            var rawStringFilters = ExtractUnresolvableStringFilters(filter.StringFilters, npcFilters, keywordFilters, cachedNpcs);
             var rawFormFilters = ExtractUnresolvableFormFilters(filter.FormFilters, resolvedFormEditorIds);
 
             var entry = new DistributionEntry
@@ -319,8 +319,7 @@ public static class SpidFilterResolver
                     continue;
                 }
 
-                keywordFilters.Add(new KeywordFilter(part.Value, part.IsNegated));
-                logger?.Verbose("Treating unresolved string filter as keyword: {Value}", part.Value);
+                logger?.Verbose("Unresolved string filter (not NPC or keyword): {Value}", part.Value);
             }
         }
 
@@ -355,8 +354,7 @@ public static class SpidFilterResolver
                 continue;
             }
 
-            keywordFilters.Add(new KeywordFilter(exclusion.Value, true));
-            logger?.Verbose("Treating global exclusion as excluded keyword: {Value}", exclusion.Value);
+            logger?.Verbose("Unresolved global exclusion (not NPC or keyword): {Value}", exclusion.Value);
         }
     }
 
@@ -570,11 +568,22 @@ public static class SpidFilterResolver
 
     private static string? ExtractUnresolvableStringFilters(
         SpidFilterSection stringFilters,
-        List<KeywordFilter> resolvedKeywordFilters)
+        List<FormKeyFilter> resolvedNpcFilters,
+        List<KeywordFilter> resolvedKeywordFilters,
+        IReadOnlyList<INpcGetter> cachedNpcs)
     {
-        var resolvedSet = new HashSet<string>(
-            resolvedKeywordFilters.Where(k => k.IsExcluded).Select(k => k.EditorId),
+        var resolvedNpcFormKeys = new HashSet<FormKey>(resolvedNpcFilters.Select(f => f.FormKey));
+        var resolvedKeywordEditorIds = new HashSet<string>(
+            resolvedKeywordFilters.Select(k => k.EditorId),
             StringComparer.OrdinalIgnoreCase);
+
+        bool IsResolved(string value) =>
+            resolvedKeywordEditorIds.Contains(value) ||
+            cachedNpcs.Any(n =>
+                resolvedNpcFormKeys.Contains(n.FormKey) &&
+                (string.Equals(n.EditorID, value, StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(n.Name?.String, value, StringComparison.OrdinalIgnoreCase)));
+
         var unresolvableParts = new List<string>();
 
         foreach (var expr in stringFilters.Expressions)
@@ -586,9 +595,9 @@ public static class SpidFilterResolver
                 {
                     exprParts.Add(part.Value);
                 }
-                else if (part.IsNegated && !resolvedSet.Contains(part.Value))
+                else if (!IsResolved(part.Value))
                 {
-                    exprParts.Add($"-{part.Value}");
+                    exprParts.Add(part.IsNegated ? $"-{part.Value}" : part.Value);
                 }
             }
 
@@ -600,7 +609,7 @@ public static class SpidFilterResolver
 
         foreach (var exclusion in stringFilters.GlobalExclusions)
         {
-            if (!resolvedSet.Contains(exclusion.Value))
+            if (!IsResolved(exclusion.Value))
             {
                 unresolvableParts.Add($"-{exclusion.Value}");
             }

@@ -243,6 +243,13 @@ public partial class DistributionEntryViewModel : ReactiveObject
 
     public bool HasTraitFilters => Gender != GenderFilter.Any || Unique != UniqueFilter.Any || IsChild.HasValue;
 
+    public bool HasUnresolvedFilters =>
+        !string.IsNullOrWhiteSpace(RawStringFilters) || !string.IsNullOrWhiteSpace(RawFormFilters);
+
+    public bool HasAnyResolvedFilters =>
+        _selectedNpcs.Count > 0 || _selectedFactions.Count > 0 || _selectedKeywords.Count > 0 ||
+        _selectedRaces.Count > 0 || _selectedClasses.Count > 0 || HasTraitFilters;
+
     public string TargetDisplayName => Type == DistributionType.Outfit
         ? SelectedOutfit?.EditorID ?? "(No outfit)"
         : !string.IsNullOrWhiteSpace(KeywordToDistribute)
@@ -358,6 +365,8 @@ public partial class DistributionEntryViewModel : ReactiveObject
     {
         this.RaisePropertyChanged(nameof(FilterSummary));
         this.RaisePropertyChanged(nameof(TargetDisplayName));
+        this.RaisePropertyChanged(nameof(HasUnresolvedFilters));
+        this.RaisePropertyChanged(nameof(HasAnyResolvedFilters));
     }
 
     public void UpdateEntryNpcs()
