@@ -12,6 +12,8 @@ public partial class RestartDialog : Window
         {
             RootScaleTransform.ScaleX = themeService.CurrentFontScale;
             RootScaleTransform.ScaleY = themeService.CurrentFontScale;
+
+            SourceInitialized += (_, _) => themeService.ApplyTitleBarTheme(this);
         }
     }
 

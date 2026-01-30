@@ -8,7 +8,7 @@
         MinWidth="450" MinHeight="350"
         WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False"
-        Background="{StaticResource Brush.PrimaryBackground}">
+        Background="{StaticResource Brush.CardBackground}">
 
   <Grid x:Name="RootGrid" Margin="20">
     <Grid.LayoutTransform>

@@ -14,6 +14,8 @@ public partial class MissingMastersDialog : Window
         {
             RootScaleTransform.ScaleX = themeService.CurrentFontScale;
             RootScaleTransform.ScaleY = themeService.CurrentFontScale;
+
+            SourceInitialized += (_, _) => themeService.ApplyTitleBarTheme(this);
         }
 
         var viewModels = result.MissingMasters

@@ -18,6 +18,8 @@ public partial class InputDialog : Window
         {
             RootScaleTransform.ScaleX = themeService.CurrentFontScale;
             RootScaleTransform.ScaleY = themeService.CurrentFontScale;
+
+            SourceInitialized += (_, _) => themeService.ApplyTitleBarTheme(this);
         }
 
         Loaded += (_, _) =>

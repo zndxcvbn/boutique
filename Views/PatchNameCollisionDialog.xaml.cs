@@ -13,6 +13,8 @@ public partial class PatchNameCollisionDialog : Window
         {
             RootScaleTransform.ScaleX = themeService.CurrentFontScale;
             RootScaleTransform.ScaleY = themeService.CurrentFontScale;
+
+            SourceInitialized += (_, _) => themeService.ApplyTitleBarTheme(this);
         }
 
         var messageTemplate = Boutique.Resources.Strings.ResourceManager.GetString(
