@@ -359,69 +359,34 @@ public partial class DistributionEditTabViewModel : ReactiveObject, IDisposable
 
     private void SetupFilterPipelines()
     {
-        var npcFilter = this.WhenAnyValue(vm => vm.NpcSearchText)
-            .Throttle(TimeSpan.FromMilliseconds(200))
-            .Select(text => text?.Trim().ToLowerInvariant() ?? string.Empty)
-            .Select(term => new Func<NpcRecordViewModel, bool>(npc =>
-                string.IsNullOrEmpty(term) || npc.MatchesSearch(term)));
-
-        _disposables.Add(_cache.AllNpcRecords.ToObservableChangeSet()
-            .Filter(npcFilter)
-            .ObserveOn(RxApp.MainThreadScheduler)
-            .Bind(out var filteredNpcs)
-            .Subscribe());
+        _disposables.Add(FilterPipelineFactory.CreateSearchFilter(
+            this.WhenAnyValue(vm => vm.NpcSearchText),
+            _cache.AllNpcRecords,
+            out var filteredNpcs));
         FilteredNpcs = filteredNpcs;
 
-        var factionFilter = this.WhenAnyValue(vm => vm.FactionSearchText)
-            .Throttle(TimeSpan.FromMilliseconds(200))
-            .Select(text => text?.Trim().ToLowerInvariant() ?? string.Empty)
-            .Select(term => new Func<FactionRecordViewModel, bool>(faction =>
-                string.IsNullOrEmpty(term) || faction.MatchesSearch(term)));
-
-        _disposables.Add(_cache.AllFactions.ToObservableChangeSet()
-            .Filter(factionFilter)
-            .ObserveOn(RxApp.MainThreadScheduler)
-            .Bind(out var filteredFactions)
-            .Subscribe());
+        _disposables.Add(FilterPipelineFactory.CreateSearchFilter(
+            this.WhenAnyValue(vm => vm.FactionSearchText),
+            _cache.AllFactions,
+            out var filteredFactions));
         FilteredFactions = filteredFactions;
 
-        var keywordFilter = this.WhenAnyValue(vm => vm.KeywordSearchText)
-            .Throttle(TimeSpan.FromMilliseconds(200))
-            .Select(text => text?.Trim().ToLowerInvariant() ?? string.Empty)
-            .Select(term => new Func<KeywordRecordViewModel, bool>(keyword =>
-                string.IsNullOrEmpty(term) || keyword.MatchesSearch(term)));
-
-        _disposables.Add(_cache.AllKeywords.ToObservableChangeSet()
-            .Filter(keywordFilter)
-            .ObserveOn(RxApp.MainThreadScheduler)
-            .Bind(out var filteredKeywords)
-            .Subscribe());
+        _disposables.Add(FilterPipelineFactory.CreateSearchFilter(
+            this.WhenAnyValue(vm => vm.KeywordSearchText),
+            _cache.AllKeywords,
+            out var filteredKeywords));
         FilteredKeywords = filteredKeywords;
 
-        var raceFilter = this.WhenAnyValue(vm => vm.RaceSearchText)
-            .Throttle(TimeSpan.FromMilliseconds(200))
-            .Select(text => text?.Trim().ToLowerInvariant() ?? string.Empty)
-            .Select(term => new Func<RaceRecordViewModel, bool>(race =>
-                string.IsNullOrEmpty(term) || race.MatchesSearch(term)));
-
-        _disposables.Add(_cache.AllRaces.ToObservableChangeSet()
-            .Filter(raceFilter)
-            .ObserveOn(RxApp.MainThreadScheduler)
-            .Bind(out var filteredRaces)
-            .Subscribe());
+        _disposables.Add(FilterPipelineFactory.CreateSearchFilter(
+            this.WhenAnyValue(vm => vm.RaceSearchText),
+            _cache.AllRaces,
+            out var filteredRaces));
         FilteredRaces = filteredRaces;
 
-        var classFilter = this.WhenAnyValue(vm => vm.ClassSearchText)
-            .Throttle(TimeSpan.FromMilliseconds(200))
-            .Select(text => text?.Trim().ToLowerInvariant() ?? string.Empty)
-            .Select(term => new Func<ClassRecordViewModel, bool>(classVm =>
-                string.IsNullOrEmpty(term) || classVm.MatchesSearch(term)));
-
-        _disposables.Add(_cache.AllClasses.ToObservableChangeSet()
-            .Filter(classFilter)
-            .ObserveOn(RxApp.MainThreadScheduler)
-            .Bind(out var filteredClasses)
-            .Subscribe());
+        _disposables.Add(FilterPipelineFactory.CreateSearchFilter(
+            this.WhenAnyValue(vm => vm.ClassSearchText),
+            _cache.AllClasses,
+            out var filteredClasses));
         FilteredClasses = filteredClasses;
     }
 
