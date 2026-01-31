@@ -268,6 +268,11 @@ public partial class DistributionEditTabViewModel : ReactiveObject, IDisposable
 
             foreach (var entry in DistributionEntries)
             {
+                if (entry.Entry.HasUnresolvedFilters)
+                {
+                    continue;
+                }
+
                 var outfitName = entry.SelectedOutfit?.EditorID ?? "(no outfit)";
                 var matchingNpcs = SpidFilterMatchingService.GetMatchingNpcsForEntry(allNpcs, entry.Entry);
 

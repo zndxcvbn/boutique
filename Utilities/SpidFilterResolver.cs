@@ -109,6 +109,15 @@ public static class SpidFilterResolver
                 RawFormFilters = rawFormFilters
             };
 
+            if (outfitFilterFormKeys.Count > 0)
+            {
+                logger?.Information(
+                    "Resolved {Count} outfit filter(s) for line: {Line} => {FormKeys}",
+                    outfitFilterFormKeys.Count,
+                    filter.RawLine,
+                    string.Join(", ", outfitFilterFormKeys));
+            }
+
             if (filter.Chance != 100)
             {
                 entry.Chance = filter.Chance;
@@ -374,10 +383,16 @@ public static class SpidFilterResolver
         HashSet<string>? resolvedEditorIds,
         ILogger? logger)
     {
+        if (formFilters.Expressions.Count > 0)
+        {
+            logger?.Information("Processing {Count} form filter expression(s)", formFilters.Expressions.Count);
+        }
+
         foreach (var expr in formFilters.Expressions)
         {
             foreach (var part in expr.Parts)
             {
+                logger?.Debug("Processing form filter part: {Value}", part.Value);
                 if (TryResolveFormFilterByFormKey(part, linkCache, npcFilters, factionFilters, raceFilters,
                         outfitFilterFormKeys, resolvedEditorIds, logger))
                 {
@@ -468,12 +483,14 @@ public static class SpidFilterResolver
     {
         if (TryParseAsFormKey(part.Value, out var formKey))
         {
+            logger?.Information("Parsed {Value} as explicit FormKey: {FormKey}", part.Value, formKey);
             return TryResolveByFormKey(formKey, part.IsNegated, part.Value, linkCache, npcFilters,
                 factionFilters, raceFilters, outfitFilterFormKeys, resolvedEditorIds, logger);
         }
 
         if (FormKeyHelper.TryParseFormId(part.Value, out var formId))
         {
+            logger?.Information("Parsed {Value} as bare FormID: 0x{FormId:X}", part.Value, formId);
             return TryResolveBareFormId(formId, part.IsNegated, part.Value, linkCache, npcFilters,
                 factionFilters, raceFilters, outfitFilterFormKeys, resolvedEditorIds, logger);
         }
@@ -507,11 +524,19 @@ public static class SpidFilterResolver
         List<FormKeyFilter> raceFilters,
         List<FormKey> outfitFilterFormKeys,
         HashSet<string>? resolvedEditorIds,
-        ILogger? logger) =>
-        TryResolveBareFormIdAs<INpcGetter>(formId, isNegated, originalValue, linkCache, npcFilters, resolvedEditorIds, logger) ||
-        TryResolveBareFormIdAs<IFactionGetter>(formId, isNegated, originalValue, linkCache, factionFilters, resolvedEditorIds, logger) ||
-        TryResolveBareFormIdAs<IRaceGetter>(formId, isNegated, originalValue, linkCache, raceFilters, resolvedEditorIds, logger) ||
-        TryResolveBareFormIdAsFormKey<IOutfitGetter>(formId, originalValue, linkCache, outfitFilterFormKeys, resolvedEditorIds, logger);
+        ILogger? logger)
+    {
+        if (TryResolveBareFormIdAs<INpcGetter>(formId, isNegated, originalValue, linkCache, npcFilters, resolvedEditorIds, logger) ||
+            TryResolveBareFormIdAs<IFactionGetter>(formId, isNegated, originalValue, linkCache, factionFilters, resolvedEditorIds, logger) ||
+            TryResolveBareFormIdAs<IRaceGetter>(formId, isNegated, originalValue, linkCache, raceFilters, resolvedEditorIds, logger) ||
+            TryResolveBareFormIdAsFormKey<IOutfitGetter>(formId, originalValue, linkCache, outfitFilterFormKeys, resolvedEditorIds, logger))
+        {
+            return true;
+        }
+
+        logger?.Warning("Could not resolve bare FormID {Value} (0x{FormId:X}) as NPC, Faction, Race, or Outfit", originalValue, formId);
+        return false;
+    }
 
     private static bool TryResolveFormKeyAs<T>(
         FormKey formKey,

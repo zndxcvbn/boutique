@@ -207,7 +207,6 @@ public static class SpidLineParser
                 {
                     var exclusionPart = new SpidFilterPart { Value = exclusionValue, IsNegated = true };
 
-                    // Pre-resolve FormKey or ModKey status
                     if (FormKeyHelper.TryParse(exclusionValue, out var formKey))
                     {
                         exclusionPart.FormKey = formKey;
@@ -265,7 +264,6 @@ public static class SpidLineParser
             {
                 var filterPart = new SpidFilterPart { Value = value, IsNegated = isNegated };
 
-                // Pre-resolve FormKey or ModKey status
                 if (FormKeyHelper.TryParse(value, out var formKey))
                 {
                     filterPart.FormKey = formKey;

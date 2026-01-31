@@ -74,6 +74,9 @@ public sealed class DistributionEntry
     ///     Supports SPID form filter syntax for advanced use cases.
     /// </summary>
     public string? RawFormFilters { get; set; }
+
+    public bool HasUnresolvedFilters =>
+        !string.IsNullOrWhiteSpace(RawStringFilters) || !string.IsNullOrWhiteSpace(RawFormFilters);
 }
 
 public sealed record DistributionParseError(int LineNumber, string LineContent, string Reason)

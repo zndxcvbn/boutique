@@ -1,4 +1,5 @@
 using Boutique.Models;
+using Boutique.Utilities;
 using Mutagen.Bethesda.Plugins;
 
 namespace Boutique.Services;
@@ -253,6 +254,19 @@ public class SpidFilterMatchingService
         }
 
         var value = part.Value;
+
+        if (FormKeyHelper.TryParseFormId(value, out var formId))
+        {
+            return npc.FormKey.ID == formId ||
+                   npc.RaceFormKey?.ID == formId ||
+                   npc.ClassFormKey?.ID == formId ||
+                   npc.CombatStyleFormKey?.ID == formId ||
+                   npc.VoiceTypeFormKey?.ID == formId ||
+                   npc.DefaultOutfitFormKey?.ID == formId ||
+                   npc.TemplateFormKey?.ID == formId ||
+                   npc.Factions.Any(f => f.FactionFormKey.ID == formId);
+        }
+
         return MatchesEditorId(npc.EditorId, value) ||
                MatchesEditorId(npc.RaceEditorId, value) ||
                MatchesEditorId(npc.ClassEditorId, value) ||
