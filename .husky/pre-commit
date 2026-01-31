@@ -6,8 +6,8 @@ STAGED_CS_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.cs$'
 
 if [ -n "$STAGED_CS_FILES" ]; then
     echo "Formatting staged C# files..."
-    dotnet format style Boutique.sln --include $STAGED_CS_FILES
-    
+    dotnet format style Boutique.csproj --no-restore --include $STAGED_CS_FILES
+
     # Re-stage the formatted files
     echo "$STAGED_CS_FILES" | xargs git add
 fi
