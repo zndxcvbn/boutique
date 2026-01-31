@@ -45,7 +45,7 @@ public class DistributionDiscoveryService(ILogger logger)
                 IgnoreInaccessible = true,
                 MatchCasing = MatchCasing.CaseInsensitive
             };
-            var spidFiles = Directory.EnumerateFiles(dataFolderPath, "*_DISTR.ini", nonRecursiveOptions).ToList();
+            var spidFiles = Directory.EnumerateFiles(dataFolderPath, "*_DISTR*.ini", nonRecursiveOptions).ToList();
 
             foreach (var spidFile in spidFiles)
             {
@@ -54,7 +54,7 @@ public class DistributionDiscoveryService(ILogger logger)
                 TryParse(spidFile, DistributionFileType.Spid);
             }
 
-            _logger.Debug("Found {Count} SPID distribution files (*_DISTR.ini)", spidFileCount);
+            _logger.Debug("Found {Count} SPID distribution files (*_DISTR*.ini)", spidFileCount);
 
             var skyPatcherRoot = PathUtilities.GetSkyPatcherRoot(dataFolderPath);
             if (Directory.Exists(skyPatcherRoot))
