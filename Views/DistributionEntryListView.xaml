@@ -133,7 +133,9 @@
                 Visibility="{Binding HasIntraFileConflicts, Converter={StaticResource BoolToVisConverter}}">
           <StackPanel>
             <TextBlock Text="Intra-file Conflicts" FontWeight="Bold" Foreground="#CC6600" FontSize="11" Margin="0,0,0,4" />
-            <TextBlock Text="{Binding IntraFileConflictSummary}" TextWrapping="Wrap" Foreground="#CC6600" FontSize="11" />
+            <ScrollViewer MaxHeight="120" VerticalScrollBarVisibility="Auto">
+              <TextBlock Text="{Binding IntraFileConflictSummary}" TextWrapping="Wrap" Foreground="#CC6600" FontSize="11" />
+            </ScrollViewer>
           </StackPanel>
         </Border>
       </StackPanel>

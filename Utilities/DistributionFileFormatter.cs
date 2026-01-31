@@ -228,6 +228,11 @@ public static class DistributionFileFormatter
             }
         }
 
+        foreach (var outfitVm in entry.SelectedOutfitFilters)
+        {
+            formFilterParts.Add(FormKeyHelper.FormatForSpid(outfitVm.FormKey));
+        }
+
         foreach (var npc in entry.SelectedNpcs.Where(n => n.IsExcluded))
         {
             formExclusions.Add($"-{FormKeyHelper.FormatForSpid(npc.FormKey)}");

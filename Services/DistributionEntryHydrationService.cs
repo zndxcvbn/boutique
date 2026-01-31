@@ -54,6 +54,13 @@ public class DistributionEntryHydrationService(
             entryVm.SelectedClasses = new System.Collections.ObjectModel.ObservableCollection<ClassRecordViewModel>(classVms);
             entryVm.UpdateEntryClasses();
         }
+
+        var outfitFilterVms = ResolveOutfitFilterFormKeys(entry.OutfitFilterFormKeys);
+        if (outfitFilterVms.Count > 0)
+        {
+            entryVm.SelectedOutfitFilters = new System.Collections.ObjectModel.ObservableCollection<OutfitRecordViewModel>(outfitFilterVms);
+            entryVm.UpdateEntryOutfitFilters();
+        }
     }
 
     public void ResolveEntryOutfit(DistributionEntryViewModel entryVm, IEnumerable<IOutfitGetter> availableOutfits)
@@ -292,6 +299,33 @@ public class DistributionEntryHydrationService(
                 classRecord.Name?.String,
                 classRecord.FormKey.ModKey);
             return new ClassRecordViewModel(record);
+        }
+
+        return null;
+    }
+
+    public List<OutfitRecordViewModel> ResolveOutfitFilterFormKeys(IEnumerable<FormKey> formKeys)
+    {
+        var outfitVms = new List<OutfitRecordViewModel>();
+
+        foreach (var formKey in formKeys)
+        {
+            var outfitVm = ResolveOutfitFilterFormKey(formKey);
+            if (outfitVm != null)
+            {
+                outfitVms.Add(outfitVm);
+            }
+        }
+
+        return outfitVms;
+    }
+
+    public OutfitRecordViewModel? ResolveOutfitFilterFormKey(FormKey formKey)
+    {
+        if (mutagenService.LinkCache is ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache &&
+            linkCache.TryResolve<IOutfitGetter>(formKey, out var outfit))
+        {
+            return new OutfitRecordViewModel(outfit);
         }
 
         return null;

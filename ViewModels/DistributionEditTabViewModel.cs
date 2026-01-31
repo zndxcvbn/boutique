@@ -89,6 +89,8 @@ public partial class DistributionEditTabViewModel : ReactiveObject, IDisposable
 
     public ReadOnlyObservableCollection<RaceRecordViewModel> FilteredRaces { get; private set; } = null!;
 
+    public ReadOnlyObservableCollection<OutfitRecordViewModel> FilteredOutfitFilters { get; private set; } = null!;
+
     /// <summary>
     ///     True if any distribution entry has chance-based distribution enabled.
     ///     When true, SkyPatcher format is not available (it doesn't support chance).
@@ -130,6 +132,8 @@ public partial class DistributionEditTabViewModel : ReactiveObject, IDisposable
     [Reactive] private IReadOnlyList<PreviewLine> _previewLines = [];
 
     [Reactive] private string _raceSearchText = string.Empty;
+
+    [Reactive] private string _outfitFilterSearchText = string.Empty;
 
     [Reactive] private string _statusMessage = string.Empty;
 
@@ -362,6 +366,12 @@ public partial class DistributionEditTabViewModel : ReactiveObject, IDisposable
             _cache.AllClasses,
             out var filteredClasses));
         FilteredClasses = filteredClasses;
+
+        _disposables.Add(FilterPipelineFactory.CreateSearchFilter(
+            this.WhenAnyValue(vm => vm.OutfitFilterSearchText),
+            _cache.AllOutfitRecords,
+            out var filteredOutfitFilters));
+        FilteredOutfitFilters = filteredOutfitFilters;
     }
 
     /// <summary>
@@ -816,6 +826,14 @@ public partial class DistributionEditTabViewModel : ReactiveObject, IDisposable
             entry => entry.SelectedClasses,
             (entry, classVm) => entry.AddClass(classVm),
             "class");
+
+    [ReactiveCommand(CanExecute = nameof(_hasEntries))]
+    private void AddSelectedOutfitFiltersToEntry() =>
+        AddSelectedCriteriaToEntry(
+            FilteredOutfitFilters,
+            entry => entry.SelectedOutfitFilters,
+            (entry, outfit) => entry.AddOutfitFilter(outfit),
+            "outfit");
 
     [ReactiveCommand(CanExecute = nameof(_canPaste))]
     private void PasteFilterToEntry()

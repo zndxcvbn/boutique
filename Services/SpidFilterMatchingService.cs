@@ -65,7 +65,8 @@ public class SpidFilterMatchingService
     {
         var hasResolvedFilters = entry.NpcFilters.Count > 0 || entry.FactionFilters.Count > 0 ||
                                  entry.KeywordFilters.Count > 0 || entry.RaceFilters.Count > 0 ||
-                                 entry.ClassFormKeys.Count > 0 || !entry.TraitFilters.IsEmpty;
+                                 entry.ClassFormKeys.Count > 0 || entry.OutfitFilterFormKeys.Count > 0 ||
+                                 !entry.TraitFilters.IsEmpty;
         var hasUnresolvedFilters = !string.IsNullOrWhiteSpace(entry.RawStringFilters) ||
                                    !string.IsNullOrWhiteSpace(entry.RawFormFilters);
 
@@ -97,6 +98,12 @@ public class SpidFilterMatchingService
 
         if (entry.ClassFormKeys.Count > 0 &&
             (!npc.ClassFormKey.HasValue || !entry.ClassFormKeys.Contains(npc.ClassFormKey.Value)))
+        {
+            return false;
+        }
+
+        if (entry.OutfitFilterFormKeys.Count > 0 &&
+            (!npc.DefaultOutfitFormKey.HasValue || !entry.OutfitFilterFormKeys.Contains(npc.DefaultOutfitFormKey.Value)))
         {
             return false;
         }

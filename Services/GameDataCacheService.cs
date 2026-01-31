@@ -34,6 +34,7 @@ public class GameDataCacheService : IDisposable
     private readonly SourceCache<KeywordRecordViewModel, FormKey> _keywordsSource = new(x => x.FormKey);
     private readonly SourceCache<ClassRecordViewModel, FormKey> _classesSource = new(x => x.FormKey);
     private readonly SourceCache<IOutfitGetter, FormKey> _outfitsSource = new(x => x.FormKey);
+    private readonly SourceCache<OutfitRecordViewModel, FormKey> _outfitRecordsSource = new(x => x.FormKey);
     private readonly SourceCache<NpcRecordViewModel, FormKey> _npcRecordsSource = new(x => x.FormKey);
     private readonly SourceCache<DistributionFileViewModel, string> _distributionFilesSource = new(x => x.FullPath);
     private readonly SourceCache<NpcOutfitAssignmentViewModel, FormKey> _npcOutfitAssignmentsSource = new(x => x.NpcFormKey);
@@ -94,6 +95,13 @@ public class GameDataCacheService : IDisposable
             .Subscribe());
         AllOutfits = allOutfits;
 
+        _disposables.Add(_outfitRecordsSource.Connect()
+            .SortBy(x => x.EditorID)
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Bind(out var allOutfitRecords)
+            .Subscribe());
+        AllOutfitRecords = allOutfitRecords;
+
         _disposables.Add(_npcRecordsSource.Connect()
             .ObserveOn(RxApp.MainThreadScheduler)
             .Bind(out var allNpcRecords)
@@ -128,6 +136,7 @@ public class GameDataCacheService : IDisposable
     public ReadOnlyObservableCollection<KeywordRecordViewModel> AllKeywords { get; }
     public ReadOnlyObservableCollection<ClassRecordViewModel> AllClasses { get; }
     public ReadOnlyObservableCollection<IOutfitGetter> AllOutfits { get; }
+    public ReadOnlyObservableCollection<OutfitRecordViewModel> AllOutfitRecords { get; }
     public ReadOnlyObservableCollection<NpcRecordViewModel> AllNpcRecords { get; }
     public ReadOnlyObservableCollection<DistributionFileViewModel> AllDistributionFiles { get; }
     public ReadOnlyObservableCollection<NpcOutfitAssignmentViewModel> AllNpcOutfitAssignments { get; }
@@ -329,6 +338,12 @@ public class GameDataCacheService : IDisposable
                     cache.Clear();
                     cache.AddOrUpdate(outfitsList);
                 });
+
+                _outfitRecordsSource.Edit(cache =>
+                {
+                    cache.Clear();
+                    cache.AddOrUpdate(outfitsList.Select(o => new OutfitRecordViewModel(o)));
+                });
             }
 
             using (StartupProfiler.Instance.BeginOperation("LoadDistributionData", "GameDataCache.Load"))
@@ -394,6 +409,13 @@ public class GameDataCacheService : IDisposable
             var existingPatchKeys = cache.Keys.Where(k => k.ModKey == patchModKey).ToList();
             cache.Remove(existingPatchKeys);
             cache.AddOrUpdate(patchOutfits);
+        });
+
+        _outfitRecordsSource.Edit(cache =>
+        {
+            var existingPatchKeys = cache.Keys.Where(k => k.ModKey == patchModKey).ToList();
+            cache.Remove(existingPatchKeys);
+            cache.AddOrUpdate(patchOutfits.Select(o => new OutfitRecordViewModel(o)));
         });
 
         _logger.Information("Refreshed {Count} outfit(s) from patch file {Patch}.", patchOutfits.Count, patchFileName);
@@ -642,6 +664,7 @@ public class GameDataCacheService : IDisposable
             var (templateFormKey, templateEditorId) = ResolveLinkFast(npc.Template, templateLookup);
             var (combatStyleFormKey, combatStyleEditorId) = ResolveLinkFast(npc.CombatStyle, combatStyleLookup);
             var (voiceTypeFormKey, voiceTypeEditorId) = ResolveLinkFast(npc.Voice, voiceTypeLookup);
+            var wornArmorFormKey = npc.WornArmor.FormKeyNullable;
 
             var (isFemale, isUnique, isSummonable, isLeveled) = NpcDataExtractor.ExtractTraits(npc);
             var isChild = NpcDataExtractor.IsChildRace(raceEditorId);
@@ -666,6 +689,7 @@ public class GameDataCacheService : IDisposable
                 VoiceTypeEditorId = voiceTypeEditorId,
                 DefaultOutfitFormKey = outfitFormKey,
                 DefaultOutfitEditorId = outfitEditorId,
+                WornArmorFormKey = wornArmorFormKey,
                 IsFemale = isFemale,
                 IsUnique = isUnique,
                 IsSummonable = isSummonable,
@@ -861,6 +885,7 @@ public class GameDataCacheService : IDisposable
         _keywordsSource.Dispose();
         _classesSource.Dispose();
         _outfitsSource.Dispose();
+        _outfitRecordsSource.Dispose();
         _npcRecordsSource.Dispose();
         _distributionFilesSource.Dispose();
         _npcOutfitAssignmentsSource.Dispose();

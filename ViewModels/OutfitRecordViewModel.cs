@@ -5,11 +5,13 @@ using ReactiveUI.SourceGenerators;
 
 namespace Boutique.ViewModels;
 
-public partial class OutfitRecordViewModel : ReactiveObject
+public partial class OutfitRecordViewModel : ReactiveObject, ISelectableRecordViewModel
 {
     private readonly string _searchCache;
 
     [Reactive] private bool _isSelected;
+
+    [Reactive] private bool _isExcluded;
 
     /// <summary>
     ///     Number of NPCs that have this outfit distributed to them.
@@ -30,6 +32,7 @@ public partial class OutfitRecordViewModel : ReactiveObject
     public IOutfitGetter Outfit { get; }
 
     public string EditorID { get; }
+    public string DisplayName => EditorID;
     public FormKey FormKey { get; }
     public string FormKeyString { get; }
     public string ModDisplayName { get; }

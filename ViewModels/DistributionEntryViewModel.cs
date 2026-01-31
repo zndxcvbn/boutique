@@ -45,6 +45,7 @@ public partial class DistributionEntryViewModel : ReactiveObject
     private ObservableCollection<FactionRecordViewModel> _selectedFactions = [];
     private ObservableCollection<KeywordRecordViewModel> _selectedKeywords = [];
     private ObservableCollection<NpcRecordViewModel> _selectedNpcs = [];
+    private ObservableCollection<OutfitRecordViewModel> _selectedOutfitFilters = [];
 
     [Reactive] private IOutfitGetter? _selectedOutfit;
 
@@ -250,7 +251,7 @@ public partial class DistributionEntryViewModel : ReactiveObject
 
     public bool HasAnyResolvedFilters =>
         _selectedNpcs.Count > 0 || _selectedFactions.Count > 0 || _selectedKeywords.Count > 0 ||
-        _selectedRaces.Count > 0 || _selectedClasses.Count > 0 || HasTraitFilters;
+        _selectedRaces.Count > 0 || _selectedClasses.Count > 0 || _selectedOutfitFilters.Count > 0 || HasTraitFilters;
 
     public string TargetDisplayName => Type == DistributionType.Outfit
         ? SelectedOutfit?.EditorID ?? "(No outfit)"
@@ -310,6 +311,16 @@ public partial class DistributionEntryViewModel : ReactiveObject
         }
     }
 
+    public ObservableCollection<OutfitRecordViewModel> SelectedOutfitFilters
+    {
+        get => _selectedOutfitFilters;
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _selectedOutfitFilters, value);
+            UpdateEntryOutfitFilters();
+        }
+    }
+
     public ReactiveCommand<Unit, Unit> RemoveCommand { get; }
 
     public event EventHandler? EntryChanged;
@@ -343,6 +354,11 @@ public partial class DistributionEntryViewModel : ReactiveObject
         if (_selectedClasses.Count > 0)
         {
             parts.Add($"{_selectedClasses.Count} class(es)");
+        }
+
+        if (_selectedOutfitFilters.Count > 0)
+        {
+            parts.Add($"{_selectedOutfitFilters.Count} outfit(s)");
         }
 
         if (Gender != GenderFilter.Any)
@@ -429,6 +445,14 @@ public partial class DistributionEntryViewModel : ReactiveObject
         RaiseEntryChanged();
     }
 
+    public void UpdateEntryOutfitFilters()
+    {
+        Entry.OutfitFilterFormKeys.Clear();
+        Entry.OutfitFilterFormKeys.AddRange(SelectedOutfitFilters.Select(o => o.FormKey));
+        RaiseFilterSummaryChanged();
+        RaiseEntryChanged();
+    }
+
     public static bool AddCriterion<T>(T item, ObservableCollection<T> collection, Action updateAction)
         where T : ISelectableRecordViewModel
     {
@@ -476,4 +500,10 @@ public partial class DistributionEntryViewModel : ReactiveObject
 
     public void RemoveClass(ClassRecordViewModel classVm) =>
         RemoveCriterion(classVm, _selectedClasses, UpdateEntryClasses);
+
+    public void AddOutfitFilter(OutfitRecordViewModel outfit) =>
+        AddCriterion(outfit, _selectedOutfitFilters, UpdateEntryOutfitFilters);
+
+    public void RemoveOutfitFilter(OutfitRecordViewModel outfit) =>
+        RemoveCriterion(outfit, _selectedOutfitFilters, UpdateEntryOutfitFilters);
 }

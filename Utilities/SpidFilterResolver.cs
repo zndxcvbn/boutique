@@ -379,7 +379,7 @@ public static class SpidFilterResolver
             foreach (var part in expr.Parts)
             {
                 if (TryResolveFormFilterByFormKey(part, linkCache, npcFilters, factionFilters, raceFilters,
-                        resolvedEditorIds, logger))
+                        outfitFilterFormKeys, resolvedEditorIds, logger))
                 {
                     continue;
                 }
@@ -442,7 +442,7 @@ public static class SpidFilterResolver
         {
             var exclusionPart = new SpidFilterPart { Value = exclusion.Value, IsNegated = true };
             if (TryResolveFormFilterByFormKey(exclusionPart, linkCache, npcFilters, factionFilters, raceFilters,
-                    resolvedEditorIds, logger))
+                    outfitFilterFormKeys, resolvedEditorIds, logger))
             {
                 continue;
             }
@@ -462,39 +462,139 @@ public static class SpidFilterResolver
         List<FormKeyFilter> npcFilters,
         List<FormKeyFilter> factionFilters,
         List<FormKeyFilter> raceFilters,
+        List<FormKey> outfitFilterFormKeys,
         HashSet<string>? resolvedEditorIds,
         ILogger? logger)
     {
-        if (!TryParseAsFormKey(part.Value, out var formKey))
+        if (TryParseAsFormKey(part.Value, out var formKey))
+        {
+            return TryResolveByFormKey(formKey, part.IsNegated, part.Value, linkCache, npcFilters,
+                factionFilters, raceFilters, outfitFilterFormKeys, resolvedEditorIds, logger);
+        }
+
+        if (FormKeyHelper.TryParseFormId(part.Value, out var formId))
+        {
+            return TryResolveBareFormId(formId, part.IsNegated, part.Value, linkCache, npcFilters,
+                factionFilters, raceFilters, outfitFilterFormKeys, resolvedEditorIds, logger);
+        }
+
+        return false;
+    }
+
+    private static bool TryResolveByFormKey(
+        FormKey formKey,
+        bool isNegated,
+        string originalValue,
+        ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache,
+        List<FormKeyFilter> npcFilters,
+        List<FormKeyFilter> factionFilters,
+        List<FormKeyFilter> raceFilters,
+        List<FormKey> outfitFilterFormKeys,
+        HashSet<string>? resolvedEditorIds,
+        ILogger? logger) =>
+        TryResolveFormKeyAs<INpcGetter>(formKey, isNegated, originalValue, linkCache, npcFilters, resolvedEditorIds, logger) ||
+        TryResolveFormKeyAs<IFactionGetter>(formKey, isNegated, originalValue, linkCache, factionFilters, resolvedEditorIds, logger) ||
+        TryResolveFormKeyAs<IRaceGetter>(formKey, isNegated, originalValue, linkCache, raceFilters, resolvedEditorIds, logger) ||
+        TryResolveFormKeyAsFormKey<IOutfitGetter>(formKey, originalValue, linkCache, outfitFilterFormKeys, resolvedEditorIds, logger);
+
+    private static bool TryResolveBareFormId(
+        uint formId,
+        bool isNegated,
+        string originalValue,
+        ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache,
+        List<FormKeyFilter> npcFilters,
+        List<FormKeyFilter> factionFilters,
+        List<FormKeyFilter> raceFilters,
+        List<FormKey> outfitFilterFormKeys,
+        HashSet<string>? resolvedEditorIds,
+        ILogger? logger) =>
+        TryResolveBareFormIdAs<INpcGetter>(formId, isNegated, originalValue, linkCache, npcFilters, resolvedEditorIds, logger) ||
+        TryResolveBareFormIdAs<IFactionGetter>(formId, isNegated, originalValue, linkCache, factionFilters, resolvedEditorIds, logger) ||
+        TryResolveBareFormIdAs<IRaceGetter>(formId, isNegated, originalValue, linkCache, raceFilters, resolvedEditorIds, logger) ||
+        TryResolveBareFormIdAsFormKey<IOutfitGetter>(formId, originalValue, linkCache, outfitFilterFormKeys, resolvedEditorIds, logger);
+
+    private static bool TryResolveFormKeyAs<T>(
+        FormKey formKey,
+        bool isNegated,
+        string originalValue,
+        ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache,
+        List<FormKeyFilter> targetList,
+        HashSet<string>? resolvedEditorIds,
+        ILogger? logger)
+        where T : class, ISkyrimMajorRecordGetter
+    {
+        if (!linkCache.TryResolve<T>(formKey, out var record))
         {
             return false;
         }
 
-        if (linkCache.TryResolve<INpcGetter>(formKey, out var npc))
+        targetList.Add(new FormKeyFilter(formKey, isNegated));
+        resolvedEditorIds?.Add(originalValue);
+        logger?.Debug("Resolved FormID {Value} as {Type}: {EditorId}", originalValue, typeof(T).Name, record.EditorID);
+        return true;
+    }
+
+    private static bool TryResolveFormKeyAsFormKey<T>(
+        FormKey formKey,
+        string originalValue,
+        ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache,
+        List<FormKey> targetList,
+        HashSet<string>? resolvedEditorIds,
+        ILogger? logger)
+        where T : class, ISkyrimMajorRecordGetter
+    {
+        if (!linkCache.TryResolve<T>(formKey, out var record))
         {
-            npcFilters.Add(new FormKeyFilter(formKey, part.IsNegated));
-            resolvedEditorIds?.Add(part.Value);
-            logger?.Debug("Resolved FormID {Value} as NPC: {EditorId}", part.Value, npc.EditorID);
-            return true;
+            return false;
         }
 
-        if (linkCache.TryResolve<IFactionGetter>(formKey, out var faction))
+        targetList.Add(formKey);
+        resolvedEditorIds?.Add(originalValue);
+        logger?.Debug("Resolved FormID {Value} as {Type}: {EditorId}", originalValue, typeof(T).Name, record.EditorID);
+        return true;
+    }
+
+    private static bool TryResolveBareFormIdAs<T>(
+        uint formId,
+        bool isNegated,
+        string originalValue,
+        ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache,
+        List<FormKeyFilter> targetList,
+        HashSet<string>? resolvedEditorIds,
+        ILogger? logger)
+        where T : class, ISkyrimMajorRecordGetter
+    {
+        var record = linkCache.WinningOverrides<T>().FirstOrDefault(r => r.FormKey.ID == formId);
+        if (record == null)
         {
-            factionFilters.Add(new FormKeyFilter(formKey, part.IsNegated));
-            resolvedEditorIds?.Add(part.Value);
-            logger?.Debug("Resolved FormID {Value} as Faction: {EditorId}", part.Value, faction.EditorID);
-            return true;
+            return false;
         }
 
-        if (linkCache.TryResolve<IRaceGetter>(formKey, out var race))
+        targetList.Add(new FormKeyFilter(record.FormKey, isNegated));
+        resolvedEditorIds?.Add(originalValue);
+        logger?.Debug("Resolved bare FormID {Value} as {Type}: {EditorId}", originalValue, typeof(T).Name, record.EditorID);
+        return true;
+    }
+
+    private static bool TryResolveBareFormIdAsFormKey<T>(
+        uint formId,
+        string originalValue,
+        ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache,
+        List<FormKey> targetList,
+        HashSet<string>? resolvedEditorIds,
+        ILogger? logger)
+        where T : class, ISkyrimMajorRecordGetter
+    {
+        var record = linkCache.WinningOverrides<T>().FirstOrDefault(r => r.FormKey.ID == formId);
+        if (record == null)
         {
-            raceFilters.Add(new FormKeyFilter(formKey, part.IsNegated));
-            resolvedEditorIds?.Add(part.Value);
-            logger?.Debug("Resolved FormID {Value} as Race: {EditorId}", part.Value, race.EditorID);
-            return true;
+            return false;
         }
 
-        return false;
+        targetList.Add(record.FormKey);
+        resolvedEditorIds?.Add(originalValue);
+        logger?.Debug("Resolved bare FormID {Value} as {Type}: {EditorId}", originalValue, typeof(T).Name, record.EditorID);
+        return true;
     }
 
     private static bool TryParseAsFormKey(string value, out FormKey formKey)
@@ -506,18 +606,7 @@ public static class SpidFilterResolver
             return false;
         }
 
-        if (FormKey.TryFactory(value, out formKey) || FormKeyHelper.TryParse(value, out formKey))
-        {
-            return true;
-        }
-
-        if (FormKeyHelper.TryParseFormId(value, out var id))
-        {
-            formKey = new FormKey(FormKeyHelper.SkyrimModKey, id);
-            return true;
-        }
-
-        return false;
+        return FormKey.TryFactory(value, out formKey) || FormKeyHelper.TryParse(value, out formKey);
     }
 
     private static T? ResolveByEditorId<T>(string editorId, ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)

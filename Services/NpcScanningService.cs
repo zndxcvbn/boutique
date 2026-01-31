@@ -145,6 +145,7 @@ public class NpcScanningService
             var (voiceTypeFormKey, voiceTypeEditorId) = NpcDataExtractor.ExtractVoiceType(npc, linkCache);
             var (outfitFormKey, outfitEditorId) = NpcDataExtractor.ExtractDefaultOutfit(npc, linkCache);
             var (templateFormKey, templateEditorId) = NpcDataExtractor.ExtractTemplate(npc, linkCache);
+            var wornArmorFormKey = npc.WornArmor.FormKeyNullable;
             var (isFemale, isUnique, isSummonable, isLeveled) = NpcDataExtractor.ExtractTraits(npc);
             var isChild = NpcDataExtractor.IsChildRace(raceEditorId);
             var level = NpcDataExtractor.ExtractLevel(npc);
@@ -167,6 +168,7 @@ public class NpcScanningService
                 VoiceTypeEditorId = voiceTypeEditorId,
                 DefaultOutfitFormKey = outfitFormKey,
                 DefaultOutfitEditorId = outfitEditorId,
+                WornArmorFormKey = wornArmorFormKey,
                 IsFemale = isFemale,
                 IsUnique = isUnique,
                 IsSummonable = isSummonable,
