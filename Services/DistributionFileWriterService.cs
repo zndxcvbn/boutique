@@ -235,10 +235,9 @@ public class DistributionFileWriterService
 
                     List<INpcGetter>? cachedNpcs = null;
                     List<IOutfitGetter>? cachedOutfits = null;
+                    FormIdLookupCache? formIdCache = null;
 
-                    // Build outfit lookup for fast EditorID resolution
                     var outfitByEditorId = FormKeyHelper.BuildOutfitEditorIdLookup(linkCache);
-
                     var virtualKeywords = ExtractVirtualKeywordsFromLines(lines);
 
                     for (var lineNumber = 0; lineNumber < lines.Length; lineNumber++)
@@ -265,17 +264,19 @@ public class DistributionFileWriterService
                         {
                             hasSpidLines = true;
 
-                            // Process Outfit and Keyword lines as distribution entries
                             if (spidFilter.FormType == SpidFormType.Outfit)
                             {
                                 cachedNpcs ??= linkCache.PriorityOrder.WinningOverrides<INpcGetter>().ToList();
                                 cachedOutfits ??= linkCache.PriorityOrder.WinningOverrides<IOutfitGetter>().ToList();
+                                formIdCache ??= new FormIdLookupCache(linkCache);
+
                                 entry = SpidFilterResolver.Resolve(
                                     spidFilter,
                                     linkCache,
                                     cachedNpcs,
                                     cachedOutfits,
                                     virtualKeywords,
+                                    formIdCache,
                                     _logger);
                                 if (entry == null)
                                 {
@@ -285,11 +286,14 @@ public class DistributionFileWriterService
                             else if (spidFilter.FormType == SpidFormType.Keyword)
                             {
                                 cachedNpcs ??= linkCache.PriorityOrder.WinningOverrides<INpcGetter>().ToList();
+                                formIdCache ??= new FormIdLookupCache(linkCache);
+
                                 entry = SpidFilterResolver.ResolveKeyword(
                                     spidFilter,
                                     linkCache,
                                     cachedNpcs,
                                     virtualKeywords,
+                                    formIdCache,
                                     _logger);
                                 if (entry == null)
                                 {

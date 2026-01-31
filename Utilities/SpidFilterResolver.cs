@@ -7,6 +7,33 @@ using Serilog;
 
 namespace Boutique.Utilities;
 
+public sealed class FormIdLookupCache
+{
+    public IReadOnlyDictionary<uint, FormKey> NpcsByFormId { get; }
+    public IReadOnlyDictionary<uint, FormKey> FactionsByFormId { get; }
+    public IReadOnlyDictionary<uint, FormKey> RacesByFormId { get; }
+    public IReadOnlyDictionary<uint, FormKey> OutfitsByFormId { get; }
+
+    public FormIdLookupCache(ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache)
+    {
+        NpcsByFormId = linkCache.WinningOverrides<INpcGetter>()
+            .GroupBy(r => r.FormKey.ID)
+            .ToDictionary(g => g.Key, g => g.First().FormKey);
+
+        FactionsByFormId = linkCache.WinningOverrides<IFactionGetter>()
+            .GroupBy(r => r.FormKey.ID)
+            .ToDictionary(g => g.Key, g => g.First().FormKey);
+
+        RacesByFormId = linkCache.WinningOverrides<IRaceGetter>()
+            .GroupBy(r => r.FormKey.ID)
+            .ToDictionary(g => g.Key, g => g.First().FormKey);
+
+        OutfitsByFormId = linkCache.WinningOverrides<IOutfitGetter>()
+            .GroupBy(r => r.FormKey.ID)
+            .ToDictionary(g => g.Key, g => g.First().FormKey);
+    }
+}
+
 public static class SpidFilterResolver
 {
     public static DistributionEntry? Resolve(
@@ -15,7 +42,7 @@ public static class SpidFilterResolver
         IReadOnlyList<INpcGetter> cachedNpcs,
         IReadOnlyList<IOutfitGetter> cachedOutfits,
         ILogger? logger = null) =>
-        Resolve(filter, linkCache, cachedNpcs, cachedOutfits, null, logger);
+        Resolve(filter, linkCache, cachedNpcs, cachedOutfits, null, null, logger);
 
     public static DistributionEntry? Resolve(
         SpidDistributionFilter filter,
@@ -23,6 +50,16 @@ public static class SpidFilterResolver
         IReadOnlyList<INpcGetter> cachedNpcs,
         IReadOnlyList<IOutfitGetter> cachedOutfits,
         IReadOnlySet<string>? knownVirtualKeywords,
+        ILogger? logger = null) =>
+        Resolve(filter, linkCache, cachedNpcs, cachedOutfits, knownVirtualKeywords, null, logger);
+
+    public static DistributionEntry? Resolve(
+        SpidDistributionFilter filter,
+        ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache,
+        IReadOnlyList<INpcGetter> cachedNpcs,
+        IReadOnlyList<IOutfitGetter> cachedOutfits,
+        IReadOnlySet<string>? knownVirtualKeywords,
+        FormIdLookupCache? formIdCache,
         ILogger? logger = null)
     {
         try
@@ -59,6 +96,7 @@ public static class SpidFilterResolver
             ProcessFormFilters(
                 filter.FormFilters,
                 linkCache,
+                formIdCache,
                 npcFilters,
                 factionFilters,
                 raceFilters,
@@ -137,6 +175,15 @@ public static class SpidFilterResolver
         ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache,
         IReadOnlyList<INpcGetter> cachedNpcs,
         IReadOnlySet<string>? knownVirtualKeywords = null,
+        ILogger? logger = null) =>
+        ResolveKeyword(filter, linkCache, cachedNpcs, knownVirtualKeywords, null, logger);
+
+    public static DistributionEntry? ResolveKeyword(
+        SpidDistributionFilter filter,
+        ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache,
+        IReadOnlyList<INpcGetter> cachedNpcs,
+        IReadOnlySet<string>? knownVirtualKeywords,
+        FormIdLookupCache? formIdCache,
         ILogger? logger = null)
     {
         try
@@ -173,6 +220,7 @@ public static class SpidFilterResolver
             ProcessFormFilters(
                 filter.FormFilters,
                 linkCache,
+                formIdCache,
                 npcFilters,
                 factionFilters,
                 raceFilters,
@@ -370,6 +418,7 @@ public static class SpidFilterResolver
     private static void ProcessFormFilters(
         SpidFilterSection formFilters,
         ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache,
+        FormIdLookupCache? formIdCache,
         List<FormKeyFilter> npcFilters,
         List<FormKeyFilter> factionFilters,
         List<FormKeyFilter> raceFilters,
@@ -393,7 +442,7 @@ public static class SpidFilterResolver
             foreach (var part in expr.Parts)
             {
                 logger?.Debug("Processing form filter part: {Value}", part.Value);
-                if (TryResolveFormFilterByFormKey(part, linkCache, npcFilters, factionFilters, raceFilters,
+                if (TryResolveFormFilterByFormKey(part, linkCache, formIdCache, npcFilters, factionFilters, raceFilters,
                         outfitFilterFormKeys, resolvedEditorIds, logger))
                 {
                     continue;
@@ -456,7 +505,7 @@ public static class SpidFilterResolver
         foreach (var exclusion in formFilters.GlobalExclusions)
         {
             var exclusionPart = new SpidFilterPart { Value = exclusion.Value, IsNegated = true };
-            if (TryResolveFormFilterByFormKey(exclusionPart, linkCache, npcFilters, factionFilters, raceFilters,
+            if (TryResolveFormFilterByFormKey(exclusionPart, linkCache, formIdCache, npcFilters, factionFilters, raceFilters,
                     outfitFilterFormKeys, resolvedEditorIds, logger))
             {
                 continue;
@@ -474,6 +523,7 @@ public static class SpidFilterResolver
     private static bool TryResolveFormFilterByFormKey(
         SpidFilterPart part,
         ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache,
+        FormIdLookupCache? formIdCache,
         List<FormKeyFilter> npcFilters,
         List<FormKeyFilter> factionFilters,
         List<FormKeyFilter> raceFilters,
@@ -491,7 +541,7 @@ public static class SpidFilterResolver
         if (FormKeyHelper.TryParseFormId(part.Value, out var formId))
         {
             logger?.Information("Parsed {Value} as bare FormID: 0x{FormId:X}", part.Value, formId);
-            return TryResolveBareFormId(formId, part.IsNegated, part.Value, linkCache, npcFilters,
+            return TryResolveBareFormId(formId, part.IsNegated, part.Value, linkCache, formIdCache, npcFilters,
                 factionFilters, raceFilters, outfitFilterFormKeys, resolvedEditorIds, logger);
         }
 
@@ -519,6 +569,7 @@ public static class SpidFilterResolver
         bool isNegated,
         string originalValue,
         ILinkCache<ISkyrimMod, ISkyrimModGetter> linkCache,
+        FormIdLookupCache? formIdCache,
         List<FormKeyFilter> npcFilters,
         List<FormKeyFilter> factionFilters,
         List<FormKeyFilter> raceFilters,
@@ -526,6 +577,44 @@ public static class SpidFilterResolver
         HashSet<string>? resolvedEditorIds,
         ILogger? logger)
     {
+        if (formIdCache != null)
+        {
+            if (formIdCache.NpcsByFormId.TryGetValue(formId, out var npcFormKey))
+            {
+                npcFilters.Add(new FormKeyFilter(npcFormKey, isNegated));
+                resolvedEditorIds?.Add(originalValue);
+                logger?.Debug("Resolved bare FormID {Value} as NPC via cache: {FormKey}", originalValue, npcFormKey);
+                return true;
+            }
+
+            if (formIdCache.FactionsByFormId.TryGetValue(formId, out var factionFormKey))
+            {
+                factionFilters.Add(new FormKeyFilter(factionFormKey, isNegated));
+                resolvedEditorIds?.Add(originalValue);
+                logger?.Debug("Resolved bare FormID {Value} as Faction via cache: {FormKey}", originalValue, factionFormKey);
+                return true;
+            }
+
+            if (formIdCache.RacesByFormId.TryGetValue(formId, out var raceFormKey))
+            {
+                raceFilters.Add(new FormKeyFilter(raceFormKey, isNegated));
+                resolvedEditorIds?.Add(originalValue);
+                logger?.Debug("Resolved bare FormID {Value} as Race via cache: {FormKey}", originalValue, raceFormKey);
+                return true;
+            }
+
+            if (formIdCache.OutfitsByFormId.TryGetValue(formId, out var outfitFormKey))
+            {
+                outfitFilterFormKeys.Add(outfitFormKey);
+                resolvedEditorIds?.Add(originalValue);
+                logger?.Debug("Resolved bare FormID {Value} as Outfit via cache: {FormKey}", originalValue, outfitFormKey);
+                return true;
+            }
+
+            logger?.Warning("Could not resolve bare FormID {Value} (0x{FormId:X}) via cache", originalValue, formId);
+            return false;
+        }
+
         if (TryResolveBareFormIdAs<INpcGetter>(formId, isNegated, originalValue, linkCache, npcFilters, resolvedEditorIds, logger) ||
             TryResolveBareFormIdAs<IFactionGetter>(formId, isNegated, originalValue, linkCache, factionFilters, resolvedEditorIds, logger) ||
             TryResolveBareFormIdAs<IRaceGetter>(formId, isNegated, originalValue, linkCache, raceFilters, resolvedEditorIds, logger) ||
