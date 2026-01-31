@@ -21,6 +21,7 @@ public sealed class NpcFilterData
     public required string? VoiceTypeEditorId { get; init; }
     public required FormKey? DefaultOutfitFormKey { get; init; }
     public required string? DefaultOutfitEditorId { get; init; }
+    public required FormKey? WornArmorFormKey { get; init; }
     public required bool IsFemale { get; init; }
     public required bool IsUnique { get; init; }
     public required bool IsSummonable { get; init; }
